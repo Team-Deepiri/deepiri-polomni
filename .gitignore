@@ -1,0 +1,135 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+*.pyc
+*.pyo
+*.pyd
+MANIFEST
+
+# ─── Virtual Environments ─────────────────────────────────────────────────────
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+conda-env/
+.python-version
+
+# ─── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ─── Testing & Coverage ───────────────────────────────────────────────────────
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+cover/
+*.lcov
+coverage.xml
+nosetests.xml
+
+# ─── Type Checking ────────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# ─── IDE / Editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# ─── Cosmology / ML Artifacts ─────────────────────────────────────────────────
+results/
+checkpoints/
+saved_models/
+*.pkl
+*.npz
+*.h5
+*.hdf5
+*.fits
+runs/
+wandb/
+mlruns/
+lightning_logs/
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+*.out
+*.err
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+.docker/
+
+# ─── Secrets ──────────────────────────────────────────────────────────────────
+.env.local
+.env.*.local
+secrets/
+credentials/
+*.pem
+*.key
+*.cert
+
+# ─── Poetry / Build ───────────────────────────────────────────────────────────
+dist/
+*.whl
+
+# ─── Data ─────────────────────────────────────────────────────────────────────
+data/raw/
+data/processed/
+data/cache/
+*.csv
+*.parquet
+*.feather
+*.arrow
+
+# ─── Docs Build ───────────────────────────────────────────────────────────────
+docs/_build/
+docs/site/
+site/
+.sphinx/
+
+# ─── Profiling ────────────────────────────────────────────────────────────────
+*.prof
+profile_output/
+*.lprof
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+.hypothesis/
+.benchmarks/
+tmp/
+temp/
+scratch/
+.ruff_cache/
