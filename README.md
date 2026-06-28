@@ -55,7 +55,8 @@ deepiri-polomni/
 │   ├── inflation/              # Fokker-Planck eternal inflation
 │   ├── superspace/             # District graph, branch operators
 │   ├── radon/                  # R³/S² transforms, vacuum pipeline
-│   └── conductance/            # ER=EPR bridge tensor
+│   ├── conductance/            # ER=EPR bridge tensor
+│   └── simulation/             # Batch district simulations
 ├── src/polomni/neural/            # Graph-NODE / neural ODE layers
 ├── src/polomni/observatory/       # CMB Radon scar detection
 │   └── pipeline/               # Real-data fetch, cache, ingest, watch loop
@@ -145,6 +146,9 @@ Fetch public CMB and GW catalogs, cache locally, and run the full RBLE observato
 | `polomni data fetch` | Download lite products + GWTC (use `--wmap`, `--planck` for maps) |
 | `polomni data pipeline` | Ingest cached data and run RBLE scan (default WMAP K-band, NSIDE 128) |
 | `polomni data watch` | Poll GWOSC on an interval; optional `--scan-on-gw` re-scan |
+| `polomni data plot power` | Plot cached CMB power spectrum PNG |
+| `polomni data plot gw` | Plot GW event timeline from cache |
+| `polomni data correlate` | Match GW events to RBLE preferred axis |
 
 ```bash
 # Lite cosmology products (~KB) + GW catalog
@@ -181,6 +185,9 @@ poetry run polomni serve
 | `/observatory/scan` | POST | RBLE scar scan (synthetic or cached map) |
 | `/observatory/pipeline` | POST | Full ingest → score → report pipeline |
 | `/observatory/reports` | GET | List JSON detection reports |
+| `/observatory/compare` | POST | Compare two detection reports |
+| `/metrics` | GET | Lab operational metrics |
+| `/dashboard` | GET | Browser dashboard UI |
 | `/stream/gw/poll` | GET | SSE stream of GW catalog poll events |
 
 Full request/response schemas: [docs/guides/api_reference.md](docs/guides/api_reference.md). Curl walkthrough: [experiments/08_api_workflow.ipynb](experiments/08_api_workflow.ipynb).
@@ -223,6 +230,42 @@ poetry run polomni viz stream --packets 5 -o data/figures/stream_demo.png
 ```
 
 Figures default to `data/figures/`. Use `polomni info` to inspect cache state and optional dependencies.
+
+---
+
+## Reports & Hierarchical Search
+
+Manage and compare RBLE detection reports:
+
+```bash
+poetry run polomni report list
+poetry run polomni report latest
+poetry run polomni report compare data/reports/run_a.json data/reports/run_b.json
+```
+
+Coarse-to-fine sky search for high-resolution maps:
+
+```bash
+poetry run polomni scan --real --hierarchical --nside 128
+```
+
+---
+
+## Batch Simulation & Makefile
+
+```bash
+poetry run polomni simulate batch --count 10 --choices 5
+make test          # unit tests
+make verify        # full stack smoke
+make docker-up     # start lab + Jupyter
+make serve         # API on :8091 → http://localhost:8091/dashboard
+```
+
+Docker watch profile for continuous GW polling:
+
+```bash
+docker compose -f docker/docker-compose.yml --profile watch up -d
+```
 
 ---
 

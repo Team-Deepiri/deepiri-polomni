@@ -35,3 +35,6 @@ jobs:
 
       - name: Data catalog list
         run: poetry run polomni data list
+
+      - name: Report list
+        run: poetry run polomni report list

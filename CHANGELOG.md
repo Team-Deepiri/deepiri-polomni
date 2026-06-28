@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Hierarchical sky search** — coarse-to-fine RBLE axis search (`--hierarchical` on `polomni scan`).
+- **Report CLI** — `polomni report list|show|latest|compare` for detection JSON management.
+- **Data analytics** — `polomni data plot power|gw` and `polomni data correlate` for GW–RBLE correlation.
+- **API metrics & dashboard** — `GET /metrics`, `GET /dashboard` with inline lab UI.
+- **Report compare API** — `POST /observatory/compare`.
+- **Batch simulation** — `polomni simulate batch` across multiple RNG seeds.
+- **Makefile** — `make test`, `verify`, `docker-up`, `serve`, `smoke`.
+- **Docker watch service** — `polomni-watch` profile for continuous GWOSC polling.
+
+## [0.1.0] - 2026-06-28
+
+### Added
+
 - **Real data pipeline** — `polomni data` commands to fetch Planck/WMAP/GWOSC products, cache under `data/cache/`, run full RBLE observatory pipeline, and watch GWOSC with optional re-scan (`src/polomni/observatory/pipeline/`).
 - **REST API** — FastAPI lab surface via `polomni serve`: health, data catalog/status/fetch, observatory scan/pipeline/reports, and SSE GW poll stream (`src/polomni/api/`).
 - **Visualization CLI** — `polomni viz sky|district|stream` for Mollweide sky maps, district graphs, and Radon vacuum stream plots (`src/polomni/viz/`).
