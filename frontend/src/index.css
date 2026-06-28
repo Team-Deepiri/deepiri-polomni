@@ -63,3 +63,157 @@ button {
 .lamp.ok { background: var(--ok); }
 .lamp.fail { background: var(--fail); }
 .error { color: var(--fail); font-size: 0.85rem; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.ok-text { color: var(--ok); font-size: 0.85rem; }
+.fail-text { color: var(--fail); font-size: 0.85rem; }
+
+.cosmos-lab {
+  padding: 1rem 1.5rem 0;
+  border-bottom: 1px solid #30363d;
+  margin-bottom: 0.5rem;
+}
+.cosmos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.cosmos-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+.cosmos-sub { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--muted); }
+.cosmos-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+.cosmos-hero { grid-row: span 2; min-height: 480px; }
+.cosmos-side { display: flex; flex-direction: column; gap: 1rem; }
+.cosmos-metrics p { margin: 0.35rem 0; font-size: 0.9rem; }
+.cosmos-grid > .card:nth-child(n+3) { grid-column: span 1; }
+@media (max-width: 960px) {
+  .cosmos-grid { grid-template-columns: 1fr; }
+  .cosmos-hero { grid-row: auto; }
+}
+.card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+.gate-list { font-size: 0.8rem; }
+.gate-row { margin-bottom: 0.6rem; }
+.gate-msg { color: var(--muted); font-size: 0.75rem; margin-left: 18px; }
+.study-detail { font-size: 0.8rem; margin-top: 0.5rem; color: var(--muted); }
+.live-pulse {
+  font-size: 0.75rem;
+  color: var(--ok);
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.btn-warn { background: var(--warn); }
+.section-label {
+  padding: 0.75rem 1.5rem 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cosmos-error { padding: 0 0 0.75rem; }
+
+.cosmos-grid-v2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+.cosmos-dual { min-height: 400px; }
+.dual-sky-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+@media (max-width: 1100px) {
+  .dual-sky-row { grid-template-columns: 1fr; }
+  .cosmos-grid-v2 { grid-template-columns: 1fr; }
+}
+.sky-plot-wrap { position: relative; }
+.sky-plot-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+  display: flex;
+  justify-content: space-between;
+}
+.sky-score { color: var(--accent); font-weight: 600; }
+.verdict-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #30363d;
+  font-size: 0.85rem;
+}
+.verdict-item { display: flex; flex-direction: column; gap: 2px; }
+.verdict-item span { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; }
+.toggle-label, .proj-select {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-right: 8px;
+}
+.proj-select {
+  background: #21262d;
+  color: var(--text);
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+.progress-log { min-height: 200px; }
+.log-scroll {
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+}
+.log-line { padding: 2px 0; border-bottom: 1px solid #21262d; }
+.log-time { color: var(--muted); }
+.log-gates_done, .log-proofs_done, .log-study_done, .log-complete { color: var(--ok); }
+.log-error { color: var(--fail); }
+.proof-panel { grid-column: span 2; }
+@media (max-width: 1100px) {
+  .proof-panel { grid-column: span 1; }
+}
+.proof-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 0.72rem;
+}
+.proof-ok { color: var(--ok); margin-bottom: 4px; }
+.proof-fail { color: var(--fail); margin-bottom: 4px; }
+.proof-scroll code { color: var(--accent); }

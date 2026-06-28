@@ -14,6 +14,8 @@ export default defineConfig({
       "/data": "http://127.0.0.1:8091",
       "/observatory": "http://127.0.0.1:8091",
       "/stream": "http://127.0.0.1:8091",
+      "/cosmos": "http://127.0.0.1:8091",
+      "/study": "http://127.0.0.1:8091",
     },
   },
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Plot from "react-plotly.js";
 import { api } from "./api/client";
+import CosmosLab from "./components/CosmosLab";
 
 type PanelProps = { title: string; children: React.ReactNode };
 
@@ -32,7 +33,7 @@ export default function App() {
       const [dg, ls, sc, st, br, fa, pr] = await Promise.all([
         api.districtGraph(),
         api.landscape(),
-        api.scarSphere(24),
+        api.scarSphere(64, false),
         api.streamFlux(),
         api.branchSimplex(),
         api.falsification(),
@@ -94,7 +95,7 @@ export default function App() {
   return (
     <>
       <header>
-        <h1>Polomni Multiverse Frontend</h1>
+        <h1>Polomni Observatory</h1>
         <div>
           <span style={{ marginRight: 12 }}>API: {health}</span>
           <button onClick={runProofs}>Run Proofs</button>
@@ -104,6 +105,10 @@ export default function App() {
         </div>
       </header>
       {error && <p className="error" style={{ padding: "0 1.5rem" }}>{error}</p>}
+
+      <CosmosLab />
+
+      <div className="section-label">Multiverse Engine (synthetic)</div>
       <div className="grid">
         <Panel title="3D District Multiverse Graph">
           {districtTrace && (
@@ -138,7 +143,7 @@ export default function App() {
             />
           )}
         </Panel>
-        <Panel title="RBLE Scar Sphere">
+        <Panel title="RBLE Scar Sphere (real WMAP)">
           {scarTrace && (
             <Plot
               data={[scarTrace]}
