@@ -1,5 +1,5 @@
 """CLI subcommands."""
 
-from polomni.cli.commands import scan, serve, simulate
+from polomni.cli.commands import info, scan, serve, simulate, viz
 
-__all__ = ["scan", "serve", "simulate"]
+__all__ = ["info", "scan", "serve", "simulate", "viz"]

@@ -48,23 +48,26 @@ Conservation at the horizon (Connected Equation 4):
 
 ```
 deepiri-polomni/
-├── src/polomni/core/           # RBLE physics engine
-│   ├── state/               # Ψ(t), StreamPacket, ChoiceEvent
-│   ├── landscape/           # Kähler potential, flux vacua
-│   ├── gravity/             # Einstein + informational stress
-│   ├── inflation/           # Fokker-Planck eternal inflation
-│   ├── superspace/          # District graph, branch operators
-│   ├── radon/               # R³/S² transforms, vacuum pipeline
-│   └── conductance/         # ER=EPR bridge tensor
-├── src/polomni/neural/         # Graph-NODE / neural ODE layers
-├── src/polomni/observatory/    # CMB Radon scar detection
-├── src/polomni/bridge/         # Optional cross-sector coupling (standalone NumPy stubs)
-├── src/polomni/cli/            # Typer CLI (`polomni`)
-├── src/polomni/viz/           # Plots and sky maps
-├── tests/                   # Unit, integration, observatory suites
-├── docs/                    # Theory, guides, architecture
-├── experiments/             # Jupyter notebooks
-└── docker/                  # Reproducible environment
+├── src/polomni/core/              # RBLE physics engine
+│   ├── state/                  # Ψ(t), StreamPacket, ChoiceEvent
+│   ├── landscape/              # Kähler potential, flux vacua
+│   ├── gravity/                # Einstein + informational stress
+│   ├── inflation/              # Fokker-Planck eternal inflation
+│   ├── superspace/             # District graph, branch operators
+│   ├── radon/                  # R³/S² transforms, vacuum pipeline
+│   └── conductance/            # ER=EPR bridge tensor
+├── src/polomni/neural/            # Graph-NODE / neural ODE layers
+├── src/polomni/observatory/       # CMB Radon scar detection
+│   └── pipeline/               # Real-data fetch, cache, ingest, watch loop
+├── src/polomni/api/               # FastAPI REST surface (`polomni serve`)
+├── src/polomni/integration/       # Lab workflow orchestration & benchmarks
+├── src/polomni/bridge/            # Optional cross-sector coupling (NumPy stubs)
+├── src/polomni/cli/               # Typer CLI (`polomni`)
+├── src/polomni/viz/               # Plots and sky maps
+├── tests/                      # Unit, integration, observatory suites
+├── docs/                       # Theory, guides, architecture
+├── experiments/                # Jupyter notebooks
+└── docker/                     # Reproducible environment
 ```
 
 ---
@@ -128,6 +131,98 @@ phi = np.full(5, trace / 5.0)
 assert enforce_stream_entropy_closure(phi, trace)
 print(f"Ψ dim={state.dim}, flux={stream_flux_integral(phi, 1.0):.4f}")
 ```
+
+---
+
+## Real Data Pipeline
+
+Fetch public CMB and GW catalogs, cache locally, and run the full RBLE observatory pipeline on real sky maps.
+
+| Command | Description |
+|---------|-------------|
+| `polomni data list` | Show the online data catalog (Planck, WMAP, GWOSC) |
+| `polomni data status` | List cached files and sizes under `data/cache/` |
+| `polomni data fetch` | Download lite products + GWTC (use `--wmap`, `--planck` for maps) |
+| `polomni data pipeline` | Ingest cached data and run RBLE scan (default WMAP K-band, NSIDE 128) |
+| `polomni data watch` | Poll GWOSC on an interval; optional `--scan-on-gw` re-scan |
+
+```bash
+# Lite cosmology products (~KB) + GW catalog
+poetry run polomni data fetch
+
+# Fast pipeline smoke test
+poetry run polomni data pipeline --nside 64 --nulls 10
+
+# Real-time GW polling (3 cycles, 60 s apart)
+poetry run polomni data watch --interval 60 --iterations 3
+```
+
+Cache directory: `data/cache/` (override with `POLOMNI_DATA_CACHE`). See [docs/guides/real_time_data.md](docs/guides/real_time_data.md).
+
+---
+
+## REST API
+
+Start the lab API with FastAPI on port **8091** (default):
+
+```bash
+poetry run polomni serve
+# or: poetry run polomni serve --host 0.0.0.0 --port 8091
+```
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Liveness probe |
+| `/` | GET | Service metadata |
+| `/data/catalog` | GET | List fetchable data products |
+| `/data/status` | GET | Cache hit/miss per product |
+| `/data/fetch` | POST | Download products into cache |
+| `/data/gw/events` | GET | Cached GWTC event summary |
+| `/observatory/scan` | POST | RBLE scar scan (synthetic or cached map) |
+| `/observatory/pipeline` | POST | Full ingest → score → report pipeline |
+| `/observatory/reports` | GET | List JSON detection reports |
+| `/stream/gw/poll` | GET | SSE stream of GW catalog poll events |
+
+Full request/response schemas: [docs/guides/api_reference.md](docs/guides/api_reference.md). Curl walkthrough: [experiments/08_api_workflow.ipynb](experiments/08_api_workflow.ipynb).
+
+---
+
+## Lab Workflow
+
+Run the integrated end-to-end lab loop — data ingest, short district-graph simulation, and RBLE pipeline — in one command:
+
+```bash
+poetry run polomni run workflow --nside 64 --nulls 10
+poetry run polomni run workflow -o data/reports/lab_workflow.json
+```
+
+Profile RBLE signature timing across NSIDE resolutions:
+
+```bash
+poetry run polomni run benchmark --nside 16 --nside 32 --nside 64
+```
+
+Implementation: `src/polomni/integration/workflow.py`. Architecture: [docs/architecture/DATA_PIPELINE.md](docs/architecture/DATA_PIPELINE.md).
+
+---
+
+## Visualization
+
+Generate publication-style figures from the CLI:
+
+| Command | Description |
+|---------|-------------|
+| `polomni viz sky` | Mollweide CMB map (`--real` uses cached WMAP/Planck product) |
+| `polomni viz district` | District branching DAG after choice events |
+| `polomni viz stream` | Radon vacuum stream flux stages |
+
+```bash
+poetry run polomni viz sky --real --map-product wmap_k_band --nside 64
+poetry run polomni viz district --districts 2 --choices 5
+poetry run polomni viz stream --packets 5 -o data/figures/stream_demo.png
+```
+
+Figures default to `data/figures/`. Use `polomni info` to inspect cache state and optional dependencies.
 
 ---
 

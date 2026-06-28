@@ -16,6 +16,94 @@ Implementation: `src/polomni/observatory/`
 
 ---
 
+## Real-Time Data Pipeline
+
+Fetch live cosmology data from NASA LAMBDA, IRSA Planck, and GWOSC, cache locally, and run the full RBLE observatory pipeline.
+
+Implementation: `src/polomni/observatory/pipeline/`
+
+### Catalog
+
+```bash
+poetry run polomni data list
+poetry run polomni data status
+```
+
+| Product ID | Source | Tier | Use |
+|------------|--------|------|-----|
+| `planck_cmb_tt_power` | IRSA Planck DR3 binned TT C_l | lite | Landscape calibration |
+| `planck_lcdm_baseline` | IRSA ΛCDM theory C_l | lite | Ω_Λ proxy / baseline |
+| `wmap_k_band` | LAMBDA WMAP 9yr Ka-band FITS | standard | Default CMB map (~100 MB) |
+| `planck_smica_cmb` | IRSA Planck SMICA IQU 2048 | heavy | High-res scan (~384 MB) |
+| `gwtc_events` | GWOSC GWTC JSON API | real-time | Gravitational-wave catalog |
+
+Cache directory: `data/cache/` (override with `POLOMNI_DATA_CACHE`).
+
+### Fetch
+
+```bash
+# Lite products + GWOSC (default)
+poetry run polomni data fetch
+
+# Lite only, skip GW polling
+poetry run polomni data fetch --no-gw
+
+# Add WMAP map for scanning
+poetry run polomni data fetch --wmap
+
+# Specific products
+poetry run polomni data fetch planck_cmb_tt_power planck_lcdm_baseline --no-gw
+```
+
+### Run pipeline on real data
+
+```bash
+# WMAP K-band → NSIDE 128 RBLE scan (~6 min first run)
+poetry run polomni data pipeline
+
+# Faster smoke test
+poetry run polomni data pipeline --nside 64 --nulls 10
+
+# Planck SMICA (heavy)
+poetry run polomni data pipeline --planck --nside 128
+```
+
+### Real-time watch loop
+
+Poll GWOSC every 5 minutes; optionally re-scan when new events appear:
+
+```bash
+poetry run polomni data watch --interval 300 --iterations 3
+poetry run polomni data watch --scan-on-gw --interval 60
+```
+
+### Scan with cached real map
+
+```bash
+poetry run polomni scan --real --nside 64 --nulls 20
+poetry run polomni scan --real --map-product wmap_k_band --nside 128
+```
+
+### Python API
+
+```python
+from polomni.observatory.pipeline.processor import run_rble_pipeline
+from polomni.observatory.pipeline.scheduler import watch_realtime
+
+result = run_rble_pipeline(
+    map_product_id="wmap_k_band",
+    target_nside=128,
+    null_ensemble=30,
+    report_dir="data/reports",
+)
+print(result.detection.rble_score, result.report_path)
+
+for event in watch_realtime(interval_seconds=300, max_iterations=1):
+    print(event.kind, event.message)
+```
+
+---
+
 ## CLI Scan
 
 ### Synthetic map (smoke test)
@@ -235,12 +323,13 @@ Use `rble_signature.py` for publication $p$-values.
 
 | Dataset | Notes |
 |---------|-------|
-| Planck PR3 | Temperature and polarization HEALPix FITS |
-| WMAP | Lower resolution validation |
+| Planck PR3 (IRSA) | TT power spectrum, SMICA CMB maps, ΛCDM baseline theory |
+| WMAP 9yr (LAMBDA) | Ka-band temperature map for validation scans |
+| GWOSC GWTC | Real-time gravitational-wave event catalog (JSON API) |
 | Simons Observatory | Future high-sensitivity $Q,U$ |
 | LiteBIRD | Future full-sky polarization |
 
-Ensure maps are in thermodynamic temperature units ($\mu K$) or dimensionless $\Delta T/T$ consistently.
+Use `polomni data fetch` to download public products automatically. Ensure maps are in thermodynamic temperature units ($\mu K$) or dimensionless $\Delta T/T$ consistently.
 
 ---
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -17,18 +18,42 @@ console = Console()
 
 
 @app.callback(invoke_without_command=True)
-def run(
-    map_path: Path | None = typer.Option(
+def scan_run(
+    map_path: Optional[str] = typer.Option(
         None, "--map", "-m", help="HEALPix FITS or .npy path (default: synthetic)."
     ),
-    nside: int = typer.Option(64, "--nside", help="NSIDE for synthetic map."),
+    real_data: bool = typer.Option(
+        False, "--real", help="Use cached WMAP/Planck map from polomni data pipeline."
+    ),
+    map_product: str = typer.Option(
+        "wmap_k_band", "--map-product", help="Data product ID when --real is set."
+    ),
+    nside: int = typer.Option(64, "--nside", help="NSIDE for synthetic or downsampled real map."),
     seed: int = typer.Option(42, "--seed", help="RNG seed."),
     nulls: int = typer.Option(20, "--nulls", help="Null ensemble size for significance."),
-    report: Path | None = typer.Option(None, "--report", "-r", help="JSON report output."),
+    report: Optional[str] = typer.Option(None, "--report", "-r", help="JSON report output."),
+    neural: bool = typer.Option(
+        False, "--neural", help="Also score with neural/heuristic scar classifier."
+    ),
 ) -> None:
     """Scan a CMB map for RBLE scar signatures."""
-    if map_path is not None:
-        cmb = load_healpix_map(map_path, field="T")
+    if real_data:
+        from polomni.observatory.ingest.healpix_loader import downsample_map, load_healpix_map
+        from polomni.observatory.pipeline.cache import DataCache
+        from polomni.observatory.pipeline.catalog import get_product
+        from polomni.observatory.pipeline.downloader import fetch_product
+
+        cache = DataCache()
+        product = get_product(map_product)
+        fetched = fetch_product(product, cache)
+        raw = load_healpix_map(fetched.path, field="T")
+        cmb = downsample_map(raw, nside)
+        console.print(
+            f"[dim]Real data: {map_product} → NSIDE={nside} "
+            f"({'network' if fetched.downloaded else 'cache'})[/dim]"
+        )
+    elif map_path is not None:
+        cmb = load_healpix_map(Path(map_path), field="T")
     else:
         cmb = synthetic_cmb_map(nside, seed=seed)
         console.print(f"[dim]Using synthetic CMB map NSIDE={nside}, seed={seed}[/dim]")
@@ -44,6 +69,15 @@ def run(
 
     console.print(format_report(detection))
 
+    if neural:
+        try:
+            from polomni.neural.scar_classifier.rble_scanner import score_map
+
+            approx = score_map(cmb)
+            console.print(f"[dim]Neural approx S_RBLE: {approx:.4f}[/dim]")
+        except ImportError:
+            console.print("[dim]Neural scoring skipped (dependencies unavailable)[/dim]")
+
     if report is not None:
-        path = save_json(detection, report)
+        path = save_json(detection, Path(report))
         console.print(f"[green]Report saved to {path}[/green]")

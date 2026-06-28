@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import typer
 
-from polomni.cli.commands import scan, serve, simulate
+from polomni.cli.commands import info, run, scan, serve, simulate, viz
+from polomni.observatory.pipeline import cli_commands as data
 
 app = typer.Typer(
     name="polomni",
@@ -15,6 +16,10 @@ app = typer.Typer(
 app.add_typer(simulate.app, name="simulate")
 app.add_typer(scan.app, name="scan")
 app.add_typer(serve.app, name="serve")
+app.add_typer(data.app, name="data")
+app.add_typer(run.app, name="run")
+app.add_typer(viz.app, name="viz")
+app.add_typer(info.app, name="info")
 
 
 def main() -> None:

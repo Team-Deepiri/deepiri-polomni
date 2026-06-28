@@ -1,0 +1,37 @@
+name: Data Pipeline Smoke
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  data-pipeline-smoke:
+    name: Pipeline CLI Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Unit tests (exclude integration)
+        run: poetry run pytest -m "not integration" -q
+
+      - name: Polomni info
+        run: poetry run polomni info
+
+      - name: Data catalog list
+        run: poetry run polomni data list

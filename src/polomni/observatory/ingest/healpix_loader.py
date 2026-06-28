@@ -14,6 +14,38 @@ def _npix_for_nside(nside: int) -> int:
     return 12 * nside * nside
 
 
+def map_nside(map_array: np.ndarray) -> int:
+    """Infer HEALPix NSIDE from pixel count."""
+    npix = int(map_array.size)
+    nside = int(round(np.sqrt(npix / 12.0)))
+    if _npix_for_nside(nside) != npix:
+        raise ValueError(f"Array length {npix} is not a valid HEALPix npix")
+    return nside
+
+
+def downsample_map(map_array: np.ndarray, target_nside: int) -> np.ndarray:
+    """Downgrade a HEALPix map to *target_nside* (e.g. 2048 → 128 for RBLE scans)."""
+    arr = np.asarray(map_array, dtype=float).ravel()
+    current = map_nside(arr)
+    if current == target_nside:
+        return arr
+    if current < target_nside:
+        raise ValueError(f"Cannot upsample {current} → {target_nside}")
+    try:
+        import healpy as hp
+
+        return np.asarray(hp.ud_grade(arr, target_nside), dtype=float)
+    except ImportError:
+        # Block-average fallback
+        factor = current // target_nside
+        if factor * target_nside != current:
+            raise ValueError("Downsample factor must be integer for fallback")
+        npix_out = _npix_for_nside(target_nside)
+        # crude binning for environments without healpy
+        reshaped = arr[: npix_out * factor * factor]
+        return reshaped.reshape(npix_out, -1).mean(axis=1)
+
+
 def synthetic_cmb_map(nside: int, seed: int | None = None) -> np.ndarray:
     """Generate a Gaussian isotropic CMB temperature map on HEALPix pixels.
 
@@ -90,8 +122,10 @@ def load_healpix_map(path: str | Path, field: FieldName = "T") -> np.ndarray:
             import healpy as hp
 
             field_idx = {"I": 0, "Q": 1, "U": 2, "T": 0}[field]
-            maps, _ = hp.read_map(str(path), field=field_idx, verbose=False, dtype=float)
-            return np.asarray(maps, dtype=float).ravel()
+            data = hp.read_map(str(path), field=field_idx, dtype=float)
+            if isinstance(data, (list, tuple)):
+                data = data[0]
+            return np.asarray(data, dtype=float).ravel()
         except ImportError:
             from astropy.io import fits
 

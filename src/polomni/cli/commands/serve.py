@@ -4,23 +4,12 @@ from __future__ import annotations
 
 import typer
 import uvicorn
-from fastapi import FastAPI
+
+from polomni.api import create_app
 
 app = typer.Typer(help="Serve Polomni lab API.")
 
-api = FastAPI(title="Deepiri Polomni Lab", version="0.1.0")
-
-
-@api.get("/health")
-def health() -> dict[str, str]:
-    """Liveness probe."""
-    return {"status": "ok", "service": "polomni-lab"}
-
-
-@api.get("/")
-def root() -> dict[str, str]:
-    """Service metadata."""
-    return {"name": "deepiri-polomni", "framework": "RBLE"}
+api = create_app()
 
 
 @app.callback(invoke_without_command=True)
@@ -30,3 +19,8 @@ def run(
 ) -> None:
     """Start the Polomni lab FastAPI server."""
     uvicorn.run(api, host=host, port=port, log_level="info")
+
+
+def main() -> None:
+    """Console script entry for polomni-serve."""
+    app()

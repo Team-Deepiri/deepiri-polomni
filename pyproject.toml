@@ -28,7 +28,7 @@ scipy = "^1.12"
 sympy = "^1.12"
 networkx = "^3.2"
 pydantic = "^2.6"
-typer = "^0.9"
+typer = "^0.16"
 rich = "^13.7"
 fastapi = "^0.110"
 uvicorn = { extras = ["standard"], version = "^0.29" }

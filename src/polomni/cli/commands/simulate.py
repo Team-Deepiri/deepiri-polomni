@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from typing import Optional
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -17,7 +19,7 @@ console = Console()
 def run(
     choices: int = typer.Option(5, "--choices", "-c", help="Choices per branching event."),
     districts: int = typer.Option(1, "--districts", "-d", help="Initial district count."),
-    output: Path | None = typer.Option(None, "--output", "-o", help="JSON output path."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="JSON output path."),
 ) -> None:
     """Simulate choice events on a district graph and emit StreamPackets."""
     from polomni.core.superspace.district_graph import DistrictGraph
@@ -61,5 +63,6 @@ def run(
             "packets": [p.model_dump() for p in all_packets],
             "graph": graph.to_dict(),
         }
-        output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-        console.print(f"Wrote {output}")
+        out_path = Path(output)
+        out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        console.print(f"Wrote {out_path}")

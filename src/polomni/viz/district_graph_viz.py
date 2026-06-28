@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -15,6 +19,7 @@ def plot_district_graph(
     title: str = "District Graph",
     ax: Any | None = None,
     show: bool = False,
+    save_path: str | Path | None = None,
 ) -> Any:
     """Plot a district DAG (NetworkX DiGraph or DistrictGraph with .graph attr).
 
@@ -28,6 +33,8 @@ def plot_district_graph(
         Optional matplotlib axes.
     show:
         Call ``plt.show()`` when True.
+    save_path:
+        When set, save the figure to this path.
 
     Returns
     -------
@@ -38,8 +45,11 @@ def plot_district_graph(
     else:
         g = graph
 
-    if ax is None:
-        _, ax = plt.subplots(figsize=(8, 6))
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=(8, 6))
+    else:
+        fig = ax.figure
 
     pos = nx.spring_layout(g, seed=42)
     masses = [g.nodes[n].get("mass", 1.0) for n in g.nodes]
@@ -51,6 +61,13 @@ def plot_district_graph(
     nx.draw_networkx_labels(g, pos, labels=labels, font_size=8, ax=ax)
     ax.set_title(title)
     ax.axis("off")
+
+    if save_path is not None:
+        out = Path(save_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(out, dpi=150, bbox_inches="tight")
+        if not show:
+            plt.close(fig)
 
     if show:
         plt.show()
