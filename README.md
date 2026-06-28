@@ -19,6 +19,8 @@
 
 This is an active lab. Core physics ships as tested, typed Python modules. Experiments ship as notebooks.
 
+**Roadmap:** see [ROADMAP.md](ROADMAP.md) for the 4-week plan (2 devs).
+
 ---
 
 ## RBLE — Radon-Bifurcated Landscape Engine
