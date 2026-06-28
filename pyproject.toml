@@ -1,0 +1,107 @@
+[tool.poetry]
+name = "deepiri-omnifold"
+version = "0.1.0"
+description = "Deepiri Omnifold Engine — RBLE (Radon-Bifurcated Landscape Engine) cosmology research framework"
+authors = ["Deepiri <research@deepiri.ai>"]
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/Team-Deepiri/deepiri-omnifold"
+keywords = ["cosmology", "multiverse", "rble", "radon", "physics", "simulation", "cmb"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: Apache License 2.0",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+packages = [
+    { include = "omnifold_core" },
+    { include = "omnifold_neural" },
+    { include = "omnifold_observatory" },
+    { include = "omnifold_uqe_bridge" },
+    { include = "omnifold_cli" },
+    { include = "visualization" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26"
+scipy = "^1.12"
+sympy = "^1.12"
+networkx = "^3.2"
+pydantic = "^2.6"
+typer = "^0.9"
+rich = "^13.7"
+fastapi = "^0.110"
+uvicorn = { extras = ["standard"], version = "^0.29" }
+matplotlib = "^3.8"
+plotly = "^5.18"
+healpy = "^1.16"
+astropy = "^6.0"
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+priority = "explicit"
+
+[tool.poetry.group.torch]
+optional = true
+
+[tool.poetry.group.torch.dependencies]
+torch = { version = ">=2.2", source = "pytorch" }
+torchdiffeq = "^0.2"
+
+[tool.poetry.group.uqe]
+optional = true
+
+[tool.poetry.group.uqe.dependencies]
+# Install deepiri-uqe from sibling path when developing locally:
+# poetry add ../deepiri-uqe --group uqe
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+pytest-cov = "^4.1"
+pytest-xdist = "^3.5"
+mypy = "^1.8"
+ruff = "^0.3"
+jupyterlab = "^4.1"
+ipykernel = "^6.29"
+nbformat = "^5.9"
+nbconvert = "^7.14"
+black = "^24.2"
+
+[tool.poetry.scripts]
+omnifold = "omnifold_cli.main:app"
+omnifold-serve = "omnifold_cli.commands.serve:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4"]
+ignore = ["E501", "N806", "N803"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+strict_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --cov=omnifold_core --cov=omnifold_observatory --cov=omnifold_neural --cov-report=term-missing"
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks integration tests",
+    "observatory: marks observatory/CMB tests",
+]
