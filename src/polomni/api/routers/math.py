@@ -24,6 +24,12 @@ def get_proofs() -> dict:
 
 
 @router.post("/prove")
-def run_proofs() -> dict:
-    suite = prove_all(save=True)
+def run_proofs(strict: bool = False, real_data: bool = False) -> dict:
+    suite = prove_all(save=True, strict=strict, real_data=real_data)
+    return suite.to_dict()
+
+
+@router.post("/prove/strict")
+def run_proofs_strict(real_data: bool = True) -> dict:
+    suite = prove_all(save=True, strict=True, real_data=real_data)
     return suite.to_dict()

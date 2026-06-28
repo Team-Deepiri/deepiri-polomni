@@ -84,8 +84,16 @@ def _run(name: str, eq_id: str, equation: str, module: str, fn: Callable[[], Pro
         )
 
 
-def prove_all(*, save: bool = True) -> MathProofSuite:
-    """Run all RBLE equation proofs and optional falsification checks."""
+def prove_all(*, save: bool = True, strict: bool = False, real_data: bool = False) -> MathProofSuite:
+    """Run all RBLE equation proofs and optional falsification checks.
+
+    Parameters
+    ----------
+    strict:
+        Append SymPy symbolic checks and grid-convergence proofs with baseline tables.
+    real_data:
+        Append verification proofs against cached Planck/WMAP/GW products.
+    """
     from polomni.math.proofs import (
         eq01_gravity,
         eq02_fokker_planck,
@@ -115,6 +123,19 @@ def prove_all(*, save: bool = True) -> MathProofSuite:
     ]
 
     results = [_run(name, eq_id, eq, mod, fn) for name, eq_id, eq, mod, fn in provers]
+
+    if strict:
+        from polomni.math.proofs.convergence import prove_all_convergence
+        from polomni.math.proofs.symbolic import prove_all_symbolic
+
+        for r in prove_all_symbolic() + prove_all_convergence():
+            results.append(r)
+
+    if real_data:
+        from polomni.math.proofs.real_data import prove_all_real_data
+
+        results.extend(prove_all_real_data())
+
     suite = MathProofSuite(ran_at=datetime.now(timezone.utc), results=results)
     if save:
         suite.save()

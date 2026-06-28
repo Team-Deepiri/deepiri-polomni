@@ -1,4 +1,4 @@
-.PHONY: install test test-integration lint serve prove docker-up docker-down verify smoke frontend-install frontend-dev frontend-build
+.PHONY: install test test-integration lint serve prove prove-strict falsify docker-up docker-down verify smoke frontend-install frontend-dev frontend-build
 
 install:
 	poetry install --with dev
@@ -14,6 +14,12 @@ lint:
 
 prove:
 	poetry run polomni math prove
+
+prove-strict:
+	poetry run polomni math prove --strict
+
+falsify:
+	poetry run polomni falsify --real --fetch
 
 serve:
 	poetry run polomni serve --host 0.0.0.0 --port 8091

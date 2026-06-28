@@ -18,9 +18,15 @@ console = Console()
 @app.command("prove")
 def math_prove(
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON only.")] = False,
+    strict: Annotated[
+        bool, typer.Option("--strict", help="SymPy + convergence proofs with baselines.")
+    ] = False,
+    real_data: Annotated[
+        bool, typer.Option("--real-data", help="Verify against cached Planck/WMAP/GW.")
+    ] = False,
 ) -> None:
     """Run all equation and falsification proofs."""
-    suite = prove_all()
+    suite = prove_all(strict=strict, real_data=real_data)
     if as_json:
         console.print(json.dumps(suite.to_dict(), indent=2))
     else:

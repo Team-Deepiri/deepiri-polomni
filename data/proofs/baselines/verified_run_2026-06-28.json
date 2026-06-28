@@ -1,0 +1,23 @@
+{
+  "verified_at": "2026-06-28T18:41:23Z",
+  "command": "polomni falsify --real && polomni math prove --strict --real-data",
+  "wmap_k_band": {
+    "nside": 128,
+    "rble_score": 5.058,
+    "null_sigma": 87.11,
+    "bonferroni_sigma": 37.05,
+    "bonferroni_n_tests": 60
+  },
+  "planck_cmb_tt_power": {
+    "chi2_reduced": 0.122,
+    "ell_range": [30, 2499]
+  },
+  "planck_lcdm_baseline": {
+    "lambda_omega_h2": 0.31067,
+    "ns": 0.9649
+  },
+  "real_p1_pipeline": {
+    "filtered_score": 8.13,
+    "score_improvement": 3.079
+  }
+}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from polomni.observatory.ingest.healpix_loader import downsample_map, map_nside
+from polomni.observatory.scoring.multiple_testing import count_sky_search_tests, passes_bonferroni
 from polomni.observatory.scoring.rble_signature import DetectionReport, compute_rble_signature
 
 
@@ -80,6 +81,19 @@ def hierarchical_sky_search(
     if refine_score > final.rble_score:
         final = final.model_copy(update={"rble_score": refine_score})
 
+    n_tests = count_sky_search_tests(
+        scan_angles=coarse_scan_angles,
+        hierarchical_refine_samples=refine_samples,
+    )
+    if final.null_sigma > 0:
+        bonf_pass, bonf_sigma, bonf_alpha = passes_bonferroni(final.null_sigma, n_tests)
+    else:
+        from polomni.observatory.scoring.multiple_testing import bonferroni_alpha
+
+        bonf_pass = True
+        bonf_sigma = 0.0
+        bonf_alpha = bonferroni_alpha(0.05, n_tests)
+
     meta = dict(final.metadata)
     meta.update(
         {
@@ -90,6 +104,12 @@ def hierarchical_sky_search(
             "axis_shift_deg": _axis_separation_deg(coarse_axis, refine_axis),
             "refine_cone_deg": refine_cone_deg,
             "full_nside": current_nside,
+            "bonferroni_n_tests": n_tests,
+            "bonferroni_corrected_sigma": bonf_sigma,
+            "bonferroni_alpha": bonf_alpha,
+            "bonferroni_pass": bonf_pass,
         }
     )
-    return final.model_copy(update={"metadata": meta})
+    flags = dict(final.falsification_flags)
+    flags["bonferroni"] = bonf_pass
+    return final.model_copy(update={"metadata": meta, "falsification_flags": flags})

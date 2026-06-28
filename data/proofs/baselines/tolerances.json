@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "description": "Strict proof residual tolerances and golden numeric anchors",
+  "proofs": {
+    "variational": {
+      "rtol": 1e-9,
+      "atol": 1e-9,
+      "metrics": {
+        "flux_residual": { "expected": 0.0, "atol": 1e-9 }
+      }
+    },
+    "eq01": {
+      "rtol": 1e-3,
+      "atol": 1e-12,
+      "metrics": {
+        "residual_norm": { "min": 0.0, "max": 1.0 }
+      }
+    },
+    "eq02": {
+      "rtol": 1e-6,
+      "atol": 1e-12,
+      "metrics": {
+        "d_eff_excess": { "min": 0.0 },
+        "mass_drift": { "max": 0.05 }
+      }
+    },
+    "eq03": {
+      "rtol": 1e-3,
+      "atol": 1e-6,
+      "metrics": {
+        "packet_count": { "expected": 5.0, "atol": 0.0 }
+      }
+    },
+    "eq04": {
+      "rtol": 1e-6,
+      "atol": 1e-6,
+      "metrics": {
+        "closure_residual": { "max": 1e-6 }
+      }
+    },
+    "eq05": {
+      "rtol": 1e-6,
+      "atol": 1e-9,
+      "metrics": {
+        "directed_excess": { "min": 0.0 }
+      }
+    },
+    "eq06": {
+      "rtol": 1e-3,
+      "atol": 1e-6,
+      "metrics": {
+        "score_delta": { "min": 0.01 }
+      }
+    },
+    "eq07": {
+      "rtol": 1e-12,
+      "atol": 1e-12,
+      "metrics": {
+        "symmetry_residual": { "max": 1e-12 }
+      }
+    },
+    "eq08": {
+      "rtol": 1e-6,
+      "atol": 1e-9,
+      "metrics": {
+        "kahler_finite": { "expected": 1.0, "atol": 0.0 }
+      }
+    },
+    "sym_eq04": {
+      "rtol": 0.0,
+      "atol": 0.0,
+      "metrics": {
+        "symbolic_ok": { "expected": 1.0, "atol": 0.0 }
+      }
+    },
+    "sym_eq07": {
+      "rtol": 0.0,
+      "atol": 0.0,
+      "metrics": {
+        "symbolic_ok": { "expected": 1.0, "atol": 0.0 }
+      }
+    },
+    "sym_vp": {
+      "rtol": 0.0,
+      "atol": 0.0,
+      "metrics": {
+        "symbolic_ok": { "expected": 1.0, "atol": 0.0 }
+      }
+    },
+    "conv_radon_s2": {
+      "rtol": 0.5,
+      "atol": 0.01,
+      "metrics": {
+        "convergence_rate": { "min": 0.3 }
+      }
+    },
+    "conv_fp_mass": {
+      "rtol": 0.5,
+      "atol": 0.01,
+      "metrics": {
+        "convergence_rate": { "min": 0.5 }
+      }
+    },
+    "fals_p1": {
+      "rtol": 0.1,
+      "atol": 0.5,
+      "metrics": {
+        "injection_z": { "min": 2.0 }
+      }
+    },
+    "fals_p2": {
+      "rtol": 1e-6,
+      "atol": 0.0,
+      "metrics": {
+        "d_rad_minus_std": { "min": 0.0 }
+      }
+    },
+    "fals_p3": {
+      "rtol": 0.0,
+      "atol": 1e-12,
+      "metrics": {
+        "symmetry_residual": { "max": 1e-12 }
+      }
+    }
+  }
+}

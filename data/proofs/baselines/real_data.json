@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "description": "Golden metrics from verified real-data pipeline runs (WMAP K-band, Planck TT)",
+  "wmap_k_band": {
+    "nside": 128,
+    "null_ensemble": 30,
+    "metrics": {
+      "rble_score": { "min": 3.0, "max": 8.0 },
+      "null_sigma": { "min": 50.0, "max": 120.0 },
+      "bonferroni_sigma": { "min": 30.0, "max": 120.0 }
+    }
+  },
+  "planck_cmb_tt_power": {
+    "metrics": {
+      "chi2_reduced": { "min": 0.05, "max": 2.0 },
+      "ell_max_used": { "min": 200.0 }
+    }
+  },
+  "planck_lcdm_baseline": {
+    "metrics": {
+      "lambda_cc": { "min": 0.28, "max": 0.34 },
+      "ns": { "min": 0.94, "max": 0.98 }
+    }
+  },
+  "gwtc_events": {
+    "metrics": {
+      "event_count": { "min": 20.0 },
+      "conductance_symmetry": { "max": 1e-10 }
+    }
+  },
+  "real_p1_pipeline": {
+    "metrics": {
+      "filtered_score": { "min": 2.0 },
+      "score_improvement": { "min": 0.0 }
+    }
+  },
+  "real_p2_fnl_proxy": {
+    "metrics": {
+      "directed_d_eff": { "min": 0.0 },
+      "ns_slope_consistency": { "min": 0.0, "max": 0.5 }
+    }
+  }
+}

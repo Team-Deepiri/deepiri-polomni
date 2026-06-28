@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "radon_s2": {
+    "nsides": [8, 16, 32],
+    "min_rate": 0.3,
+    "description": "Radon scar score delta should increase with nside refinement"
+  },
+  "fokker_planck": {
+    "steps": [0.05, 0.02, 0.01],
+    "min_rate": 0.5,
+    "description": "Mass conservation error should decrease with smaller dt"
+  }
+}

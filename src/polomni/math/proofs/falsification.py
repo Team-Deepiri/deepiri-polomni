@@ -8,13 +8,14 @@ import networkx as nx
 from polomni.core.conductance.bridge_tensor import conductance_matrix
 from polomni.core.inflation.drift_diffusion import directed_diffusion, quantum_diffusion
 from polomni.core.inflation.fokker_planck import radon_modified_D_eff
+from polomni.math.proofs.base import ProofResult
+from polomni.math.proofs.baselines import check_within
 from polomni.observatory.ingest.healpix_loader import synthetic_cmb_map
 from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
 from polomni.observatory.scoring.rble_signature import (
     compute_rble_signature,
     inject_synthetic_scar,
 )
-from polomni.math.proofs.base import ProofResult
 
 
 def prove_p1() -> ProofResult:
@@ -27,16 +28,17 @@ def prove_p1() -> ProofResult:
     nulls = [compute_rble_signature(m).rble_score for m in generate_null_ensemble(20, nside, seed=2)]
     mu, sigma = float(np.mean(nulls)), float(np.std(nulls))
     z = (score - mu) / (sigma + 1e-12)
-    passed = score > mu + 2 * sigma
+    passed_base, residual, msg = check_within("fals_p1", {"injection_z": float(z)})
+    passed = bool(passed_base and score > mu + 2 * sigma)
     return ProofResult(
         id="fals_p1",
-        name="",
-        equation="",
-        passed=bool(passed),
+        name="P1 CMB scar injection",
+        equation="synthetic null ensemble",
+        passed=passed,
         residual=float(z),
         tolerance=2.0,
-        message=f"Injected scar z={z:.2f} sigma above null",
-        module="",
+        message=f"Injected scar z={z:.2f}σ above null; {msg}",
+        module="polomni.math.proofs.falsification",
     )
 
 
@@ -45,16 +47,18 @@ def prove_p2() -> ProofResult:
     d_std = float(quantum_diffusion(np.array([h]))[0])
     d_rad = radon_modified_D_eff(h, np.array([0.3, 0.4]), lambda_coupling=1.0)
     d_dir = float(directed_diffusion(0.5, lambda_coupling=1.0))
-    passed = d_rad > d_std and d_dir > 0
+    excess = float(d_rad - d_std)
+    passed_base, residual, msg = check_within("fals_p2", {"d_rad_minus_std": excess})
+    passed = bool(passed_base and d_rad > d_std and d_dir > 0)
     return ProofResult(
         id="fals_p2",
-        name="",
-        equation="",
-        passed=bool(passed),
-        residual=float(d_rad - d_std),
+        name="P2 directed D_eff",
+        equation="D_rad > D_std",
+        passed=passed,
+        residual=excess,
         tolerance=0.0,
-        message=f"D_rad > D_std ({d_rad:.4e} > {d_std:.4e})",
-        module="",
+        message=f"D_rad={d_rad:.4e} > D_std={d_std:.4e}; {msg}",
+        module="polomni.math.proofs.falsification",
     )
 
 
@@ -63,14 +67,16 @@ def prove_p3() -> ProofResult:
     for i in range(4):
         g.add_edge(i, (i + 1) % 4, conductance=0.2 + 0.1 * i)
     mat = conductance_matrix(g)
-    passed = np.allclose(mat, mat.T) and np.all(mat >= 0)
+    sym_res = float(np.max(np.abs(mat - mat.T)))
+    passed_base, residual, msg = check_within("fals_p3", {"symmetry_residual": sym_res})
+    passed = bool(passed_base and np.all(mat >= 0))
     return ProofResult(
         id="fals_p3",
-        name="",
-        equation="",
-        passed=bool(passed),
-        residual=float(np.max(np.abs(mat - mat.T))),
+        name="P3 conductance symmetry",
+        equation="G_ij = G_ji",
+        passed=passed,
+        residual=sym_res,
         tolerance=1e-12,
-        message="Conductance matrix symmetric and nonnegative",
-        module="",
+        message=f"Conductance matrix symmetric; {msg}",
+        module="polomni.math.proofs.falsification",
     )
