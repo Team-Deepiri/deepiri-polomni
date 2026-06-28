@@ -1,0 +1,51 @@
+name: Deepiri CI - deepiri-omnifold
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint, Test & Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Ruff
+        run: |
+          poetry run ruff check \
+            omnifold_core \
+            omnifold_neural \
+            omnifold_observatory \
+            omnifold_uqe_bridge \
+            omnifold_cli \
+            visualization \
+            tests
+
+      - name: Unit tests
+        run: poetry run pytest tests/ -q
+
+      - name: Notebook smoke
+        run: |
+          for nb in experiments/*.ipynb; do
+            poetry run jupyter nbconvert --to notebook --execute "$nb" --output-dir /tmp/nb-smoke
+          done
+
+      - name: Docker build smoke
+        run: docker build -f docker/Dockerfile -t deepiri-omnifold:ci-smoke .
