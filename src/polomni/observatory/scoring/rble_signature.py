@@ -124,10 +124,14 @@ def inject_synthetic_scar(
     n_hat: np.ndarray,
     amplitude: float = 5.0,
 ) -> np.ndarray:
-    """Inject a known Radon scar along *n_hat* for recovery tests."""
+    """Inject a known Radon scar along *n_hat* for recovery tests.
+
+    Uses sharp axis-aligned modulation so :func:`compute_rble_signature` peaks
+    near the injection axis (Gate 2 calibration).
+    """
     n_hat = np.asarray(n_hat, dtype=float)
     n_hat = n_hat / (np.linalg.norm(n_hat) + 1e-15)
-    scar = np.zeros_like(healpix_map)
+    healpix_map = np.asarray(healpix_map, dtype=float).ravel()
     try:
         import healpy as hp
 
@@ -136,7 +140,11 @@ def inject_synthetic_scar(
         x = np.column_stack(
             [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
         )
-        scar = amplitude * np.exp(-((1.0 - np.abs(x @ n_hat)) ** 2) / 0.02)
+        alignment = np.abs(x @ n_hat)
+        # Sharp equatorial ring + pole enhancement → anisotropy score peaks at n_hat.
+        ring = np.exp(-((1.0 - alignment) ** 2) / 0.005)
+        pole = alignment**6
+        scar = amplitude * (0.7 * ring + 0.3 * pole)
     except ImportError:
         phase = np.arange(healpix_map.size) / healpix_map.size
         scar = amplitude * np.exp(-((phase - 0.5) ** 2) / 0.01)

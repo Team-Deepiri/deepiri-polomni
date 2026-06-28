@@ -21,6 +21,14 @@ This is an active lab. Core physics ships as tested, typed Python modules. Exper
 
 **Roadmap:** see [ROADMAP.md](ROADMAP.md) for the 4-week plan (2 devs).
 
+**Establishing RBLE as physics:** see [docs/PHYSICS_ESTABLISHMENT.md](docs/PHYSICS_ESTABLISHMENT.md) — pre-registered P1 CMB scar search, blind holdout protocol, and replication package.
+
+```bash
+poetry run polomni study gates              # Gates 1–3 before holdout
+make reproduce-p1                           # WMAP calibration run
+poetry run polomni study run p1 --blind     # one-shot Planck holdout
+```
+
 ---
 
 ## RBLE — Radon-Bifurcated Landscape Engine

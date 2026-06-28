@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from polomni.api.routers import dashboard, data, health, math, metrics, observatory, stream, viz
+from polomni.api.routers import dashboard, data, health, math, metrics, observatory, stream, study, viz
 
 _FRONTEND_DIST = Path(__file__).resolve().parents[3] / "frontend" / "dist"
 
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(viz.router, prefix="/viz")
     app.include_router(data.router, prefix="/data")
     app.include_router(observatory.router, prefix="/observatory")
+    app.include_router(study.router, prefix="/study")
     app.include_router(stream.router, prefix="/stream")
 
     if _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").is_file():

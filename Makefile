@@ -1,4 +1,4 @@
-.PHONY: install test test-integration lint serve prove prove-strict falsify docker-up docker-down verify smoke frontend-install frontend-dev frontend-build
+.PHONY: install test test-integration lint serve prove prove-strict falsify reproduce-p1 docker-up docker-down verify smoke frontend-install frontend-dev frontend-build
 
 install:
 	poetry install --with dev
@@ -20,6 +20,15 @@ prove-strict:
 
 falsify:
 	poetry run polomni falsify --real --fetch
+
+reproduce-p1:
+	poetry run polomni study run p1 --calibration
+
+p1-gates:
+	bash scripts/p1-gates.sh
+
+p1-blind:
+	poetry run polomni study run p1 --blind
 
 serve:
 	poetry run polomni serve --host 0.0.0.0 --port 8091

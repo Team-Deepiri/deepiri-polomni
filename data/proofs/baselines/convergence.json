@@ -2,6 +2,7 @@
   "version": 1,
   "radon_s2": {
     "nsides": [8, 16, 32],
+    "inject_amplitude": 2.0,
     "min_rate": 0.3,
     "description": "Radon scar score delta should increase with nside refinement"
   },

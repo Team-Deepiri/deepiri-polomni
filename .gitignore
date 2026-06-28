@@ -116,6 +116,9 @@ data/proofs/*
 !data/proofs/baselines/
 !data/proofs/baselines/**
 
+# Study outputs (configs tracked; results generated)
+data/studies/**/RESULT.json
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

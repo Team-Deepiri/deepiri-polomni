@@ -1,0 +1,51 @@
+{
+  "study_id": "p1_cmb_radon_scar",
+  "version": "1.0.0",
+  "registered_at": "2026-06-28",
+  "registered_before_holdout": true,
+  "primary_hypothesis": "P1_radon_anisotropic_scar",
+  "maps": {
+    "calibration_product_id": "wmap_k_band",
+    "holdout_product_id": "planck_smica_cmb",
+    "holdout_locked": false
+  },
+  "resolution": {
+    "search_nside": 128,
+    "confirmation_nside": 256
+  },
+  "search": {
+    "method": "hierarchical",
+    "coarse_nside": 16,
+    "coarse_scan_angles": 12,
+    "refine_cone_deg": 15.0,
+    "refine_samples": 24,
+    "seed": 0
+  },
+  "filters": {
+    "string_filter": {
+      "W0": 0.0,
+      "beta": 0.15,
+      "modes": [{ "amplitude": 1.0, "m": 2, "n": 1, "phase": 0.0 }]
+    },
+    "radon_bifurcation_angles": [[0.4, 0.8, 0.0], [1.0, 1.2, 0.5]]
+  },
+  "null_tiers": ["grf", "camb_noise", "rotation_shuffled"],
+  "null_ensemble_size": 30,
+  "significance": {
+    "alpha": 0.01,
+    "correction": "bonferroni",
+    "require_te_cross_check": true,
+    "te_sigma_threshold": 3.0
+  },
+  "injection_calibration": {
+    "snr_levels": [1, 2, 3, 5, 8],
+    "trials_per_snr": 20,
+    "axis_error_max_deg": 5.0,
+    "detection_rate_min": 0.9,
+    "min_snr_for_pass": 3
+  },
+  "code_pins": {
+    "statistic_module": "polomni.observatory.scoring.rble_signature",
+    "search_module": "polomni.observatory.scoring.hierarchical_search"
+  }
+}
