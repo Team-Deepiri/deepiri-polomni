@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from polomni.observatory.ingest.healpix_loader import downsample_map, map_nside
+from polomni.observatory.ingest.healpix_loader import map_nside
 from polomni.observatory.scoring.multiple_testing import count_sky_search_tests, passes_bonferroni
-from polomni.observatory.scoring.rble_signature import DetectionReport, compute_rble_signature
+from polomni.observatory.scoring.rble_signature import DetectionReport, _radon_anisotropy_score, compute_rble_signature
 
 
 def _axis_separation_deg(a: np.ndarray, b: np.ndarray) -> float:
@@ -38,11 +38,36 @@ def _refine_axes_in_cone(
         angle = np.random.uniform(0, cone_rad)
         candidate = center * np.cos(angle) + perturb * np.sin(angle)
         candidate = candidate / (np.linalg.norm(candidate) + 1e-15)
-        report = compute_rble_signature(map_data, candidate, scan_angles=1)
-        if report.rble_score > best_score:
-            best_score = report.rble_score
+        score = _radon_anisotropy_score(map_data, candidate)
+        if score > best_score:
+            best_score = score
             best_axis = candidate
 
+    return best_axis, best_score
+
+
+def _coarse_axis_healpix(
+    map_data: np.ndarray,
+    *,
+    dir_nside: int = 8,
+    n_eta: int = 24,
+) -> tuple[np.ndarray, float]:
+    """Coarse axis search on HEALPix pixel directions (geodesic Radon score)."""
+    import healpy as hp
+
+    from polomni.observatory.scoring.rble_signature import _radon_anisotropy_score
+
+    theta, phi = hp.pix2ang(dir_nside, np.arange(hp.nside2npix(dir_nside)))
+    directions = np.column_stack(
+        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
+    )
+    best_score = -1.0
+    best_axis = directions[0]
+    for direction in directions:
+        score = _radon_anisotropy_score(map_data, direction)
+        if score > best_score:
+            best_score = score
+            best_axis = direction
     return best_axis, best_score
 
 
@@ -62,13 +87,16 @@ def hierarchical_sky_search(
     full_map = np.asarray(healpix_map, dtype=float).ravel()
     current_nside = map_nside(full_map)
 
-    if current_nside > coarse_nside:
-        coarse_map = downsample_map(full_map, coarse_nside)
-    else:
-        coarse_map = full_map
-
-    coarse = compute_rble_signature(coarse_map, scan_angles=coarse_scan_angles)
-    coarse_axis = np.asarray(coarse.preferred_axis, dtype=float)
+    dir_nside = min(8, max(4, current_nside // 2))
+    coarse_axis, coarse_score = _coarse_axis_healpix(
+        full_map,
+        dir_nside=dir_nside,
+        n_eta=24,
+    )
+    coarse = compute_rble_signature(full_map, coarse_axis, scan_angles=1)
+    coarse = coarse.model_copy(
+        update={"rble_score": coarse_score, "preferred_axis": coarse_axis.tolist()}
+    )
 
     refine_axis, refine_score = _refine_axes_in_cone(
         coarse_axis,
@@ -81,8 +109,12 @@ def hierarchical_sky_search(
     if refine_score > final.rble_score:
         final = final.model_copy(update={"rble_score": refine_score})
 
+    dir_nside = min(8, coarse_nside // 2 or 8)
+    import healpy as hp
+
+    n_coarse = hp.nside2npix(dir_nside)
     n_tests = count_sky_search_tests(
-        scan_angles=coarse_scan_angles,
+        scan_angles=n_coarse,
         hierarchical_refine_samples=refine_samples,
     )
     if final.null_sigma > 0:

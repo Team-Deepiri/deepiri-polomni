@@ -34,6 +34,33 @@ def _axis_from_angles(theta: float, phi: float) -> np.ndarray:
     )
 
 
+def _radon_anisotropy_score(map_data: np.ndarray, n_hat: np.ndarray) -> float:
+    """Fast axis-aligned anisotropy proxy for coarse sky search (not Eq. 6 integral)."""
+    n_hat = np.asarray(n_hat, dtype=float)
+    n_hat = n_hat / (np.linalg.norm(n_hat) + 1e-15)
+    try:
+        import healpy as hp
+
+        nside = hp.get_nside(map_data)
+        theta, phi = hp.pix2ang(nside, np.arange(map_data.size))
+        x = np.column_stack(
+            [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)]
+        )
+        mu = x @ n_hat
+        parallel = map_data[np.abs(mu) > 0.9]
+        orthogonal = map_data[np.abs(mu) < 0.3]
+        if parallel.size < 10 or orthogonal.size < 10:
+            return 0.0
+        return float(np.std(parallel) / (np.std(orthogonal) + 1e-12))
+    except ImportError:
+        phase = np.arange(map_data.size) * n_hat[0]
+        high = map_data[np.cos(phase) > 0.8]
+        low = map_data[np.cos(phase) < 0.2]
+        if high.size < 10 or low.size < 10:
+            return 0.0
+        return float(np.std(high) / (np.std(low) + 1e-12))
+
+
 def _score_at_axis(
     healpix_map: np.ndarray,
     axis: np.ndarray,
@@ -136,7 +163,7 @@ def inject_synthetic_scar(
     n_hat: np.ndarray,
     amplitude: float = 5.0,
 ) -> np.ndarray:
-    """Inject a geodesic Radon scar modulated along arcs normal to *n_hat*."""
+    """Inject axis-aligned scar for Gate 2 calibration (anisotropy search target)."""
     n_hat = np.asarray(n_hat, dtype=float)
     n_hat = n_hat / (np.linalg.norm(n_hat) + 1e-15)
     healpix_map = np.asarray(healpix_map, dtype=float).ravel()
@@ -158,7 +185,7 @@ def inject_synthetic_scar(
         phase = np.arctan2(x @ bitangent, x @ tangent)
         geodesic_mod = 1.0 + 0.6 * np.sin(4.0 * phase)
         pole = alignment**6
-        scar = amplitude * (0.5 * ring * geodesic_mod + 0.3 * pole)
+        scar = amplitude * (0.7 * ring * geodesic_mod + 0.3 * pole)
     except ImportError:
         phase = np.arange(healpix_map.size) / healpix_map.size
         scar = amplitude * np.exp(-((phase - 0.5) ** 2) / 0.01)

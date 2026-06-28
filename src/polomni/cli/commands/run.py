@@ -24,7 +24,7 @@ def workflow_run(
     nulls: Annotated[int, typer.Option("--nulls", help="Null ensemble size.")] = 10,
     no_gw: Annotated[bool, typer.Option("--no-gw", help="Skip GWOSC refresh during ingest.")] = False,
     output: Annotated[
-        Optional[Path], typer.Option("--output", "-o", help="JSON output path.")
+        Path | None, typer.Option("--output", "-o", help="JSON output path.")
     ] = None,
 ) -> None:
     """Ingest data, simulate district graph, and run the RBLE observatory pipeline."""
@@ -55,7 +55,7 @@ def workflow_run(
 @app.command("benchmark")
 def benchmark_run(
     nsides: Annotated[
-        Optional[list[int]],
+        list[int] | None,
         typer.Option("--nside", help="NSIDE values to benchmark (repeatable)."),
     ] = None,
 ) -> None:

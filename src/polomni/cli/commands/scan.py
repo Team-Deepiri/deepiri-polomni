@@ -19,7 +19,7 @@ console = Console()
 
 @app.callback(invoke_without_command=True)
 def scan_run(
-    map_path: Optional[str] = typer.Option(
+    map_path: str | None = typer.Option(
         None, "--map", "-m", help="HEALPix FITS or .npy path (default: synthetic)."
     ),
     real_data: bool = typer.Option(
@@ -31,7 +31,7 @@ def scan_run(
     nside: int = typer.Option(64, "--nside", help="NSIDE for synthetic or downsampled real map."),
     seed: int = typer.Option(42, "--seed", help="RNG seed."),
     nulls: int = typer.Option(20, "--nulls", help="Null ensemble size for significance."),
-    report: Optional[str] = typer.Option(None, "--report", "-r", help="JSON report output."),
+    report: str | None = typer.Option(None, "--report", "-r", help="JSON report output."),
     neural: bool = typer.Option(
         False, "--neural", help="Also score with neural/heuristic scar classifier."
     ),

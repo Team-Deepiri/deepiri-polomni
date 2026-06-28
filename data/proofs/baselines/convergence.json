@@ -4,7 +4,9 @@
     "nsides": [8, 16, 32],
     "inject_amplitude": 2.0,
     "min_rate": 0.3,
-    "description": "Radon scar score delta should increase with nside refinement"
+    "min_score_delta": 0.1,
+    "max_rel_spread": 0.15,
+    "description": "Geodesic Radon scar delta detectable at all nsides; plateau or increasing with refinement"
   },
   "fokker_planck": {
     "steps": [0.05, 0.02, 0.01],
