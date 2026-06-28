@@ -269,6 +269,38 @@ docker compose -f docker/docker-compose.yml --profile watch up -d
 
 ---
 
+## Math Proofs & Multiverse Frontend
+
+Run the full RBLE equation proof suite:
+
+```bash
+poetry run polomni math prove
+poetry run polomni math equations
+```
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /math/equations` | Equation catalog |
+| `POST /math/prove` | Run all proofs |
+| `GET /viz/district-graph` | 3D multiverse DAG data |
+| `GET /viz/landscape` | Kähler surface grid |
+| `GET /viz/scar-sphere` | HEALPix scar + axis |
+| `GET /viz/falsification` | P1–P3 status |
+
+**React frontend** (`frontend/`):
+
+```bash
+poetry run polomni serve --port 8091
+cd frontend && npm install && npm run dev   # http://localhost:5173
+make frontend-build                         # production → http://localhost:8091/app
+```
+
+Proof notebooks: `experiments/09_variational_principle.ipynb` through `13_real_data_theory_bridge.ipynb`.
+
+See [docs/guides/frontend.md](docs/guides/frontend.md).
+
+---
+
 ## Related Deepiri Repos
 
 | Repo | Role |

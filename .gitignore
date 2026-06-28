@@ -112,6 +112,11 @@ data/processed/
 data/cache/
 data/reports/
 data/figures/
+data/proofs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
 *.csv
 *.parquet
 *.feather

@@ -38,3 +38,16 @@ jobs:
 
       - name: Report list
         run: poetry run polomni report list
+
+      - name: Math proof suite
+        run: poetry run polomni math prove
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend build
+        run: |
+          cd frontend
+          npm install
+          npm run build

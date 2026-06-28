@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Math proof engine** — `polomni.math` provers for VP + Eq1–8 + falsification P1–P3; `polomni math prove` CLI and `/math/*` API.
+- **Proof notebooks** — `experiments/09`–`13` variational principle, falsification trinity, integrated loop, Kähler Eq8, real-data bridge.
+- **Viz API** — `/viz/*` JSON serializers for multiverse visualizations (`src/polomni/viz/multiverse/`).
+- **React frontend** — Vite app in `frontend/` with 7 scientist panels; served at `/app` after `npm run build`.
 - **Hierarchical sky search** — coarse-to-fine RBLE axis search (`--hierarchical` on `polomni scan`).
 - **Report CLI** — `polomni report list|show|latest|compare` for detection JSON management.
 - **Data analytics** — `polomni data plot power|gw` and `polomni data correlate` for GW–RBLE correlation.
