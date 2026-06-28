@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import Plot from "react-plotly.js";
 import { api } from "./api/client";
 import CosmosLab from "./components/CosmosLab";
+import RadonTomography from "./components/RadonTomography";
 
 type PanelProps = { title: string; children: React.ReactNode };
 
@@ -107,6 +108,7 @@ export default function App() {
       {error && <p className="error" style={{ padding: "0 1.5rem" }}>{error}</p>}
 
       <CosmosLab />
+      <RadonTomography />
 
       <div className="section-label">Multiverse Engine (synthetic)</div>
       <div className="grid">

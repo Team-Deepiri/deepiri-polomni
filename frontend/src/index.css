@@ -217,3 +217,24 @@ button {
 .proof-ok { color: var(--ok); margin-bottom: 4px; }
 .proof-fail { color: var(--fail); margin-bottom: 4px; }
 .proof-scroll code { color: var(--accent); }
+
+.radon-tomo {
+  margin: 0 1.5rem 1rem;
+  padding: 1rem;
+}
+.tomo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 960px) {
+  .tomo-grid { grid-template-columns: 1fr; }
+}
+.mono-eq { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+.fingerprint { font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; }
+.tomo-grid h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}

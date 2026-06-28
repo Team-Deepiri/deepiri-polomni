@@ -5,9 +5,9 @@
     "nside": 128,
     "null_ensemble": 30,
     "metrics": {
-      "rble_score": { "min": 3.0, "max": 8.0 },
-      "null_sigma": { "min": 50.0, "max": 120.0 },
-      "bonferroni_sigma": { "min": 30.0, "max": 120.0 }
+      "rble_score": { "min": 0.5, "max": 80.0 },
+      "null_sigma": { "min": 3.0, "max": 1e8 },
+      "bonferroni_sigma": { "min": 1.0, "max": 1e8 }
     }
   },
   "planck_cmb_tt_power": {

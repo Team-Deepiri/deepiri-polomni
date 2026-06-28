@@ -75,6 +75,32 @@ def get_axis_profile(
     return cosmos_axis_profile_payload(map_product_id=map_product, nside=nside)
 
 
+@router.get("/tomogram")
+def get_tomogram(
+    map_product: str = Query(default="wmap_k_band"),
+    nside: int = Query(default=64, ge=16, le=128),
+    n_eta: int = Query(default=128, ge=32, le=256),
+) -> dict:
+    from polomni.viz.cosmos.tomography import cosmos_tomogram_payload
+
+    return cosmos_tomogram_payload(map_product_id=map_product, nside=nside, n_eta=n_eta)
+
+
+@router.get("/landscape")
+def get_landscape(
+    map_product: str = Query(default="wmap_k_band"),
+    nside: int = Query(default=64, ge=16, le=128),
+    nside_dirs: int = Query(default=8, ge=4, le=16),
+) -> dict:
+    from polomni.viz.cosmos.tomography import cosmos_landscape_payload
+
+    return cosmos_landscape_payload(
+        map_product_id=map_product,
+        nside=nside,
+        nside_dirs=nside_dirs,
+    )
+
+
 @router.get("/null-tiers")
 def get_null_tiers(
     map_product: str = Query(default="wmap_k_band"),
