@@ -114,3 +114,19 @@ class ReportSummary(BaseModel):
 
 class ReportsListResponse(BaseModel):
     reports: list[ReportSummary]
+
+
+class CompareRequest(BaseModel):
+    report_a: str
+    report_b: str
+
+
+class CompareResponse(BaseModel):
+    score_a: float
+    score_b: float
+    score_delta: float
+    null_sigma_a: float
+    null_sigma_b: float
+    axis_separation_deg: float
+    timestamp_a: str
+    timestamp_b: str

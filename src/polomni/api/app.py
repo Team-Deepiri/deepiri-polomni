@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from polomni.api.routers import data, health, observatory, stream
+from polomni.api.routers import dashboard, data, health, metrics, observatory, stream
 
 
 def create_app() -> FastAPI:
@@ -21,6 +21,8 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(metrics.router)
+    app.include_router(dashboard.router)
     app.include_router(data.router, prefix="/data")
     app.include_router(observatory.router, prefix="/observatory")
     app.include_router(stream.router, prefix="/stream")

@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends
 
 from polomni.api.deps import get_cache
 from polomni.api.schemas import (
+    CompareRequest,
+    CompareResponse,
     PipelineRequest,
     PipelineResponse,
     ReportSummary,
@@ -16,6 +18,7 @@ from polomni.api.schemas import (
     ScanRequest,
     ScanResponse,
 )
+from polomni.observatory.reports.comparison import compare_reports, load_report
 from polomni.observatory.ingest.healpix_loader import (
     downsample_map,
     load_healpix_map,
@@ -128,3 +131,10 @@ def reports() -> ReportsListResponse:
             )
         )
     return ReportsListResponse(reports=items)
+
+
+@router.post("/compare", response_model=CompareResponse)
+def compare(body: CompareRequest) -> CompareResponse:
+    """Compare two saved detection reports."""
+    cmp = compare_reports(load_report(body.report_a), load_report(body.report_b))
+    return CompareResponse(**cmp)

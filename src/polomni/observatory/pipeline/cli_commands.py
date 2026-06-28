@@ -155,3 +155,53 @@ def watch(
         target_nside=nside,
     ):
         pass
+
+
+plot_app = typer.Typer(help="Plot cached cosmology data.")
+app.add_typer(plot_app, name="plot")
+
+
+@plot_app.command("power")
+def plot_power(
+    product: Annotated[str, typer.Option("--product", help="Power spectrum product ID.")] = (
+        "planck_cmb_tt_power"
+    ),
+    output: Annotated[Optional[Path], typer.Option("--output", "-o")] = None,
+) -> None:
+    """Plot cached CMB power spectrum."""
+    from polomni.observatory.pipeline.analytics import plot_cached_power_spectrum
+
+    path = plot_cached_power_spectrum(product_id=product, output_path=output)
+    console.print(f"[green]Saved {path}[/green]")
+
+
+@plot_app.command("gw")
+def plot_gw(
+    output: Annotated[Optional[Path], typer.Option("--output", "-o")] = None,
+    limit: Annotated[int, typer.Option("--limit", help="Max events to plot.")] = 50,
+) -> None:
+    """Plot GW event timeline from cached GWTC catalog."""
+    from polomni.observatory.pipeline.analytics import plot_cached_gw_timeline
+
+    path = plot_cached_gw_timeline(output_path=output, limit=limit)
+    console.print(f"[green]Saved {path}[/green]")
+
+
+@app.command("correlate")
+def correlate(
+    report: Annotated[Optional[Path], typer.Option("--report", "-r", help="Report JSON.")] = None,
+    max_deg: Annotated[float, typer.Option("--max-deg", help="Max axis separation.")] = 30.0,
+) -> None:
+    """Correlate GW events with RBLE preferred axis from a report."""
+    from polomni.observatory.pipeline.analytics import summarize_gw_rble_correlation
+
+    matches = summarize_gw_rble_correlation(report_path=report, max_separation_deg=max_deg)
+    if not matches:
+        console.print("[yellow]No correlated GW events found (or no report/cache).[/yellow]")
+        return
+    table = Table(title=f"GW–RBLE Correlations (≤{max_deg}°)")
+    table.add_column("Event")
+    table.add_column("Separation (°)")
+    for m in matches:
+        table.add_row(str(m.get("name", m.get("event", "?"))), f"{m.get('separation_deg', 0):.1f}")
+    console.print(table)

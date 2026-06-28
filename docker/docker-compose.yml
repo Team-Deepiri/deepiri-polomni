@@ -11,8 +11,11 @@ services:
     volumes:
       - ../experiments:/app/experiments
       - ../docs:/app/docs
+      - polomni-cache:/app/data/cache
+      - ../data/reports:/app/data/reports
     environment:
       - POLOMNI_ENV=lab
+      - POLOMNI_DATA_CACHE=/app/data/cache
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
       interval: 30s
@@ -23,6 +26,25 @@ services:
       sh -c "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
       --NotebookApp.token='' --NotebookApp.password='' &
       uvicorn polomni.cli.commands.serve:api --host 0.0.0.0 --port 8091"
+
+  polomni-watch:
+    profiles: ["watch"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: deepiri/polomni-lab:0.1.0
+    container_name: polomni-watch
+    volumes:
+      - polomni-cache:/app/data/cache
+      - ../data/reports:/app/data/reports
+    environment:
+      - POLOMNI_DATA_CACHE=/app/data/cache
+      - POLOMNI_GW_POLL_INTERVAL=300
+    command: >
+      polomni data watch --interval 300 --scan-on-gw --nside 64
+    depends_on:
+      polomni-lab:
+        condition: service_healthy
 
   polomni-lab-gpu:
     profiles: ["gpu"]
@@ -35,3 +57,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+volumes:
+  polomni-cache:

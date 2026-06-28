@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polomni Lab Dashboard</title>
+  <style>
+    :root { --bg:#0d1117; --card:#161b22; --text:#e6edf3; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:1.2rem 2rem; border-bottom:1px solid #30363d; display:flex; justify-content:space-between; align-items:center; }
+    h1 { margin:0; font-size:1.4rem; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; padding:1.5rem 2rem; }
+    .card { background:var(--card); border:1px solid #30363d; border-radius:8px; padding:1rem 1.2rem; }
+    .card h2 { margin:0 0 .8rem; font-size:.95rem; color:#8b949e; text-transform:uppercase; letter-spacing:.05em; }
+    .metric { font-size:1.8rem; font-weight:600; color:var(--accent); }
+    .status-ok { color:var(--ok); }
+    button { background:var(--accent); color:#0d1117; border:none; padding:.5rem 1rem; border-radius:6px; cursor:pointer; margin:.25rem .25rem .25rem 0; font-weight:600; }
+    button:hover { opacity:.9; }
+    pre { background:#010409; padding:.8rem; border-radius:6px; overflow:auto; font-size:.75rem; max-height:200px; }
+    footer { padding:1rem 2rem; color:#8b949e; font-size:.8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Deepiri Polomni Lab</h1>
+    <span id="health" class="status-ok">● loading</span>
+  </header>
+  <div class="grid">
+    <div class="card"><h2>Uptime</h2><div class="metric" id="uptime">—</div></div>
+    <div class="card"><h2>Cache Products</h2><div class="metric" id="cache-count">—</div></div>
+    <div class="card"><h2>GW Events</h2><div class="metric" id="gw-count">—</div></div>
+    <div class="card"><h2>Reports</h2><div class="metric" id="report-count">—</div></div>
+    <div class="card"><h2>Last S_RBLE</h2><div class="metric" id="last-score">—</div></div>
+  </div>
+  <div style="padding:0 2rem 1rem">
+    <div class="card">
+      <h2>Actions</h2>
+      <button onclick="runScan()">Synthetic Scan</button>
+      <button onclick="listReports()">List Reports</button>
+      <button onclick="refresh()">Refresh Metrics</button>
+      <pre id="output">Ready.</pre>
+    </div>
+  </div>
+  <footer>Auto-refresh every 30s · RBLE Observatory</footer>
+  <script>
+    async function refresh() {
+      try {
+        const [health, metrics] = await Promise.all([
+          fetch('/health').then(r => r.json()),
+          fetch('/metrics').then(r => r.json()),
+        ]);
+        document.getElementById('health').textContent = '● ' + health.status;
+        document.getElementById('uptime').textContent = metrics.uptime_seconds + 's';
+        document.getElementById('cache-count').textContent = metrics.cache_product_count;
+        document.getElementById('gw-count').textContent = metrics.gw_event_count;
+        document.getElementById('report-count').textContent = metrics.report_count;
+        document.getElementById('last-score').textContent =
+          metrics.last_pipeline_score != null ? metrics.last_pipeline_score.toFixed(4) : '—';
+      } catch (e) {
+        document.getElementById('health').textContent = '● error';
+        document.getElementById('output').textContent = String(e);
+      }
+    }
+    async function runScan() {
+      const out = document.getElementById('output');
+      out.textContent = 'Running synthetic scan…';
+      const res = await fetch('/observatory/scan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({nside: 32, synthetic: true, nulls: 5, seed: 0}),
+      });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+      refresh();
+    }
+    async function listReports() {
+      const out = document.getElementById('output');
+      const res = await fetch('/observatory/reports');
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
+</body>
+</html>

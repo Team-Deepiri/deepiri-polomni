@@ -35,6 +35,9 @@ def scan_run(
     neural: bool = typer.Option(
         False, "--neural", help="Also score with neural/heuristic scar classifier."
     ),
+    hierarchical: bool = typer.Option(
+        False, "--hierarchical", help="Use coarse-to-fine hierarchical sky search."
+    ),
 ) -> None:
     """Scan a CMB map for RBLE scar signatures."""
     if real_data:
@@ -58,7 +61,12 @@ def scan_run(
         cmb = synthetic_cmb_map(nside, seed=seed)
         console.print(f"[dim]Using synthetic CMB map NSIDE={nside}, seed={seed}[/dim]")
 
-    detection = compute_rble_signature(cmb)
+    if hierarchical:
+        from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
+
+        detection = hierarchical_sky_search(cmb, coarse_nside=min(16, nside), seed=seed)
+    else:
+        detection = compute_rble_signature(cmb)
 
     null_maps = generate_null_ensemble(nulls, nside if map_path is None else 64, seed=seed + 1)
     null_scores = [compute_rble_signature(m).rble_score for m in null_maps]

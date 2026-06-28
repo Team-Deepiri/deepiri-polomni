@@ -111,6 +111,7 @@ data/raw/
 data/processed/
 data/cache/
 data/reports/
+data/figures/
 *.csv
 *.parquet
 *.feather
