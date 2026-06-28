@@ -95,7 +95,7 @@ R_{\mu\nu} - \tfrac{1}{2} R g_{\mu\nu} + \Lambda(W,K) g_{\mu\nu}
 = \frac{8\pi G}{c^4}\left(T_{\mu\nu} + \xi I_{\mu\nu}^{(N)}\right)
 $$
 
-Implementation: `omnifold_core/gravity/field_equations.py::modified_field_residual`.
+Implementation: `src/polomni/core/gravity/field_equations.py::modified_field_residual`.
 
 ### Vary w.r.t. $P$ → Equations 2 and 5
 
@@ -109,7 +109,7 @@ $$
 
 The compact form (Eq. 2) drops $H^3/(8\pi^2)$ when $\mathcal{L}_{\text{stream}}$ dominates the horizon integral. The full form (Eq. 5) retains both terms.
 
-Implementation: `omnifold_core/inflation/fokker_planck.py`, `drift_diffusion.py`.
+Implementation: `src/polomni/core/inflation/fokker_planck.py`, `drift_diffusion.py`.
 
 ### Vary w.r.t. $\Psi$ → Equation 3
 
@@ -122,7 +122,7 @@ $$
 
 Setting $\lambda_k = 1$ in the discrete code basis gives the generator form of Equation 3.
 
-Implementation: `omnifold_core/superspace/wdw_generator.py::WDWGenerator`.
+Implementation: `src/polomni/core/superspace/wdw_generator.py::WDWGenerator`.
 
 ### Vary w.r.t. $J^\mu_{\text{choice}}$ with constraint → Equation 4
 
@@ -136,7 +136,7 @@ $$
 
 Integration over $\Omega$ with horizon Gauss law yields the closure identity linking $\mathrm{Tr}(I^2)$ and $\oint \Phi\, dA$.
 
-Implementation: `omnifold_core/conservation.py`.
+Implementation: `src/polomni/core/conservation.py`.
 
 ### Vary w.r.t. $\Phi_{\text{stream}}$ on $\mathcal{H}$ → Stream definition
 
@@ -147,7 +147,7 @@ $$
 = \mathbf{M}\cdot \mathcal{R}[\mathbf{\Psi}] \otimes \mathcal{A}_{\text{vacuum}}
 $$
 
-Implementation: `omnifold_core/radon/vacuum_stream.py::RadonVacuumPipeline`.
+Implementation: `src/polomni/core/radon/vacuum_stream.py::RadonVacuumPipeline`.
 
 ### Vary w.r.t. $\mathcal{G}_{ij}$ on district graph → Equation 7
 
@@ -160,7 +160,7 @@ $$
 + \sum_j \mathcal{G}_{ij}(\mathbf{V}_j - \mathbf{V}_i) + \text{branch kicks}
 $$
 
-Implementation: `omnifold_core/conductance/master_equation.py`.
+Implementation: `src/polomni/core/conductance/master_equation.py`.
 
 ### Vary w.r.t. $T$ (modulus) → Equation 8
 
@@ -171,7 +171,7 @@ $$
 -\frac{\gamma}{3M_P^2}\frac{d}{dt}\!\int_{\mathcal{H}}|\Phi_{\text{stream}}|^2 dA
 $$
 
-Implementation: `omnifold_core/landscape/kahler.py::modulus_stabilization_rate`.
+Implementation: `src/polomni/core/landscape/kahler.py::modulus_stabilization_rate`.
 
 ### Boundary variation on $S^2$ → Equation 6
 
@@ -184,7 +184,7 @@ $$
 \mathbf{M}(\alpha)\cdot \mathcal{R}_{S^2}\!\left[\tfrac{\Delta T}{T} \otimes \mathbf{W}_{\text{string}}\right] d\alpha
 $$
 
-Implementation: `omnifold_core/radon/transform_s2.py`, `omnifold_observatory/scoring/rble_signature.py`.
+Implementation: `src/polomni/core/radon/transform_s2.py`, `src/polomni/observatory/scoring/rble_signature.py`.
 
 ---
 
@@ -200,7 +200,7 @@ $$
 \qquad \text{(Eq. 4 integrated)}
 $$
 
-Enforced by: `omnifold_core/conservation.py::enforce_stream_entropy_closure`.
+Enforced by: `src/polomni/core/conservation.py::enforce_stream_entropy_closure`.
 
 ### 2. Branch probability normalization
 
@@ -208,13 +208,13 @@ $$
 \sum_{k=1}^{N} p_k = 1, \quad p_k \geq 0
 $$
 
-Enforced by: `omnifold_core/superspace/branch_operator.py::compute_branch_weights` (softmax).
+Enforced by: `src/polomni/core/superspace/branch_operator.py::compute_branch_weights` (softmax).
 
 ### 3. District graph acyclicity
 
 The district multiverse is a **DAG**: edges flow parent → child through black-hole portals. No closed timelike district loops.
 
-Enforced by: `omnifold_core/superspace/district_graph.py` (NetworkX `DiGraph` + `is_directed_acyclic_graph` check).
+Enforced by: `src/polomni/core/superspace/district_graph.py` (NetworkX `DiGraph` + `is_directed_acyclic_graph` check).
 
 ### 4. Energy–momentum consistency (weak field)
 
@@ -226,7 +226,7 @@ $$
 
 where $T^{\mu\nu}_{\text{total}} = T^{\mu\nu} + \xi I^{\mu\nu}$.
 
-Enforced by: `omnifold_core/gravity/field_equations.py` tests.
+Enforced by: `src/polomni/core/gravity/field_equations.py` tests.
 
 ### 5. Moduli stability bound
 
@@ -237,7 +237,7 @@ $$
 \quad\text{(stabilization succeeds)}
 $$
 
-Enforced by: `omnifold_core/landscape/kahler.py` and integration tests.
+Enforced by: `src/polomni/core/landscape/kahler.py` and integration tests.
 
 ---
 

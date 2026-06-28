@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from omnifold_core.radon.so3_rotation import (
+from polomni.core.radon.so3_rotation import (
     extract_particle_spectrum,
     rotate_radon_bubble,
     rotation_matrix_euler,

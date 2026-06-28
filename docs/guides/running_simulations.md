@@ -9,7 +9,7 @@ Guide to running **RBLE district simulations** — choice events, Radon vacuum s
 ## CLI Simulation
 
 ```bash
-poetry run omnifold simulate --choices 5 --districts 1 --seed 42
+poetry run polomni simulate --choices 5 --districts 1 --seed 42
 ```
 
 | Flag | Default | Description |
@@ -44,7 +44,7 @@ Example output structure:
 ### 1. Build district graph
 
 ```python
-from omnifold_core.superspace.district_graph import DistrictGraph
+from polomni.core.superspace.district_graph import DistrictGraph
 
 graph = DistrictGraph()
 root = graph.add_district(
@@ -69,7 +69,7 @@ Each child district receives mutated `law_of_gravity` and a `black_hole_at` edge
 
 ```python
 import numpy as np
-from omnifold_core.radon.vacuum_stream import RadonVacuumPipeline
+from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
 
 # District field Ψ on 32³ grid, C=4 components
 psi_field = np.random.randn(32, 32, 32, 4)
@@ -94,8 +94,8 @@ $$
 ### 4. Conservation check
 
 ```python
-from omnifold_core.conservation import enforce_stream_entropy_closure
-from omnifold_core.gravity.information_tensor import information_tensor_N, trace_I_squared
+from polomni.core.conservation import enforce_stream_entropy_closure
+from polomni.core.gravity.information_tensor import information_tensor_N, trace_I_squared
 
 I = information_tensor_N(num_choices=5, entropy_gradient=np.array([1.0, 0, 0, 0]))
 tr_I2 = trace_I_squared(I)
@@ -110,7 +110,7 @@ assert enforce_stream_entropy_closure(
 ### 5. Wheeler–DeWitt wavepacket spawn
 
 ```python
-from omnifold_core.superspace.wdw_generator import WDWGenerator
+from polomni.core.superspace.wdw_generator import WDWGenerator
 
 wdw = WDWGenerator()
 wavepackets = wdw.inject_stream(packet, parent_state=None)
@@ -131,7 +131,7 @@ $$
 
 ```python
 import numpy as np
-from omnifold_core.inflation.fokker_planck import fokker_planck_step, radon_modified_D_eff
+from polomni.core.inflation.fokker_planck import fokker_planck_step, radon_modified_D_eff
 
 phi_grid = np.linspace(-2, 2, 100)
 P = np.exp(-phi_grid**2)  # normalized PDF
@@ -150,8 +150,8 @@ P_next = fokker_planck_step(P, phi_grid, V, H, dt=0.01, D_eff=D_eff)
 
 ```python
 import numpy as np
-from omnifold_core.conductance.bridge_tensor import conductance_matrix
-from omnifold_core.conductance.master_equation import district_master_step
+from polomni.core.conductance.bridge_tensor import conductance_matrix
+from polomni.core.conductance.master_equation import district_master_step
 
 G = conductance_matrix(graph)
 V = np.random.randn(graph.sector_count, 4)  # district spectrum vectors
@@ -169,7 +169,7 @@ V_next = district_master_step(
 ## Branching Langevin Trajectories
 
 ```python
-from omnifold_core.superspace.particle_langevin import BranchingLangevinEvolver
+from polomni.core.superspace.particle_langevin import BranchingLangevinEvolver
 
 evolver = BranchingLangevinEvolver(sigma=0.1)
 grad_V = lambda x: x  # harmonic well
@@ -200,9 +200,9 @@ $$
 Set string landscape at district creation:
 
 ```python
-from omnifold_core.landscape.superpotential import superpotential_W
-from omnifold_core.landscape.vacuum_energy import lambda_vacuum
-from omnifold_core.landscape.kahler import kahler_total
+from polomni.core.landscape.superpotential import superpotential_W
+from polomni.core.landscape.vacuum_energy import lambda_vacuum
+from polomni.core.landscape.kahler import kahler_total
 
 W = superpotential_W([1, 0, -1, 2])
 K = kahler_total(T=1.0, T_bar=1.0, I_trace=0.01, phi_stream_flux=0.001, beta=1.0, gamma=0.5)
@@ -216,8 +216,8 @@ See [../theory/STRING_LANDSCAPE_COUPLING.md](../theory/STRING_LANDSCAPE_COUPLING
 ## Visualization
 
 ```python
-from visualization.district_graph_viz import plot_district_graph
-from visualization.stream_pipeline_viz import plot_stream_pipeline
+from polomni.viz.district_graph_viz import plot_district_graph
+from polomni.viz.stream_pipeline_viz import plot_stream_pipeline
 
 plot_district_graph(graph.galaxy_graph)
 plot_stream_pipeline(stages={

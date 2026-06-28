@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.conductance.master_equation import district_master_step
+from polomni.core.conductance.master_equation import district_master_step
 
 
 def test_master_step_no_coupling_pure_flow() -> None:

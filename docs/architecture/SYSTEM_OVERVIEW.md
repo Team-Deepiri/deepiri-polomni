@@ -1,6 +1,6 @@
-# Deepiri Omnifold — System Overview
+# Deepiri Polomni — System Overview
 
-Architecture of **deepiri-omnifold**: the RBLE (Radon-Bifurcated Landscape Engine) research stack for choice-driven multiverse simulation and CMB falsification.
+Architecture of **deepiri-polomni**: the RBLE (Radon-Bifurcated Landscape Engine) research stack for choice-driven multiverse simulation and CMB falsification.
 
 **Theory:** [../theory/RBLE_MASTER_EQUATIONS.md](../theory/RBLE_MASTER_EQUATIONS.md) · **Notation:** [../theory/NOTATION.md](../theory/NOTATION.md)
 
@@ -18,7 +18,7 @@ $$
 \oint_{\mathcal{H}} \Phi_{\text{stream}} \cdot dA = \mathrm{Tr}(I_{\mu\nu}^{(N)} I^{(N)\,\mu\nu})
 $$
 
-(`omnifold_core/conservation.py`)
+(`src/polomni/core/conservation.py`)
 
 ---
 
@@ -32,7 +32,7 @@ flowchart TB
     CMBMaps["HEALPix CMB maps"]
   end
 
-  subgraph core [omnifold_core]
+  subgraph core [polomni.core]
     State["state: UnifiedState, StreamPacket"]
     Landscape["landscape: W, K, Λ"]
     Gravity["gravity: I_μν, Einstein"]
@@ -43,27 +43,27 @@ flowchart TB
     Conservation["conservation: closure"]
   end
 
-  subgraph ml [omnifold_neural optional]
+  subgraph ml [polomni.neural optional]
     GraphNODE["Graph-NODE engine"]
     PINN["PINN metric solver"]
     ScarNet["Scar classifier"]
   end
 
-  subgraph obs [omnifold_observatory]
+  subgraph obs [polomni.observatory]
     Ingest["ingest: HEALPix"]
     Filters["filters: Radon, string"]
     Scoring["scoring: S_RBLE, null"]
     Reports["reports: DetectionReport"]
   end
 
-  subgraph bridge [omnifold_uqe_bridge optional]
+  subgraph bridge [polomni.bridge optional]
     Entangle["entanglement gradient"]
     EPR["ER=EPR coupling"]
   end
 
   subgraph iface [Interface layer]
-    CLI["omnifold_cli"]
-    Viz["visualization"]
+    CLI["polomni.cli"]
+    Viz["polomni.viz"]
   end
 
   Moduli --> Landscape
@@ -92,7 +92,7 @@ flowchart TB
 
 ## Module Map
 
-### `omnifold_core/` — Deterministic physics engine
+### `src/polomni/core/` — Deterministic physics engine
 
 | Subpackage | Responsibility | Key files |
 |------------|----------------|-----------|
@@ -105,7 +105,7 @@ flowchart TB
 | `conductance/` | ER=EPR network | `bridge_tensor.py`, `master_equation.py` |
 | `conservation.py` | Closure enforcement | `enforce_stream_entropy_closure`, `stream_flux_integral` |
 
-### `omnifold_observatory/` — Sky validation
+### `src/polomni/observatory/` — Sky validation
 
 | Subpackage | Key files |
 |------------|-----------|
@@ -114,7 +114,7 @@ flowchart TB
 | `scoring/` | `rble_signature.py`, `null_ensemble.py` |
 | `reports/` | `detection_report.py` |
 
-### `omnifold_neural/` — Optional AI acceleration (`poetry install -E torch`)
+### `src/polomni/neural/` — Optional AI acceleration (`poetry install -E torch`)
 
 | Subpackage | Key files |
 |------------|-----------|
@@ -122,22 +122,22 @@ flowchart TB
 | `pinn/` | `metric_solver.py` |
 | `scar_classifier/` | `rble_scanner.py` |
 
-### `omnifold_uqe_bridge/` — Optional UQE integration (`poetry install -E uqe`)
+### `src/polomni/bridge/` — Optional UQE integration (`poetry install -E uqe`)
 
 | File | Role |
 |------|------|
 | `entanglement.py` | `cross_branch_gradient` |
 | `er_epr_coupling.py` | `map_density_to_conductance` |
 
-### `omnifold_cli/` — Typer CLI
+### `src/polomni/cli/` — Typer CLI
 
 | Command | Module |
 |---------|--------|
-| `omnifold simulate` | `commands/simulate.py` |
-| `omnifold scan` | `commands/scan.py` |
-| `omnifold-serve` | `commands/serve.py` |
+| `polomni simulate` | `commands/simulate.py` |
+| `polomni scan` | `commands/scan.py` |
+| `polomni-serve` | `commands/serve.py` |
 
-### `visualization/`
+### `src/polomni/viz/`
 
 | File | Output |
 |------|--------|
@@ -216,13 +216,13 @@ Flows: `DistrictGraph` → `RadonVacuumPipeline` → `WDWGenerator` → `fokker_
 ## Repository Layout
 
 ```
-deepiri-omnifold/
-├── omnifold_core/           # Physics engine
-├── omnifold_observatory/    # CMB validation
-├── omnifold_neural/         # Optional ML
-├── omnifold_uqe_bridge/     # Optional UQE
-├── omnifold_cli/            # CLI
-├── visualization/           # Plots
+deepiri-polomni/
+├── src/polomni/core/           # Physics engine
+├── src/polomni/observatory/    # CMB validation
+├── src/polomni/neural/         # Optional ML
+├── src/polomni/bridge/     # Optional UQE
+├── src/polomni/cli/            # CLI
+├── src/polomni/viz/           # Plots
 ├── experiments/             # Jupyter notebooks 01–06
 ├── docs/
 │   ├── theory/              # Canonical math (this suite)
@@ -232,7 +232,7 @@ deepiri-omnifold/
 │   ├── unit/
 │   ├── integration/
 │   └── observatory/
-└── docker/                  # omnifold-lab
+└── docker/                  # polomni-lab
 ```
 
 ---

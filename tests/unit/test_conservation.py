@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from omnifold_core.conservation import (
+from polomni.core.conservation import (
     ConservationViolationError,
     assert_stream_entropy_closure,
     compute_information_trace,

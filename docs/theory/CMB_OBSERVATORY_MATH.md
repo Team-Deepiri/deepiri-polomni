@@ -2,7 +2,7 @@
 
 Mathematical specification for detecting **RBLE Radon scars** on the cosmic microwave background — geodesic Radon transform on $S^2$, inverse bifurcation filter, and detection statistics.
 
-**Master equation:** Equation 6 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Falsification:** Prediction P1 in [FALSIFICATION_CRITERIA.md](./FALSIFICATION_CRITERIA.md). **Implementation:** `omnifold_observatory/`.
+**Master equation:** Equation 6 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Falsification:** Prediction P1 in [FALSIFICATION_CRITERIA.md](./FALSIFICATION_CRITERIA.md). **Implementation:** `src/polomni/observatory/`.
 
 ---
 
@@ -42,13 +42,13 @@ $$
 + a_{\ell m}^{B} Y_{\ell m}^{B}(\hat{\mathbf{r}})
 $$
 
-**Code:** `omnifold_observatory/ingest/polarization.py::extract_qu_maps`
+**Code:** `src/polomni/observatory/ingest/polarization.py::extract_qu_maps`
 
 ### HEALPix discretization
 
 Pixel index $p \in \{0, \ldots, 12\,N_{\text{side}}^2 - 1\}$ with equal-area pixels.
 
-**Code:** `omnifold_observatory/ingest/healpix_loader.py::load_healpix_map`, `synthetic_cmb_map(nside, seed)`
+**Code:** `src/polomni/observatory/ingest/healpix_loader.py::load_healpix_map`, `synthetic_cmb_map(nside, seed)`
 
 ---
 
@@ -74,7 +74,7 @@ $$
 \approx \sum_{k \in \text{ring}(\eta_j)} w_k\, f_k\, \Delta l_k
 $$
 
-**Code:** `omnifold_core/radon/transform_s2.py::radon_transform_s2(healpix_map, n_hat, eta)`
+**Code:** `src/polomni/core/radon/transform_s2.py::radon_transform_s2(healpix_map, n_hat, eta)`
 
 ---
 
@@ -102,7 +102,7 @@ $$
 
 Applied as multiplicative harmonic-space mask or pixel-space convolution.
 
-**Code:** `omnifold_observatory/filters/string_filter.py::string_landscape_filter(map, W_params)`
+**Code:** `src/polomni/observatory/filters/string_filter.py::string_landscape_filter(map, W_params)`
 
 ### Inverse Radon–bifurcation filter
 
@@ -117,7 +117,7 @@ $$
 
 Discrete implementation: filtered back-projection over angle ensemble $\{\alpha_i\}$.
 
-**Code:** `omnifold_observatory/filters/radon_bifurcation.py::inverse_radon_bifurcation_filter(map, angles)`
+**Code:** `src/polomni/observatory/filters/radon_bifurcation.py::inverse_radon_bifurcation_filter(map, angles)`
 
 ---
 
@@ -139,7 +139,7 @@ $$
 S_{\max}^{(b)} \sim \mathcal{F}_{\text{null}}, \quad b = 1, \ldots, N_{\text{null}}
 $$
 
-**Code:** `omnifold_observatory/scoring/null_ensemble.py::generate_null_ensemble(n_maps, nside, seed)`
+**Code:** `src/polomni/observatory/scoring/null_ensemble.py::generate_null_ensemble(n_maps, nside, seed)`
 
 Generate $N_{\text{null}} \geq 10^4$ maps with same $C_\ell^{TT}$ as fiducial cosmology, no injected scar.
 
@@ -170,7 +170,7 @@ with window $w$ centered on $\hat{\mathbf{n}}_0$ (Gaussian, FWHM $\sim 10°$).
 
 ### Detection report
 
-**Code:** `omnifold_observatory/scoring/rble_signature.py`
+**Code:** `src/polomni/observatory/scoring/rble_signature.py`
 
 ```python
 compute_rble_signature(map, n_hat) -> float
@@ -182,7 +182,7 @@ DetectionReport(
 )
 ```
 
-**Code:** `omnifold_observatory/reports/detection_report.py::format_report`, `save_json`
+**Code:** `src/polomni/observatory/reports/detection_report.py::format_report`, `save_json`
 
 ---
 
@@ -272,7 +272,7 @@ S_RBLE(n̂), DetectionReport
 p-value, falsification_flags.p1_radon_scar
     │
     ▼  detection_report.format_report
-JSON + Mollweide overlay (visualization/sky_map.py)
+JSON + Mollweide overlay (src/polomni/viz/sky_map.py)
 ```
 
 ---
@@ -280,7 +280,7 @@ JSON + Mollweide overlay (visualization/sky_map.py)
 ## CLI Entry Point
 
 ```bash
-omnifold scan --map path/to/cmb.fits --nside 512 --null-ensemble 1000
+polomni scan --map path/to/cmb.fits --nside 512 --null-ensemble 1000
 ```
 
 See [../guides/cmb_data_pipeline.md](../guides/cmb_data_pipeline.md).
@@ -289,7 +289,7 @@ See [../guides/cmb_data_pipeline.md](../guides/cmb_data_pipeline.md).
 
 ## Neural Acceleration (Optional)
 
-`omnifold_neural/scar_classifier/rble_scanner.py::score_map` provides fast approximate $\mathcal{S}_{\text{RBLE}}$ for survey-scale screening. Final detection must use deterministic `rble_signature.py` for publication-grade $p$-values.
+`src/polomni/neural/scar_classifier/rble_scanner.py::score_map` provides fast approximate $\mathcal{S}_{\text{RBLE}}$ for survey-scale screening. Final detection must use deterministic `rble_signature.py` for publication-grade $p$-values.
 
 ---
 

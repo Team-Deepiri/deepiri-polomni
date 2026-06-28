@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.landscape.kahler import kahler_total, modulus_stabilization_rate
+from polomni.core.landscape.kahler import kahler_total, modulus_stabilization_rate
 
 
 def test_kahler_volume_term() -> None:

@@ -2,7 +2,7 @@
 
 RBLE is designed **falsification-first**: the framework makes simultaneous predictions that standard eternal inflation, isolated bubble-collision models, and pure string landscape statistics do **not** make together. This document defines null hypotheses, test statistics, and what survives if each test fails.
 
-**Implementation:** `omnifold_observatory/scoring/rble_signature.py` returns `DetectionReport` with `falsification_flags`. See [CMB_OBSERVATORY_MATH.md](./CMB_OBSERVATORY_MATH.md) for detection statistics.
+**Implementation:** `src/polomni/observatory/scoring/rble_signature.py` returns `DetectionReport` with `falsification_flags`. See [CMB_OBSERVATORY_MATH.md](./CMB_OBSERVATORY_MATH.md) for detection statistics.
 
 ---
 
@@ -12,9 +12,9 @@ For RBLE to be supported at research grade, **all three** must hold above establ
 
 | ID | Prediction | Primary observable | Module |
 |----|------------|-------------------|--------|
-| **P1** | Radon-anisotropic CMB scars with $T$–$E$ coupling | Planck / Simons / LiteBIRD maps | `omnifold_observatory` |
-| **P2** | Spatially clustered non-Gaussianity along district graph | $f_{\mathrm{NL}}$ proxies, directed $D_{\text{eff}}$ | `omnifold_core/inflation` |
-| **P3** | Correlated GW ringdown phases across parent-linked events | LIGO/Virgo/KAGRA catalog | `omnifold_core/conductance` (stub adapter) |
+| **P1** | Radon-anisotropic CMB scars with $T$–$E$ coupling | Planck / Simons / LiteBIRD maps | `polomni.observatory` |
+| **P2** | Spatially clustered non-Gaussianity along district graph | $f_{\mathrm{NL}}$ proxies, directed $D_{\text{eff}}$ | `src/polomni/core/inflation` |
+| **P3** | Correlated GW ringdown phases across parent-linked events | LIGO/Virgo/KAGRA catalog | `src/polomni/core/conductance` (stub adapter) |
 
 Failure of all three does **not** invalidate every RBLE layer — see [What Survives Falsification](#what-survives-falsification).
 
@@ -58,7 +58,7 @@ $$
 H_0^{(1)}: \quad S_{\max} \sim \mathcal{F}_{\text{null}}(C_\ell^{TT})
 $$
 
-where $\mathcal{F}_{\text{null}}$ is the distribution from `omnifold_observatory/scoring/null_ensemble.py::generate_null_ensemble`.
+where $\mathcal{F}_{\text{null}}$ is the distribution from `src/polomni/observatory/scoring/null_ensemble.py::generate_null_ensemble`.
 
 ### Alternative hypothesis $H_A^{(1)}$
 
@@ -72,7 +72,7 @@ where $\rho_{TE}$ is the $T$–$E$ cross-correlation along axis $\hat{\mathbf{n}
 
 ### Test procedure
 
-1. Load HEALPix map via `omnifold_observatory/ingest/healpix_loader.py`
+1. Load HEALPix map via `src/polomni/observatory/ingest/healpix_loader.py`
 2. Extract $Q,U$ via `polarization.py::extract_qu_maps`
 3. Apply `filters/radon_bifurcation.py` and `filters/string_filter.py`
 4. Compute $\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})$ on HEALPix pixel ring directions
@@ -131,7 +131,7 @@ where $d_{\mathcal{G}}$ is graph distance on reconstructed district DAG and $\el
 
 ### Test procedure
 
-1. Run `omnifold simulate` to produce district DAG + stream history
+1. Run `polomni simulate` to produce district DAG + stream history
 2. Map districts to sky patches via stream axis $\hat{\mathbf{n}}_0^{(k)}$
 3. Estimate local $f_{\mathrm{NL}}$ proxy via bispectrum estimator or `directed_diffusion` residual
 4. Compute Moran's $I$ spatial autocorrelation vs. district graph distance
@@ -187,7 +187,7 @@ $$
 4. Stratify event pairs: linked vs. unlinked
 5. Two-sample test on $\rho_\phi$ distributions
 
-**Current status:** stub in `omnifold_core/conductance/`; falsification flag defaults to `inconclusive` until catalog adapter ships.
+**Current status:** stub in `src/polomni/core/conductance/`; falsification flag defaults to `inconclusive` until catalog adapter ships.
 
 ### Falsification threshold
 
@@ -241,13 +241,13 @@ These must hold in **every** simulation regardless of observational outcome:
 3. District graph is acyclic
 4. $D_{\text{eff}} \geq 0$ everywhere
 
-Violations indicate **implementation bugs**, not physics falsification. See `omnifold_core/conservation.py` and `tests/integration/test_full_loop.py`.
+Violations indicate **implementation bugs**, not physics falsification. See `src/polomni/core/conservation.py` and `tests/integration/test_full_loop.py`.
 
 ---
 
 ## Reporting Standard
 
-`omnifold_observatory/reports/detection_report.py::format_report` must include:
+`src/polomni/observatory/reports/detection_report.py::format_report` must include:
 
 ```json
 {

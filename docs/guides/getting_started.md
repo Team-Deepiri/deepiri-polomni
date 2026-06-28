@@ -1,6 +1,6 @@
-# Getting Started with Deepiri Omnifold
+# Getting Started with Deepiri Polomni
 
-**deepiri-omnifold** implements the **RBLE** (Radon-Bifurcated Landscape Engine) — a research stack for choice-driven multiverse simulation and CMB scar detection.
+**deepiri-polomni** implements the **RBLE** (Radon-Bifurcated Landscape Engine) — a research stack for choice-driven multiverse simulation and CMB scar detection.
 
 ---
 
@@ -8,7 +8,7 @@
 
 - Python 3.11+
 - [Poetry](https://python-poetry.org/) for dependency management
-- Optional: CUDA GPU for `omnifold_neural` (PyTorch group)
+- Optional: CUDA GPU for `polomni.neural` (PyTorch group)
 - Optional: [deepiri-uqe](https://github.com/deepiri/deepiri-uqe) for entanglement bridge
 
 ---
@@ -16,7 +16,7 @@
 ## Installation
 
 ```bash
-cd /home/josep/projects/Deepiri/deepiri-omnifold
+cd /home/josep/projects/Deepiri/deepiri-polomni
 poetry install
 ```
 
@@ -57,9 +57,9 @@ $$
 
 ```python
 import numpy as np
-from omnifold_core.state.unified_state import UnifiedStateVector
-from omnifold_core.gravity.information_tensor import information_tensor_N, trace_I_squared
-from omnifold_core.conservation import enforce_stream_entropy_closure, stream_flux_integral
+from polomni.core.state.unified_state import UnifiedStateVector
+from polomni.core.gravity.information_tensor import information_tensor_N, trace_I_squared
+from polomni.core.conservation import enforce_stream_entropy_closure, stream_flux_integral
 
 # Unified state Ψ(t) = [X, P, Λ_laws, C_choice]
 psi = UnifiedStateVector(
@@ -85,12 +85,12 @@ print("RBLE conservation OK")
 
 ## CLI Overview
 
-After install, the `omnifold` command is available:
+After install, the `polomni` command is available:
 
 ```bash
-poetry run omnifold --help
-poetry run omnifold simulate --choices 5 --districts 1
-poetry run omnifold scan --synthetic --nside 64
+poetry run polomni --help
+poetry run polomni simulate --choices 5 --districts 1
+poetry run polomni scan --synthetic --nside 64
 ```
 
 See [running_simulations.md](./running_simulations.md) and [cmb_data_pipeline.md](./cmb_data_pipeline.md).
@@ -129,7 +129,7 @@ Launch lab environment:
 poetry run jupyter lab experiments/
 ```
 
-Or use Docker: see `docker/docker-compose.yml` (omnifold-lab service).
+Or use Docker: see `docker/docker-compose.yml` (polomni-lab service).
 
 ---
 

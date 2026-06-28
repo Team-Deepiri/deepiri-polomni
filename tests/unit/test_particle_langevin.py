@@ -1,11 +1,11 @@
-"""Unit tests for omnifold_core.superspace.particle_langevin."""
+"""Unit tests for polomni.core.superspace.particle_langevin."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from omnifold_core.superspace.particle_langevin import BranchingLangevinEvolver
+from polomni.core.superspace.particle_langevin import BranchingLangevinEvolver
 
 
 def test_step_harmonic_drift_without_kick() -> None:

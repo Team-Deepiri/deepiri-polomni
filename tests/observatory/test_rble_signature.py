@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from omnifold_observatory.ingest.healpix_loader import synthetic_cmb_map
-from omnifold_observatory.reports.detection_report import format_report, save_json
-from omnifold_observatory.scoring.null_ensemble import generate_null_ensemble
-from omnifold_observatory.scoring.rble_signature import (
+from polomni.observatory.ingest.healpix_loader import synthetic_cmb_map
+from polomni.observatory.reports.detection_report import format_report, save_json
+from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
+from polomni.observatory.scoring.rble_signature import (
     compute_rble_signature,
     inject_synthetic_scar,
 )

@@ -1,4 +1,4 @@
-name: deepiri-omnifold-codeql-config
+name: deepiri-polomni-codeql-config
 
 # Let CodeQL scan checked-out repository files, while excluding noisy artifacts below.
 

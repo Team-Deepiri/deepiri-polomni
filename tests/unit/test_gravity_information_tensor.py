@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.gravity.information_tensor import information_tensor_N, trace_I_squared
+from polomni.core.gravity.information_tensor import information_tensor_N, trace_I_squared
 
 
 def test_information_tensor_ln_n_scaling() -> None:

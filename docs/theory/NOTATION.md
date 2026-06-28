@@ -1,6 +1,6 @@
 # RBLE Notation Reference
 
-Complete symbol table for the **Radon-Bifurcated Landscape Engine (RBLE)** as implemented in `deepiri-omnifold`. Greek indices $\mu,\nu = 0,1,2,3$ (spacetime); $i,j,k$ district/branch indices; $I,\bar{J}$ Calabi–Yau moduli indices.
+Complete symbol table for the **Radon-Bifurcated Landscape Engine (RBLE)** as implemented in `deepiri-polomni`. Greek indices $\mu,\nu = 0,1,2,3$ (spacetime); $i,j,k$ district/branch indices; $I,\bar{J}$ Calabi–Yau moduli indices.
 
 **Canonical equations:** [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md)
 
@@ -81,7 +81,7 @@ Complete symbol table for the **Radon-Bifurcated Landscape Engine (RBLE)** as im
 | $\beta$ | Scalar | Informational Kähler back-reaction | `landscape/kahler.py` |
 | $\gamma_K$ | Scalar | Stream flux Kähler coupling ($\gamma$ in Eq. 8) | `landscape/kahler.py` |
 | $V_{\text{uplift}}$ | Scalar | Uplift potential terms | `landscape/vacuum_energy.py` |
-| $\mathbf{W}_{\text{string}}$ | Vector/Filter | String landscape CMB filter | `omnifold_observatory/filters/string_filter.py` |
+| $\mathbf{W}_{\text{string}}$ | Vector/Filter | String landscape CMB filter | `src/polomni/observatory/filters/string_filter.py` |
 
 ---
 
@@ -96,14 +96,14 @@ Complete symbol table for the **Radon-Bifurcated Landscape Engine (RBLE)** as im
 | $\hat{\mathbf{n}}$ | Vector | Great-circle normal on $S^2$ | `radon/transform_s2.py` |
 | $\eta$ | Scalar | Geodesic arc parameter | `radon/transform_s2.py` |
 | $\mathbf{M}(\theta,\phi,\psi)$ | Matrix | $SO(3)$ Euler rotation | `radon/so3_rotation.py` |
-| $\mathbf{M}(\alpha)$ | Matrix | Sky-scan rotation angle | `omnifold_observatory/filters/radon_bifurcation.py` |
+| $\mathbf{M}(\alpha)$ | Matrix | Sky-scan rotation angle | `src/polomni/observatory/filters/radon_bifurcation.py` |
 | $\Phi_{\text{stream}}$ | Vector | Vacuum data stream | `state/stream_packet.py`, `radon/vacuum_stream.py` |
 | $\mathcal{A}_{\text{vacuum}}$ | Vector | Graviton vacuum vector potential | `radon/vacuum_stream.py` |
 | $\mathbf{V}_p$ | Vector | Particle spectrum vector | `radon/so3_rotation.py::extract_particle_spectrum` |
 | $\mathbf{V}_i$ | Vector | District-$i$ spectrum vector | `conductance/master_equation.py` |
-| $\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})$ | Scalar | RBLE CMB signature score | `omnifold_observatory/scoring/rble_signature.py` |
-| $\Delta T / T$ | Field | CMB temperature fluctuation | `omnifold_observatory/ingest/healpix_loader.py` |
-| $Q, U$ | Fields | Stokes polarization parameters | `omnifold_observatory/ingest/polarization.py` |
+| $\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})$ | Scalar | RBLE CMB signature score | `src/polomni/observatory/scoring/rble_signature.py` |
+| $\Delta T / T$ | Field | CMB temperature fluctuation | `src/polomni/observatory/ingest/healpix_loader.py` |
+| $Q, U$ | Fields | Stokes polarization parameters | `src/polomni/observatory/ingest/polarization.py` |
 
 ---
 
@@ -170,7 +170,7 @@ Complete symbol table for the **Radon-Bifurcated Landscape Engine (RBLE)** as im
 | `StreamPacket` | $\Phi_{\text{stream}}$ + metadata | `state/stream_packet.py` |
 | `ChoiceEvent` | $(t_c, N, \text{parent\_id})$ | `state/choice_event.py` |
 | `Wavepacket` | Superspace branch packet | `superspace/wdw_generator.py` |
-| `DetectionReport` | $\mathcal{S}_{\text{RBLE}}$, axis, flags | `omnifold_observatory/scoring/rble_signature.py` |
+| `DetectionReport` | $\mathcal{S}_{\text{RBLE}}$, axis, flags | `src/polomni/observatory/scoring/rble_signature.py` |
 | `DistrictGraph` | $\mathcal{G}_{\text{district}}$ | `superspace/district_graph.py` |
 
 ---

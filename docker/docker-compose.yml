@@ -1,10 +1,10 @@
 services:
-  omnifold-lab:
+  polomni-lab:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: deepiri/omnifold-lab:0.1.0
-    container_name: omnifold-lab
+    image: deepiri/polomni-lab:0.1.0
+    container_name: polomni-lab
     ports:
       - "8091:8091"
       - "8888:8888"
@@ -12,7 +12,7 @@ services:
       - ../experiments:/app/experiments
       - ../docs:/app/docs
     environment:
-      - OMNI_FOLD_ENV=lab
+      - POLOMNI_ENV=lab
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
       interval: 30s
@@ -22,12 +22,12 @@ services:
     command: >
       sh -c "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
       --NotebookApp.token='' --NotebookApp.password='' &
-      uvicorn omnifold_cli.commands.serve:api --host 0.0.0.0 --port 8091"
+      uvicorn polomni.cli.commands.serve:api --host 0.0.0.0 --port 8091"
 
-  omnifold-lab-gpu:
+  polomni-lab-gpu:
     profiles: ["gpu"]
     extends:
-      service: omnifold-lab
+      service: polomni-lab
     deploy:
       resources:
         reservations:

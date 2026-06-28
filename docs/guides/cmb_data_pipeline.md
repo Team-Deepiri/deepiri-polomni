@@ -12,7 +12,7 @@ End-to-end guide for loading CMB maps, computing the **RBLE signature** $\mathca
 FITS/HEALPix  →  ingest  →  filter  →  score  →  null compare  →  report
 ```
 
-Implementation: `omnifold_observatory/`
+Implementation: `src/polomni/observatory/`
 
 ---
 
@@ -21,13 +21,13 @@ Implementation: `omnifold_observatory/`
 ### Synthetic map (smoke test)
 
 ```bash
-poetry run omnifold scan --synthetic --nside 64 --seed 0 --null-ensemble 100
+poetry run polomni scan --synthetic --nside 64 --seed 0 --null-ensemble 100
 ```
 
 ### Real map file
 
 ```bash
-poetry run omnifold scan \
+poetry run polomni scan \
   --map /path/to/cmb_map.fits \
   --field T \
   --nside 512 \
@@ -52,7 +52,7 @@ poetry run omnifold scan \
 ### Step 1 — Load map
 
 ```python
-from omnifold_observatory.ingest.healpix_loader import load_healpix_map, synthetic_cmb_map
+from polomni.observatory.ingest.healpix_loader import load_healpix_map, synthetic_cmb_map
 
 # Real data
 T_map = load_healpix_map("planck_dr3_temperature.fits", field="T")
@@ -64,7 +64,7 @@ T_map = synthetic_cmb_map(nside=128, seed=42)
 ### Step 2 — Polarization (optional, for $T$–$E$ test)
 
 ```python
-from omnifold_observatory.ingest.polarization import extract_qu_maps
+from polomni.observatory.ingest.polarization import extract_qu_maps
 
 Q_map, U_map = extract_qu_maps(T_map)  # or load Q/U from separate files
 ```
@@ -72,7 +72,7 @@ Q_map, U_map = extract_qu_maps(T_map)  # or load Q/U from separate files
 ### Step 3 — String landscape filter
 
 ```python
-from omnifold_observatory.filters.string_filter import string_landscape_filter
+from polomni.observatory.filters.string_filter import string_landscape_filter
 
 W_params = {"flux_integers": [1, 0, -1, 2]}
 T_filtered = string_landscape_filter(T_map, W_params)
@@ -88,7 +88,7 @@ $$
 
 ```python
 import numpy as np
-from omnifold_observatory.filters.radon_bifurcation import inverse_radon_bifurcation_filter
+from polomni.observatory.filters.radon_bifurcation import inverse_radon_bifurcation_filter
 
 angles = np.linspace(0, 2 * np.pi, 36, endpoint=False)
 radon_stack = inverse_radon_bifurcation_filter(T_filtered, angles)
@@ -100,13 +100,13 @@ $$
 \mathcal{R}_{S^2}[f](\hat{\mathbf{n}}, \eta) = \int_{\gamma(\hat{\mathbf{n}},\eta)} f\, dl
 ```
 
-Core transform: `omnifold_core/radon/transform_s2.py::radon_transform_s2`
+Core transform: `src/polomni/core/radon/transform_s2.py::radon_transform_s2`
 
 ### Step 5 — RBLE signature score
 
 ```python
 import numpy as np
-from omnifold_observatory.scoring.rble_signature import compute_rble_signature, DetectionReport
+from polomni.observatory.scoring.rble_signature import compute_rble_signature, DetectionReport
 
 n_hat = np.array([0.0, 0.0, 1.0])  # scan axis
 score = compute_rble_signature(T_filtered, n_hat)
@@ -127,7 +127,7 @@ $$
 ### Step 6 — Null ensemble comparison
 
 ```python
-from omnifold_observatory.scoring.null_ensemble import generate_null_ensemble
+from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
 
 null_scores = []
 for null_map in generate_null_ensemble(n_maps=1000, nside=128, seed=123):
@@ -140,7 +140,7 @@ p_value = (1 + sum(s >= score for s in null_scores)) / (len(null_scores) + 1)
 ### Step 7 — Detection report
 
 ```python
-from omnifold_observatory.reports.detection_report import format_report, save_report
+from polomni.observatory.reports.detection_report import format_report, save_report
 
 report = DetectionReport(
     rble_score=float(score),
@@ -167,7 +167,7 @@ Validate recovery before real data:
 ```python
 import numpy as np
 import healpy as hp
-from omnifold_observatory.scoring.rble_signature import compute_rble_signature
+from polomni.observatory.scoring.rble_signature import compute_rble_signature
 
 nside = 64
 npix = hp.nside2npix(nside)
@@ -205,7 +205,7 @@ $$
 ## Visualization
 
 ```python
-from visualization.sky_map import plot_mollweide
+from polomni.viz.sky_map import plot_mollweide
 
 plot_mollweide(
     T_map,
@@ -222,7 +222,7 @@ plot_mollweide(
 Fast approximate scoring before deterministic pipeline:
 
 ```python
-from omnifold_neural.scar_classifier.rble_scanner import score_map
+from polomni.neural.scar_classifier.rble_scanner import score_map
 
 approx = score_map(T_map)  # requires poetry install -E torch
 ```

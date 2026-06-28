@@ -5,9 +5,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from omnifold_core.state.choice_event import ChoiceEvent
-from omnifold_core.state.stream_packet import StreamPacket
-from omnifold_core.state.unified_state import UnifiedStateVector
+from polomni.core.state.choice_event import ChoiceEvent
+from polomni.core.state.stream_packet import StreamPacket
+from polomni.core.state.unified_state import UnifiedStateVector
 
 
 class TestUnifiedStateVector:

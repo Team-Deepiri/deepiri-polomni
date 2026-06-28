@@ -1,4 +1,4 @@
-name: Deepiri CI - deepiri-omnifold
+name: Deepiri CI - deepiri-polomni
 
 on:
   push:
@@ -28,15 +28,7 @@ jobs:
         run: poetry install --with dev
 
       - name: Ruff
-        run: |
-          poetry run ruff check \
-            omnifold_core \
-            omnifold_neural \
-            omnifold_observatory \
-            omnifold_uqe_bridge \
-            omnifold_cli \
-            visualization \
-            tests
+        run: poetry run ruff check src/polomni tests
 
       - name: Unit tests
         run: poetry run pytest tests/ -q
@@ -48,4 +40,4 @@ jobs:
           done
 
       - name: Docker build smoke
-        run: docker build -f docker/Dockerfile -t deepiri-omnifold:ci-smoke .
+        run: docker build -f docker/Dockerfile -t deepiri-polomni:ci-smoke .

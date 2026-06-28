@@ -2,7 +2,7 @@
 
 How the **string landscape** ($W$, $K$, $\Lambda$) couples to RBLE district physics, moduli stabilization, and the modified Einstein equations.
 
-**Master equations:** Equations 1 and 8 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `omnifold_core/landscape/`.
+**Master equations:** Equations 1 and 8 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `src/polomni/core/landscape/`.
 
 ---
 
@@ -205,7 +205,7 @@ $$
 
 Scars from parent universes with **different flux vacua** leave distinct harmonic ladders — not generic collision profiles.
 
-**Code:** `omnifold_observatory/filters/string_filter.py::string_landscape_filter(map, W_params)`
+**Code:** `src/polomni/observatory/filters/string_filter.py::string_landscape_filter(map, W_params)`
 
 ---
 
@@ -217,7 +217,7 @@ Typical CY compactifications admit $\sim 10^{500}$ metastable vacua. RBLE does *
 - Conductance $\mathcal{G}_{ij}$ biases backward information flow
 - Graph distance correlates with $\Delta \Lambda$ between sectors
 
-Future: `omnifold_neural/graph_node/engine.py::RBLEGraphEngine` learns landscape navigation policy.
+Future: `src/polomni/neural/graph_node/engine.py::RBLEGraphEngine` learns landscape navigation policy.
 
 ---
 

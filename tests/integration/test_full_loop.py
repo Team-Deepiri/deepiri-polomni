@@ -5,11 +5,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from omnifold_core.conservation import enforce_stream_entropy_closure
-from omnifold_core.radon.vacuum_stream import RadonVacuumPipeline
-from omnifold_core.state.unified_state import UnifiedStateVector
-from omnifold_core.superspace.district_graph import DistrictGraph
-from omnifold_core.superspace.wdw_generator import WDWGenerator
+from polomni.core.conservation import enforce_stream_entropy_closure
+from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
+from polomni.core.state.unified_state import UnifiedStateVector
+from polomni.core.superspace.district_graph import DistrictGraph
+from polomni.core.superspace.wdw_generator import WDWGenerator
 
 
 @pytest.mark.integration

@@ -1,6 +1,6 @@
 """Unit tests for vacuum energy Lambda(W, K)."""
 
-from omnifold_core.landscape.vacuum_energy import lambda_vacuum
+from polomni.core.landscape.vacuum_energy import lambda_vacuum
 
 
 def test_lambda_vacuum_w_zero() -> None:

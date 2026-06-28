@@ -2,9 +2,9 @@
 
 import numpy as np
 
-from omnifold_core.conservation import compute_information_trace, stream_flux_integral
-from omnifold_core.gravity.information_tensor import information_tensor_N
-from omnifold_core.radon.vacuum_stream import RadonVacuumPipeline
+from polomni.core.conservation import compute_information_trace, stream_flux_integral
+from polomni.core.gravity.information_tensor import information_tensor_N
+from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
 
 
 def test_vacuum_pipeline_conservation_closure() -> None:

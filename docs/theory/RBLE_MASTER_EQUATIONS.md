@@ -1,8 +1,8 @@
 # RBLE Master Equations
 
-**Radon-Bifurcated Landscape Engine (RBLE)** — canonical equation chain for `deepiri-omnifold`.
+**Radon-Bifurcated Landscape Engine (RBLE)** — canonical equation chain for `deepiri-polomni`.
 
-This document is the single source of truth for the eight connected field equations that close the multiverse loop: string landscape → inflation → choice → horizon stream → superspace birth → CMB scar → ER bridge → moduli stabilization. Each equation maps to a concrete module under `omnifold_core/` or `omnifold_observatory/`.
+This document is the single source of truth for the eight connected field equations that close the multiverse loop: string landscape → inflation → choice → horizon stream → superspace birth → CMB scar → ER bridge → moduli stabilization. Each equation maps to a concrete module under `src/polomni/core/` or `src/polomni/observatory/`.
 
 **Related docs:** [VARIATIONAL_PRINCIPLE.md](./VARIATIONAL_PRINCIPLE.md) · [NOTATION.md](./NOTATION.md) · [FALSIFICATION_CRITERIA.md](./FALSIFICATION_CRITERIA.md)
 
@@ -12,14 +12,14 @@ This document is the single source of truth for the eight connected field equati
 
 | # | Name | Primary module |
 |---|------|----------------|
-| 1 | Informational-String Field Metric | `omnifold_core/gravity/field_equations.py` |
-| 2 | Radon-Rotated Fokker-Planck (compact) | `omnifold_core/inflation/fokker_planck.py` |
-| 3 | Topological Wheeler-DeWitt Bifurcation Closure | `omnifold_core/superspace/wdw_generator.py` |
-| 4 | Choice Entropy Continuity Law | `omnifold_core/conservation.py` |
-| 5 | Radon-Modulated Fokker-Planck (full form) | `omnifold_core/inflation/drift_diffusion.py` |
-| 6 | Spherical Radon Scar on $S^2$ (HEALPix) | `omnifold_core/radon/transform_s2.py` |
-| 7 | ER=EPR Bridge Conductance Tensor | `omnifold_core/conductance/bridge_tensor.py` |
-| 8 | Kähler Stabilization as Dynamic Boundary Condition | `omnifold_core/landscape/kahler.py` |
+| 1 | Informational-String Field Metric | `src/polomni/core/gravity/field_equations.py` |
+| 2 | Radon-Rotated Fokker-Planck (compact) | `src/polomni/core/inflation/fokker_planck.py` |
+| 3 | Topological Wheeler-DeWitt Bifurcation Closure | `src/polomni/core/superspace/wdw_generator.py` |
+| 4 | Choice Entropy Continuity Law | `src/polomni/core/conservation.py` |
+| 5 | Radon-Modulated Fokker-Planck (full form) | `src/polomni/core/inflation/drift_diffusion.py` |
+| 6 | Spherical Radon Scar on $S^2$ (HEALPix) | `src/polomni/core/radon/transform_s2.py` |
+| 7 | ER=EPR Bridge Conductance Tensor | `src/polomni/core/conductance/bridge_tensor.py` |
+| 8 | Kähler Stabilization as Dynamic Boundary Condition | `src/polomni/core/landscape/kahler.py` |
 
 ---
 
@@ -61,10 +61,10 @@ When a district undergoes an $N$-choice event, the local information entropy gra
 
 ### Code connection
 
-- **`omnifold_core/gravity/information_tensor.py`** — `information_tensor_N(num_choices, entropy_gradient)` builds $I_{\mu\nu}^{(N)}$; `trace_I_squared()` computes $\mathrm{Tr}(I^2)$.
-- **`omnifold_core/gravity/field_equations.py`** — `modified_field_residual(g, T, I, Lambda)` evaluates the LHS − RHS residual; `einstein_rhs(T_munu, I_munu, xi)` assembles the source.
-- **`omnifold_core/landscape/vacuum_energy.py`** — `lambda_vacuum(W, K, M_P)` evaluates $\Lambda(W,K)$.
-- **`omnifold_core/gravity/schwarzschild_choice.py`** — `schwarzschild_metric_with_choice(M, I_choice, gamma, r_grid)` gives the $I_{\text{choice}}$-injected Schwarzschild limit for district-scale wells.
+- **`src/polomni/core/gravity/information_tensor.py`** — `information_tensor_N(num_choices, entropy_gradient)` builds $I_{\mu\nu}^{(N)}$; `trace_I_squared()` computes $\mathrm{Tr}(I^2)$.
+- **`src/polomni/core/gravity/field_equations.py`** — `modified_field_residual(g, T, I, Lambda)` evaluates the LHS − RHS residual; `einstein_rhs(T_munu, I_munu, xi)` assembles the source.
+- **`src/polomni/core/landscape/vacuum_energy.py`** — `lambda_vacuum(W, K, M_P)` evaluates $\Lambda(W,K)$.
+- **`src/polomni/core/gravity/schwarzschild_choice.py`** — `schwarzschild_metric_with_choice(M, I_choice, gamma, r_grid)` gives the $I_{\text{choice}}$-injected Schwarzschild limit for district-scale wells.
 
 ---
 
@@ -108,9 +108,9 @@ In standard eternal inflation, quantum diffusion is **memoryless** and isotropic
 
 ### Code connection
 
-- **`omnifold_core/inflation/fokker_planck.py`** — `fokker_planck_step(P, phi, V, H, dt, D_eff)` advances $P$ one timestep; `radon_modified_D_eff(H, stream_fluxes, lambda_coupling)` evaluates the compact diffusion modifier.
-- **`omnifold_core/radon/transform_r3.py`** — `radon_transform_r3(psi_field, xi, p)` implements $\mathcal{R}[\mathbf{\Psi}]$ on $\mathbb{R}^3$ grids.
-- **`omnifold_core/radon/so3_rotation.py`** — `rotation_matrix_euler`, `rotate_radon_bubble` apply $\mathbf{M}$.
+- **`src/polomni/core/inflation/fokker_planck.py`** — `fokker_planck_step(P, phi, V, H, dt, D_eff)` advances $P$ one timestep; `radon_modified_D_eff(H, stream_fluxes, lambda_coupling)` evaluates the compact diffusion modifier.
+- **`src/polomni/core/radon/transform_r3.py`** — `radon_transform_r3(psi_field, xi, p)` implements $\mathcal{R}[\mathbf{\Psi}]$ on $\mathbb{R}^3$ grids.
+- **`src/polomni/core/radon/so3_rotation.py`** — `rotation_matrix_euler`, `rotate_radon_bubble` apply $\mathbf{M}$.
 
 ---
 
@@ -147,9 +147,9 @@ Each choice-born graviton well acts as a **mechanical trigger** in superspace. S
 
 ### Code connection
 
-- **`omnifold_core/superspace/wdw_generator.py`** — `WDWGenerator.inject_stream(packet, parent_state)` and `spawn_wavepackets(num_choices, phi_stream)` discretize the delta injection; returns `Wavepacket` models with `metric_mutation`, `momentum_vector`, `stream_residual`.
-- **`omnifold_core/state/stream_packet.py`** — `StreamPacket` carries `phi_stream`, `branch_weights`, `information_trace` consumed by the generator.
-- **`omnifold_core/superspace/particle_langevin.py`** — `BranchingLangevinEvolver` tracks $\mathbf{p}_k$ trajectories with delta kicks at $t_{\text{choice}}$.
+- **`src/polomni/core/superspace/wdw_generator.py`** — `WDWGenerator.inject_stream(packet, parent_state)` and `spawn_wavepackets(num_choices, phi_stream)` discretize the delta injection; returns `Wavepacket` models with `metric_mutation`, `momentum_vector`, `stream_residual`.
+- **`src/polomni/core/state/stream_packet.py`** — `StreamPacket` carries `phi_stream`, `branch_weights`, `information_trace` consumed by the generator.
+- **`src/polomni/core/superspace/particle_langevin.py`** — `BranchingLangevinEvolver` tracks $\mathbf{p}_k$ trajectories with delta kicks at $t_{\text{choice}}$.
 
 ---
 
@@ -188,9 +188,9 @@ Choices gravitate through **entropy**, not rest mass. The continuity law is the 
 
 ### Code connection
 
-- **`omnifold_core/conservation.py`** — `enforce_stream_entropy_closure(phi_stream, information_tensor_trace)` verifies $\oint \Phi\, dA = \mathrm{Tr}(I^2)$; `stream_flux_integral(phi_stream, horizon_area)`; `compute_information_trace(I_mu_nu)`; raises `ConservationViolationError` on failure.
-- **`omnifold_core/superspace/branch_operator.py`** — `compute_branch_weights(choice_vector, num_choices)` produces $p_k$ via softmax of log-odds.
-- **`omnifold_core/radon/vacuum_stream.py`** — `RadonVacuumPipeline.stream_to_vacuum()` returns `StreamPacket` satisfying closure when pipeline completes.
+- **`src/polomni/core/conservation.py`** — `enforce_stream_entropy_closure(phi_stream, information_tensor_trace)` verifies $\oint \Phi\, dA = \mathrm{Tr}(I^2)$; `stream_flux_integral(phi_stream, horizon_area)`; `compute_information_trace(I_mu_nu)`; raises `ConservationViolationError` on failure.
+- **`src/polomni/core/superspace/branch_operator.py`** — `compute_branch_weights(choice_vector, num_choices)` produces $p_k$ via softmax of log-odds.
+- **`src/polomni/core/radon/vacuum_stream.py`** — `RadonVacuumPipeline.stream_to_vacuum()` returns `StreamPacket` satisfying closure when pipeline completes.
 
 ---
 
@@ -231,9 +231,9 @@ Equation 2 is the **single-horizon** limit. Equation 5 is the **network form**: 
 
 ### Code connection
 
-- **`omnifold_core/inflation/drift_diffusion.py`** — `classical_drift(V_prime, H)`, `quantum_diffusion(H)`, `directed_diffusion(stream_flux_integral)` assemble drift and diffusion terms separately.
-- **`omnifold_core/inflation/fokker_planck.py`** — full-step integration uses combined $D_{\text{eff}}$.
-- **`omnifold_core/superspace/district_graph.py`** — `DistrictGraph` provides district indices $k$ and causal adjacency for weighting $w_k$.
+- **`src/polomni/core/inflation/drift_diffusion.py`** — `classical_drift(V_prime, H)`, `quantum_diffusion(H)`, `directed_diffusion(stream_flux_integral)` assemble drift and diffusion terms separately.
+- **`src/polomni/core/inflation/fokker_planck.py`** — full-step integration uses combined $D_{\text{eff}}$.
+- **`src/polomni/core/superspace/district_graph.py`** — `DistrictGraph` provides district indices $k$ and causal adjacency for weighting $w_k$.
 
 ---
 
@@ -276,10 +276,10 @@ If our universe nucleated from a parent Radon data stream, the injection point l
 
 ### Code connection
 
-- **`omnifold_core/radon/transform_s2.py`** — `radon_transform_s2(healpix_map, n_hat, eta)`; healpy primary, numpy geodesic fallback.
-- **`omnifold_observatory/filters/radon_bifurcation.py`** — `inverse_radon_bifurcation_filter(map, angles)`.
-- **`omnifold_observatory/filters/string_filter.py`** — `string_landscape_filter(map, W_params)` applies $\mathbf{W}_{\text{string}}$.
-- **`omnifold_observatory/scoring/rble_signature.py`** — `compute_rble_signature(map, n_hat)` peaks $\mathcal{S}_{\text{RBLE}}$.
+- **`src/polomni/core/radon/transform_s2.py`** — `radon_transform_s2(healpix_map, n_hat, eta)`; healpy primary, numpy geodesic fallback.
+- **`src/polomni/observatory/filters/radon_bifurcation.py`** — `inverse_radon_bifurcation_filter(map, angles)`.
+- **`src/polomni/observatory/filters/string_filter.py`** — `string_landscape_filter(map, W_params)` applies $\mathbf{W}_{\text{string}}$.
+- **`src/polomni/observatory/scoring/rble_signature.py`** — `compute_rble_signature(map, n_hat)` peaks $\mathcal{S}_{\text{RBLE}}$.
 
 ---
 
@@ -323,10 +323,10 @@ Maldacena–Susskind (ER=EPR) is made **quantitative**: entanglement between bra
 
 ### Code connection
 
-- **`omnifold_core/conductance/bridge_tensor.py`** — `bridge_conductance(S_euclidean, stream_i, stream_j, T_munu_coupling)`; `conductance_matrix(district_graph)`.
-- **`omnifold_core/conductance/master_equation.py`** — `district_master_step(V, F, conductance_matrix, branch_kicks, dt)`.
-- **`omnifold_core/superspace/district_graph.py`** — `get_conductance(i, j)`, `set_conductance(i, j, value)`.
-- **`omnifold_uqe_bridge/er_epr_coupling.py`** — optional UQE density-matrix mapping to $\mathcal{G}_{ij}$.
+- **`src/polomni/core/conductance/bridge_tensor.py`** — `bridge_conductance(S_euclidean, stream_i, stream_j, T_munu_coupling)`; `conductance_matrix(district_graph)`.
+- **`src/polomni/core/conductance/master_equation.py`** — `district_master_step(V, F, conductance_matrix, branch_kicks, dt)`.
+- **`src/polomni/core/superspace/district_graph.py`** — `get_conductance(i, j)`, `set_conductance(i, j, value)`.
+- **`src/polomni/bridge/er_epr_coupling.py`** — optional UQE density-matrix mapping to $\mathcal{G}_{ij}$.
 
 ---
 
@@ -367,9 +367,9 @@ Without stabilization, stream injection would **destabilize** Calabi–Yau modul
 
 ### Code connection
 
-- **`omnifold_core/landscape/kahler.py`** — `kahler_total(T, T_bar, I_trace, phi_stream_flux, beta, gamma)`; `modulus_stabilization_rate(...)`.
-- **`omnifold_core/landscape/superpotential.py`** — `superpotential_W(flux_integers)`, `kahler_covariant_derivative`.
-- **`omnifold_core/landscape/vacuum_energy.py`** — feeds $\Lambda(W,K)$ back into Equation 1.
+- **`src/polomni/core/landscape/kahler.py`** — `kahler_total(T, T_bar, I_trace, phi_stream_flux, beta, gamma)`; `modulus_stabilization_rate(...)`.
+- **`src/polomni/core/landscape/superpotential.py`** — `superpotential_W(flux_integers)`, `kahler_covariant_derivative`.
+- **`src/polomni/core/landscape/vacuum_energy.py`** — feeds $\Lambda(W,K)$ back into Equation 1.
 
 ---
 

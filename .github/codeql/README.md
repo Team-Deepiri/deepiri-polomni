@@ -1,4 +1,4 @@
-# CodeQL Setup for deepiri-omnifold repository
+# CodeQL Setup for deepiri-polomni repository
 
 This folder contains the CodeQL configuration for repository-level security scanning.
 
@@ -37,7 +37,7 @@ Uses least-privilege permissions. `security-events: write` is required so CodeQL
 ```yaml
 language: [python]
 ```
-Runs Python analysis for omnifold_core, omnifold_neural, omnifold_observatory, omnifold_cli, and related packages.
+Runs Python analysis for omnifold_core, polomni.neural, polomni.observatory, omnifold_cli, and related packages.
 
 ### Checkout step
 ```yaml

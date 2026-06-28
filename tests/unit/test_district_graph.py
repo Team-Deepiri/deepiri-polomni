@@ -1,11 +1,11 @@
-"""Unit tests for omnifold_core.superspace.district_graph."""
+"""Unit tests for polomni.core.superspace.district_graph."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from omnifold_core.superspace.district_graph import DistrictGraph
+from polomni.core.superspace.district_graph import DistrictGraph
 
 
 def test_add_district_increments_ids() -> None:

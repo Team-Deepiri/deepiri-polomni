@@ -2,7 +2,7 @@
 
 Step-by-step mathematics of the **encapsulate → rotate → stream** pipeline that compresses district field data through a graviton well horizon and produces a conserved `StreamPacket`.
 
-**Master equation:** Equation 4 closure and stream definition in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `omnifold_core/radon/`.
+**Master equation:** Equation 4 closure and stream definition in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `src/polomni/core/radon/`.
 
 ---
 
@@ -24,7 +24,7 @@ District field Ψ(x)  on Ω ⊂ R³
    StreamPacket  (iff ∮ Φ dA = Tr(I²))
 ```
 
-**Class:** `omnifold_core/radon/vacuum_stream.py::RadonVacuumPipeline`
+**Class:** `src/polomni/core/radon/vacuum_stream.py::RadonVacuumPipeline`
 
 | Stage | Method | Module |
 |-------|--------|--------|
@@ -65,7 +65,7 @@ $$
 
 where $\mathcal{W}$ is a narrow Gaussian approximating $\delta$ (default $\sigma = \Delta x / \sqrt{2\pi}$).
 
-**Code:** `omnifold_core/radon/transform_r3.py::radon_transform_r3(psi_field, xi, p)`
+**Code:** `src/polomni/core/radon/transform_r3.py::radon_transform_r3(psi_field, xi, p)`
 
 ### Input / output contract
 
@@ -109,7 +109,7 @@ Quantum numbers transform under $SO(3)$ and $SU(2)$. Rotation **filters** backgr
 
 **Code:**
 
-- `omnifold_core/radon/so3_rotation.py::rotation_matrix_euler(theta, phi, psi)`
+- `src/polomni/core/radon/so3_rotation.py::rotation_matrix_euler(theta, phi, psi)`
 - `rotate_radon_bubble(data, angles)` — applies $\mathbf{M}$ to Radon coefficients
 - `extract_particle_spectrum(rotated_data)` — collapses to $\mathbf{V}_p$
 
@@ -155,11 +155,11 @@ $$
 \approx |\Phi_{\text{stream}}| \cdot A_{\mathcal{H}}
 $$
 
-**Code:** `omnifold_core/conservation.py::stream_flux_integral(phi_stream, horizon_area)`
+**Code:** `src/polomni/core/conservation.py::stream_flux_integral(phi_stream, horizon_area)`
 
 ### Output: StreamPacket
 
-`omnifold_core/state/stream_packet.py::StreamPacket` fields:
+`src/polomni/core/state/stream_packet.py::StreamPacket` fields:
 
 | Field | Math object |
 |-------|-------------|
@@ -197,7 +197,7 @@ $$
 ### Enforcement
 
 ```python
-# omnifold_core/conservation.py
+# src/polomni/core/conservation.py
 enforce_stream_entropy_closure(phi_stream, information_tensor_trace) -> bool
 ```
 
@@ -215,7 +215,7 @@ $$
 ## End-to-End Pipeline Class
 
 ```python
-from omnifold_core.radon.vacuum_stream import RadonVacuumPipeline
+from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
 
 pipeline = RadonVacuumPipeline(horizon_area=4 * np.pi * r_s**2)
 sheet = pipeline.encapsulate_and_scan(district_psi_field)

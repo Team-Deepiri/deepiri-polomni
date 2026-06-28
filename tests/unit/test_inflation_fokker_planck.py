@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.inflation.fokker_planck import fokker_planck_step, radon_modified_D_eff
+from polomni.core.inflation.fokker_planck import fokker_planck_step, radon_modified_D_eff
 
 
 def test_radon_modified_D_eff_base_term() -> None:

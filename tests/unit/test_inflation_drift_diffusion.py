@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.inflation.drift_diffusion import (
+from polomni.core.inflation.drift_diffusion import (
     classical_drift,
     directed_diffusion,
     quantum_diffusion,

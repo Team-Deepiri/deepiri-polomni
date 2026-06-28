@@ -2,7 +2,7 @@
 
 Mathematics of the **district graph**, **Wheeler–DeWitt generator**, and **branching Langevin** dynamics — the superspace layer that turns choice events into new universe sectors.
 
-**Master equations:** Equations 3, 4, 7 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `omnifold_core/superspace/`.
+**Master equations:** Equations 3, 4, 7 in [RBLE_MASTER_EQUATIONS.md](./RBLE_MASTER_EQUATIONS.md). **Implementation:** `src/polomni/core/superspace/`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.gravity.schwarzschild_choice import schwarzschild_metric_with_choice
+from polomni.core.gravity.schwarzschild_choice import schwarzschild_metric_with_choice
 
 
 def test_schwarzschild_limit_no_choice() -> None:

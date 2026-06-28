@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from omnifold_core.radon.transform_r3 import radon_transform_r3, radon_sinogram_r3
+from polomni.core.radon.transform_r3 import radon_transform_r3, radon_sinogram_r3
 
 
 def test_radon_constant_field_unit_xi() -> None:

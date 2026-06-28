@@ -1,12 +1,12 @@
 [tool.poetry]
-name = "deepiri-omnifold"
+name = "deepiri-polomni"
 version = "0.1.0"
-description = "Deepiri Omnifold Engine — RBLE (Radon-Bifurcated Landscape Engine) cosmology research framework"
+description = "Deepiri Polomni Engine — RBLE (Radon-Bifurcated Landscape Engine) cosmology research framework"
 authors = ["Deepiri <research@deepiri.ai>"]
 readme = "README.md"
 license = "Apache-2.0"
-repository = "https://github.com/Team-Deepiri/deepiri-omnifold"
-keywords = ["cosmology", "multiverse", "rble", "radon", "physics", "simulation", "cmb"]
+repository = "https://github.com/Team-Deepiri/deepiri-polomni"
+keywords = ["cosmology", "multiverse", "rble", "radon", "physics", "simulation", "cmb", "polomni"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -18,12 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 packages = [
-    { include = "omnifold_core" },
-    { include = "omnifold_neural" },
-    { include = "omnifold_observatory" },
-    { include = "omnifold_uqe_bridge" },
-    { include = "omnifold_cli" },
-    { include = "visualization" },
+    { include = "polomni", from = "src" },
 ]
 
 [tool.poetry.dependencies]
@@ -54,13 +49,6 @@ optional = true
 torch = { version = ">=2.2", source = "pytorch" }
 torchdiffeq = "^0.2"
 
-[tool.poetry.group.uqe]
-optional = true
-
-[tool.poetry.group.uqe.dependencies]
-# Install deepiri-uqe from sibling path when developing locally:
-# poetry add ../deepiri-uqe --group uqe
-
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
 pytest-cov = "^4.1"
@@ -74,8 +62,8 @@ nbconvert = "^7.14"
 black = "^24.2"
 
 [tool.poetry.scripts]
-omnifold = "omnifold_cli.main:app"
-omnifold-serve = "omnifold_cli.commands.serve:main"
+polomni = "polomni.cli.main:app"
+polomni-serve = "polomni.cli.commands.serve:main"
 
 [build-system]
 requires = ["poetry-core"]
@@ -98,8 +86,8 @@ strict_optional = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
-addopts = "-v --cov=omnifold_core --cov=omnifold_observatory --cov=omnifold_neural --cov-report=term-missing"
+pythonpath = ["src", "."]
+addopts = "-v --cov=polomni --cov-report=term-missing"
 markers = [
     "slow: marks tests as slow (deselect with '-m not slow')",
     "integration: marks integration tests",

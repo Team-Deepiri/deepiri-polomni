@@ -1,13 +1,13 @@
-"""Unit tests for omnifold_core.superspace.wdw_generator."""
+"""Unit tests for polomni.core.superspace.wdw_generator."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from omnifold_core.state.stream_packet import StreamPacket
-from omnifold_core.state.unified_state import UnifiedStateVector
-from omnifold_core.superspace.wdw_generator import WDWGenerator
+from polomni.core.state.stream_packet import StreamPacket
+from polomni.core.state.unified_state import UnifiedStateVector
+from polomni.core.superspace.wdw_generator import WDWGenerator
 
 
 def test_spawn_wavepackets_count_and_metric_mutation() -> None:

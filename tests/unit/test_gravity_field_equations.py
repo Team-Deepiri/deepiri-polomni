@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from omnifold_core.gravity.field_equations import einstein_rhs, modified_field_residual
+from polomni.core.gravity.field_equations import einstein_rhs, modified_field_residual
 
 
 def test_einstein_rhs_xi_scaling() -> None:

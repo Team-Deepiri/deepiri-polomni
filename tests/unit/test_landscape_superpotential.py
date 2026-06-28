@@ -2,7 +2,7 @@
 
 import sympy as sp
 
-from omnifold_core.landscape.superpotential import (
+from polomni.core.landscape.superpotential import (
     kahler_covariant_derivative,
     superpotential_W,
 )

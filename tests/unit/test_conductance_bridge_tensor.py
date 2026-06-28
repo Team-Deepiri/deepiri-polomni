@@ -3,7 +3,7 @@
 import networkx as nx
 import numpy as np
 
-from omnifold_core.conductance.bridge_tensor import bridge_conductance, conductance_matrix
+from polomni.core.conductance.bridge_tensor import bridge_conductance, conductance_matrix
 
 
 def test_bridge_conductance_exponential_suppression() -> None:

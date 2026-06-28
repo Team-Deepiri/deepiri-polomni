@@ -1,4 +1,4 @@
-# deepiri-omnifold — Deepiri Omnifold Engine
+# deepiri-polomni — Deepiri Polomni Engine
 
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python)](https://python.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
@@ -9,7 +9,7 @@
 
 ## Vision
 
-**deepiri-omnifold** is a living research sandbox at the intersection of:
+**deepiri-polomni** is a living research sandbox at the intersection of:
 
 - **Choice-driven cosmology** — N-way bifurcations map to graviton wells and spatial districts
 - **String landscape** — Kähler potential and flux compactification set local physical laws
@@ -47,8 +47,8 @@ Conservation at the horizon (Connected Equation 4):
 ## Repository Structure
 
 ```
-deepiri-omnifold/
-├── omnifold_core/           # RBLE physics engine
+deepiri-polomni/
+├── src/polomni/core/           # RBLE physics engine
 │   ├── state/               # Ψ(t), StreamPacket, ChoiceEvent
 │   ├── landscape/           # Kähler potential, flux vacua
 │   ├── gravity/             # Einstein + informational stress
@@ -56,11 +56,11 @@ deepiri-omnifold/
 │   ├── superspace/          # District graph, branch operators
 │   ├── radon/               # R³/S² transforms, vacuum pipeline
 │   └── conductance/         # ER=EPR bridge tensor
-├── omnifold_neural/         # Graph-NODE / neural ODE layers
-├── omnifold_observatory/    # CMB Radon scar detection
-├── omnifold_uqe_bridge/     # Optional deepiri-uqe entanglement bridge
-├── omnifold_cli/            # Typer CLI (`omnifold`)
-├── visualization/           # Plots and sky maps
+├── src/polomni/neural/         # Graph-NODE / neural ODE layers
+├── src/polomni/observatory/    # CMB Radon scar detection
+├── src/polomni/bridge/         # Optional cross-sector coupling (standalone NumPy stubs)
+├── src/polomni/cli/            # Typer CLI (`polomni`)
+├── src/polomni/viz/           # Plots and sky maps
 ├── tests/                   # Unit, integration, observatory suites
 ├── docs/                    # Theory, guides, architecture
 ├── experiments/             # Jupyter notebooks
@@ -79,7 +79,7 @@ deepiri-omnifold/
 ### Install
 
 ```bash
-cd deepiri-omnifold
+cd deepiri-polomni
 poetry install
 ```
 
@@ -89,9 +89,6 @@ Optional dependency groups:
 # Neural ODE / Graph-NODE layers
 poetry install --with torch
 
-# Bridge to deepiri-uqe (requires ../deepiri-uqe sibling checkout)
-poetry install --with uqe
-
 # Development tools
 poetry install --with dev
 ```
@@ -100,14 +97,14 @@ poetry install --with dev
 
 ```bash
 poetry run pytest tests/unit -q
-poetry run omnifold version
+poetry run polomni simulate --choices 5 --districts 1
 ```
 
 ### Minimal API Example
 
 ```python
 import numpy as np
-from omnifold_core import (
+from polomni.core import (
     UnifiedStateVector,
     compute_information_trace,
     enforce_stream_entropy_closure,

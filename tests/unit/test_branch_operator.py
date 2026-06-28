@@ -1,12 +1,12 @@
-"""Unit tests for omnifold_core.superspace.branch_operator."""
+"""Unit tests for polomni.core.superspace.branch_operator."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from omnifold_core.state.unified_state import UnifiedStateVector
-from omnifold_core.superspace.branch_operator import BranchOperator
+from polomni.core.state.unified_state import UnifiedStateVector
+from polomni.core.superspace.branch_operator import BranchOperator
 
 
 def test_compute_branch_weights_softmax_sums_to_one() -> None:

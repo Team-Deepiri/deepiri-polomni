@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from omnifold_core.radon.transform_s2 import radon_transform_s2
+from polomni.core.radon.transform_s2 import radon_transform_s2
 
 
 def test_radon_s2_constant_map() -> None:
