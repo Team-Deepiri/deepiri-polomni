@@ -31,7 +31,7 @@ jobs:
         run: poetry run ruff check src/polomni tests
 
       - name: Unit tests
-        run: poetry run pytest tests/ -q
+        run: poetry run pytest tests/ -m "not integration" -q
 
       - name: Notebook smoke
         run: |
