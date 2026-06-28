@@ -37,7 +37,7 @@ Uses least-privilege permissions. `security-events: write` is required so CodeQL
 ```yaml
 language: [python]
 ```
-Runs Python analysis for omnifold_core, polomni.neural, polomni.observatory, omnifold_cli, and related packages.
+Runs Python analysis for `src/polomni` (core, observatory, neural, cli, bridge, viz).
 
 ### Checkout step
 ```yaml
