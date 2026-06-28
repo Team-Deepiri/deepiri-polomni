@@ -1,0 +1,25 @@
+name: deepiri-omnifold-codeql-config
+
+# Let CodeQL scan checked-out repository files, while excluding noisy artifacts below.
+
+paths-ignore:
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/build/**'
+  - '**/logs/**'
+  - '**/tmp/**'
+  - '**/temp/**'
+  - '**/docs/**'
+  - '**/experiments/**'
+  - '**/.venv/**'
+  - '**/venv/**'
+  - '**/.cache/**'
+  - '**/.ruff_cache/**'
+  - '**/.tox/**'
+  - '**/.eggs/**'
+  - '**/__pycache__/**'
+  - '**/.pytest_cache/**'
+  - '**/.mypy_cache/**'
+  - '**/.ipynb_checkpoints/**'
+  - '**/coverage/**'
+  - '**/*.min.js'
