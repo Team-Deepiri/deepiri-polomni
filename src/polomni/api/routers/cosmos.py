@@ -75,6 +75,7 @@ def get_axis_profile(
     return cosmos_axis_profile_payload(map_product_id=map_product, nside=nside)
 
 
+
 @router.get("/tomogram")
 def get_tomogram(
     map_product: str = Query(default="wmap_k_band"),
