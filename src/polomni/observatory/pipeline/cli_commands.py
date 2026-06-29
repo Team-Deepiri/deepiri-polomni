@@ -50,7 +50,7 @@ def status() -> None:
 @app.command("fetch")
 def fetch(
     products: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Argument(help="Product IDs (default: lite set)."),
     ] = None,
     lite: Annotated[bool, typer.Option("--lite", help="Fetch lite products when no IDs given.")] = True,
@@ -94,7 +94,7 @@ def fetch(
 @app.command("pipeline")
 def pipeline_run(
     map_product: Annotated[
-        Optional[str],
+        str | None,
         typer.Option("--map-product", help="CMB map product ID (default: wmap_k_band)."),
     ] = None,
     planck: Annotated[
@@ -134,7 +134,7 @@ def watch(
         float, typer.Option("--interval", help="Poll interval in seconds.")
     ] = 300.0,
     iterations: Annotated[
-        Optional[int], typer.Option("--iterations", help="Max poll cycles (default: unlimited).")
+        int | None, typer.Option("--iterations", help="Max poll cycles (default: unlimited).")
     ] = None,
     nside: Annotated[int, typer.Option("--nside", help="NSIDE for RBLE scans.")] = 128,
     scan_on_gw: Annotated[
@@ -166,7 +166,7 @@ def plot_power(
     product: Annotated[str, typer.Option("--product", help="Power spectrum product ID.")] = (
         "planck_cmb_tt_power"
     ),
-    output: Annotated[Optional[Path], typer.Option("--output", "-o")] = None,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
 ) -> None:
     """Plot cached CMB power spectrum."""
     from polomni.observatory.pipeline.analytics import plot_cached_power_spectrum
@@ -177,7 +177,7 @@ def plot_power(
 
 @plot_app.command("gw")
 def plot_gw(
-    output: Annotated[Optional[Path], typer.Option("--output", "-o")] = None,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
     limit: Annotated[int, typer.Option("--limit", help="Max events to plot.")] = 50,
 ) -> None:
     """Plot GW event timeline from cached GWTC catalog."""
@@ -189,7 +189,7 @@ def plot_gw(
 
 @app.command("correlate")
 def correlate(
-    report: Annotated[Optional[Path], typer.Option("--report", "-r", help="Report JSON.")] = None,
+    report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,
     max_deg: Annotated[float, typer.Option("--max-deg", help="Max axis separation.")] = 30.0,
 ) -> None:
     """Correlate GW events with RBLE preferred axis from a report."""

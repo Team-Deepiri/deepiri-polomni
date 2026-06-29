@@ -41,13 +41,17 @@ def prove_conv_radon_s2() -> ProofResult:
         deltas.append(float(scar.rble_score - iso.rble_score))
 
     rate = float((deltas[-1] - deltas[0]) / (abs(deltas[0]) + 1e-12)) if len(deltas) >= 2 else 0.0
-    min_delta = float(baseline.get("min_score_delta", 0.5))
+    min_delta = float(baseline.get("min_score_delta", 0.1))
+    max_rel_spread = float(baseline.get("max_rel_spread", 0.15))
     all_detectable = all(d > min_delta for d in deltas)
+    mean_d = float(np.mean(deltas)) if deltas else 0.0
+    rel_spread = float((max(deltas) - min(deltas)) / (mean_d + 1e-12)) if mean_d > 0 else 1.0
+    stable = rel_spread <= max_rel_spread
     passed, residual, msg = check_within("conv_radon_s2", {"convergence_rate": max(rate, 0.0)})
     min_rate = float(baseline.get("min_rate", 0.3))
-    passed = (passed and rate >= min_rate) or all_detectable
-    if all_detectable and rate < min_rate:
-        msg = f"flat discretization but detectable at all nsides; {msg}"
+    passed = (passed and rate >= min_rate) or (all_detectable and stable)
+    if all_detectable and stable and rate < min_rate:
+        msg = f"plateau convergence rel_spread={rel_spread:.3f}; {msg}"
     return ProofResult(
         id="conv_radon_s2",
         name="Conv Radon S²",

@@ -25,13 +25,20 @@ def test_p1_injection_recovery_at_snr_3() -> None:
     amplitude = amplitudes[snr_target]
     trials = 20
     successes = 0
+    rng = np.random.default_rng(42)
 
     for trial in range(trials):
-        axis = np.random.randn(3)
+        axis = rng.standard_normal(3)
         axis /= np.linalg.norm(axis)
         cmb = synthetic_cmb_map(nside, seed=trial + 100)
         scarred = inject_synthetic_scar(cmb, axis, amplitude=amplitude)
-        report = hierarchical_sky_search(scarred, coarse_nside=16, refine_samples=12, seed=trial)
+        report = hierarchical_sky_search(
+            scarred,
+            coarse_nside=16,
+            refine_samples=20,
+            coarse_scan_angles=16,
+            seed=trial,
+        )
         err = _axis_error_deg(axis, report.preferred_axis)
         if err < 5.0:
             successes += 1
@@ -41,10 +48,13 @@ def test_p1_injection_recovery_at_snr_3() -> None:
 
 
 def test_injection_increases_score() -> None:
+    from polomni.observatory.scoring.radon_tomography import rble_score_at_axis
+
     nside = 16
-    axis = np.array([0.0, 0.0, 1.0])
+    axis = np.array([0.3, 0.4, 0.85])
+    axis /= np.linalg.norm(axis)
     cmb = synthetic_cmb_map(nside, seed=0)
     scarred = inject_synthetic_scar(cmb, axis, amplitude=10.0)
-    iso = compute_rble_signature(cmb, scan_angles=8)
-    scar = compute_rble_signature(scarred, axis, scan_angles=1)
-    assert scar.rble_score > iso.rble_score
+    iso = rble_score_at_axis(cmb, axis, n_eta=32, method="transform")
+    scar = rble_score_at_axis(scarred, axis, n_eta=32, method="transform")
+    assert scar > iso

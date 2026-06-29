@@ -19,7 +19,7 @@ console = Console()
 
 @app.command("gates")
 def study_gates(
-    config: Annotated[Optional[Path], typer.Option("--config", help="Study config JSON.")] = None,
+    config: Annotated[Path | None, typer.Option("--config", help="Study config JSON.")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON only.")] = False,
 ) -> None:
     """Check Gates 1–3 before blind holdout."""
@@ -57,7 +57,7 @@ def study_status() -> None:
 @app.command("run")
 def study_run(
     study: Annotated[str, typer.Argument(help="Study id (p1).")],
-    config: Annotated[Optional[Path], typer.Option("--config", help="Study config JSON.")] = None,
+    config: Annotated[Path | None, typer.Option("--config", help="Study config JSON.")] = None,
     blind: Annotated[bool, typer.Option("--blind", help="Holdout map (Planck SMICA).")] = False,
     calibration: Annotated[
         bool, typer.Option("--calibration", help="Calibration map (WMAP) only.")

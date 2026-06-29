@@ -77,4 +77,8 @@ export const api = {
       "/cosmos/verify/status",
     ),
   cosmosVerifyResult: () => fetchJson<{ ready: boolean; [k: string]: unknown }>("/cosmos/verify/result"),
+  cosmosTomogram: (product = "wmap_k_band", nside = 64) =>
+    fetchJson(`/cosmos/tomogram?nside=${nside}&map_product=${product}`),
+  cosmosLandscape: (product = "wmap_k_band", nside = 64) =>
+    fetchJson(`/cosmos/landscape?nside=${nside}&map_product=${product}`),
 };

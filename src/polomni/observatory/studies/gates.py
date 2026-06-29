@@ -86,7 +86,7 @@ def check_gate2_injection(
     amplitude_map: dict[int, float] | None = None,
 ) -> GateCheck:
     """Quick injection recovery sample (full test in pytest -m slow)."""
-    amplitude_map = amplitude_map or {1: 3.0, 2: 6.0, 3: 15.0, 5: 20.0}
+    amplitude_map = amplitude_map or {1: 3.0, 2: 6.0, 3: 12.0, 5: 18.0}
     amp = amplitude_map.get(snr, 12.0)
     rng = np.random.default_rng(7)
     successes = 0

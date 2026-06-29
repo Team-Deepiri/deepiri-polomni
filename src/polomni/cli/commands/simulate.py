@@ -19,7 +19,7 @@ console = Console()
 def run(
     choices: int = typer.Option(5, "--choices", "-c", help="Choices per branching event."),
     districts: int = typer.Option(1, "--districts", "-d", help="Initial district count."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="JSON output path."),
+    output: str | None = typer.Option(None, "--output", "-o", help="JSON output path."),
 ) -> None:
     """Simulate choice events on a district graph and emit StreamPackets."""
     from polomni.core.superspace.district_graph import DistrictGraph
@@ -74,7 +74,7 @@ def batch_run(
     count: int = typer.Option(0, "--count", help="If >0, use seeds 0..count-1 instead."),
     choices: int = typer.Option(5, "--choices", "-c"),
     districts: int = typer.Option(1, "--districts", "-d"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="JSON output directory."),
+    output: str | None = typer.Option(None, "--output", "-o", help="JSON output directory."),
 ) -> None:
     """Run district simulations across multiple seeds."""
     from polomni.core.simulation.batch import run_batch_simulation

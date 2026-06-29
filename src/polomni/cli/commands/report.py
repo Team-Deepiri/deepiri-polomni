@@ -65,7 +65,7 @@ def report_latest(
 @app.command("compare")
 def report_compare(
     path_a: Annotated[Path, typer.Argument(help="First report JSON.")],
-    path_b: Annotated[Optional[Path], typer.Argument(help="Second report (default: latest).")] = None,
+    path_b: Annotated[Path | None, typer.Argument(help="Second report (default: latest).")] = None,
     directory: Annotated[Path, typer.Option("--dir", help="Reports dir when path_b omitted.")] = Path(
         "data/reports"
     ),
