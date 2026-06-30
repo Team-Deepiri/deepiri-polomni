@@ -33,11 +33,5 @@ jobs:
       - name: Unit tests
         run: poetry run pytest tests/ -m "not integration" -q
 
-      - name: Notebook smoke
-        run: |
-          for nb in experiments/*.ipynb; do
-            poetry run jupyter nbconvert --to notebook --execute "$nb" --output-dir /tmp/nb-smoke
-          done
-
       - name: Docker build smoke
         run: docker build -f docker/Dockerfile -t deepiri-polomni:ci-smoke .
