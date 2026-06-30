@@ -5,9 +5,10 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
+from polomni.core.geometry import coordinate_to_axis
 from polomni.core.inflation.fokker_planck import radon_modified_D_eff
 from polomni.core.state.stream_packet import StreamPacket
-from polomni.core.geometry import coordinate_to_axis
+from polomni.core.superspace.district_graph import DistrictGraph
 
 
 def map_deff_to_sky_patches(
@@ -66,9 +67,6 @@ def estimate_local_fnl_proxy(deff_map: np.ndarray, *, patch_size: int = 48) -> n
         fnl = np.repeat(block_fnl, patch_size)[:n]
 
     return fnl
-
-
-from polomni.core.superspace.district_graph import DistrictGraph
 
 
 def deff_fnl_from_simulation(

@@ -13,6 +13,7 @@ from rich.table import Table
 from polomni.core.superspace.district_graph import ChoicePolicy
 from polomni.integration.benchmarks import run_benchmark_suite
 from polomni.integration.closed_loop import run_closed_loop
+from polomni.integration.live_run import run_live_pipeline
 from polomni.integration.loop_batch import run_loop_batch
 from polomni.integration.multiverse_proof import run_multiverse_proof
 from polomni.integration.loop_logger import log_loop_run
@@ -169,6 +170,68 @@ def multiverse_proof_run(
         console.print(f"[green]Wrote {output}[/green]")
     if not report.all_passed and not quick:
         raise typer.Exit(code=1)
+
+
+@app.command("live")
+def live_run(
+    blind: Annotated[
+        bool, typer.Option("--blind", help="Run Planck blind holdout after gates + calibration.")
+    ] = False,
+    no_fetch: Annotated[bool, typer.Option("--no-fetch", help="Skip auto-fetch of WMAP/Planck maps.")] = False,
+    skip_gates: Annotated[bool, typer.Option("--skip-gates", help="Skip P1 gate checks.")] = False,
+    skip_physics: Annotated[bool, typer.Option("--skip-physics", help="Skip physics-loop convergence.")] = False,
+    physics_steps: Annotated[int, typer.Option("--physics-steps", help="Physics loop steps.")] = 3,
+    physics_nside: Annotated[int, typer.Option("--physics-nside", help="NSIDE for physics loop.")] = 32,
+    gate_trials: Annotated[int, typer.Option("--gate-trials", help="Injection trials for gates.")] = 8,
+    output: Annotated[Path | None, typer.Option("--output", "-o", help="JSON report path.")] = None,
+) -> None:
+    """Real-data live pipeline: fetch maps → gates → P1 calibration → physics-loop convergence."""
+    if blind and not typer.confirm(
+        "Blind Planck holdout is ONE-SHOT per frozen config. Continue?",
+        default=False,
+    ):
+        raise typer.Abort()
+
+    report = run_live_pipeline(
+        fetch=not no_fetch,
+        run_gates=not skip_gates,
+        run_calibration=True,
+        run_blind=blind,
+        run_physics=not skip_physics,
+        physics_steps=physics_steps,
+        physics_nside=physics_nside,
+        gate_trials=gate_trials,
+        output_path=output,
+    )
+
+    if report.gates:
+        console.print(
+            f"[{'green' if report.gates.all_passed else 'yellow'}]"
+            f"Gates {report.gates.passed_count}/{len(report.gates.checks)}[/]"
+        )
+    if report.calibration:
+        cal = report.calibration
+        console.print(
+            f"WMAP calibration: S_RBLE={cal['detection']['rble_score']:.4f} "
+            f"p1_supported={cal['p1_supported']}"
+        )
+    if report.blind:
+        bl = report.blind
+        console.print(
+            f"[{'green' if bl['p1_supported'] else 'red'}]"
+            f"Planck holdout: p1_supported={bl['p1_supported']} "
+            f"p1_falsified={bl['p1_falsified']}[/]"
+        )
+    if report.physics:
+        console.print(
+            f"Physics loop: final separation={report.physics['final_separation_deg']:.2f}° "
+            f"convergence_improving={report.convergence_improving}"
+        )
+        if report.physics_log_path:
+            console.print(f"[dim]Logged {report.physics_log_path}[/dim]")
+    console.print(f"[green]Live run complete in {report.elapsed_seconds:.1f}s[/green]")
+    out = output or Path("data/reports/live_run.json")
+    console.print(f"[green]Report → {out}[/green]")
 
 
 @app.command("loop-batch")

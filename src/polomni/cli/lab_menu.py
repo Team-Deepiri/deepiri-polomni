@@ -11,6 +11,7 @@ from rich.table import Table
 
 from polomni.core.superspace.district_graph import ChoicePolicy
 from polomni.integration.closed_loop import run_closed_loop
+from polomni.integration.live_run import run_live_pipeline
 from polomni.integration.loop_batch import run_loop_batch
 from polomni.integration.loop_logger import log_loop_run
 from polomni.integration.multiverse_proof import run_multiverse_proof
@@ -122,6 +123,32 @@ def _physics_loop() -> None:
     )
 
 
+def _live_real_data() -> None:
+    blind = typer.confirm("Run Planck blind holdout after calibration?", default=False)
+    if blind:
+        console.print("[yellow]Blind holdout is one-shot — config must be frozen.[/yellow]")
+    report = run_live_pipeline(
+        fetch=True,
+        run_gates=True,
+        run_calibration=True,
+        run_blind=blind,
+        run_physics=True,
+        physics_steps=int(typer.prompt("Physics loop steps", default="3")),
+        physics_nside=int(typer.prompt("Physics NSIDE", default="32")),
+        gate_trials=8,
+    )
+    if report.gates:
+        console.print(f"Gates: {report.gates.passed_count}/{len(report.gates.checks)}")
+    if report.calibration:
+        console.print(f"WMAP p1_supported={report.calibration['p1_supported']}")
+    if report.blind:
+        console.print(f"Planck p1_supported={report.blind['p1_supported']}")
+    if report.convergence_improving is not None:
+        label = "improving" if report.convergence_improving else "not improving"
+        console.print(f"Sim↔real axis convergence: {label}")
+    console.print("[green]Report → data/reports/live_run.json[/green]")
+
+
 def _math_prove() -> None:
     suite = prove_all(strict=False, real_data=False)
     passed = sum(1 for r in suite.results if r.passed)
@@ -158,6 +185,8 @@ def _run_all() -> None:
         _train_neural()
     if typer.confirm("6. Physics loop (real-sky bridge)?", default=False):
         _physics_loop()
+    if typer.confirm("8. Real-data live pipeline (fetch + gates + P1)?", default=False):
+        _live_real_data()
     if typer.confirm("7. Start API server?", default=False):
         _serve_api()
     console.print("\n[green]Lab run complete.[/green]")
@@ -173,6 +202,7 @@ _MENU: list[tuple[str, str, Callable[[], None]]] = [
     ("7", "Math proofs", _math_prove),
     ("8", "Serve API", _serve_api),
     ("9", "Run everything (step-by-step prompts)", _run_all),
+    ("10", "Real-data live (fetch → gates → P1 → physics loop)", _live_real_data),
 ]
 
 

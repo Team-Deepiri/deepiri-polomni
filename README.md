@@ -25,6 +25,8 @@ This is an active lab. Core physics ships as tested, typed Python modules. Exper
 
 ```bash
 ./setup.sh --dev --run                      # install + interactive lab menu
+poetry run polomni run live                 # real data: fetch → gates → P1 → physics loop
+poetry run polomni run live --blind         # + Planck holdout (one-shot)
 poetry run polomni study gates              # Gates 1–3 before holdout
 poetry run polomni study run p1 --blind     # one-shot Planck holdout
 ```

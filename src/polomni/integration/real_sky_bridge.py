@@ -69,6 +69,8 @@ def scan_real_sky_axis(
     cache: DataCache,
     map_product_id: str,
     nside: int,
+    *,
+    full_tomogram: bool = False,
 ) -> tuple[np.ndarray, float]:
     """Load cached WMAP/Planck map and run hierarchical RBLE sky search."""
     cmb, _, _ = load_real_sky_map(
@@ -80,7 +82,7 @@ def scan_real_sky_axis(
         cmb,
         coarse_nside=min(16, nside // 4 or 16),
         seed=0,
-        full_tomogram=True,
+        full_tomogram=full_tomogram,
         report_n_eta=48,
     )
     axis = np.asarray(detection.preferred_axis, dtype=float)
