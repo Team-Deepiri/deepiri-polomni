@@ -46,13 +46,69 @@ export type ProgressEvent = {
   p1_supported?: boolean;
 };
 
+export type DistrictGraphNode = {
+  id: string;
+  mass: number;
+  x: number;
+  y: number;
+  z: number;
+};
+
+export type DistrictGraphEdge = {
+  source: string;
+  target: string;
+  conductance: number;
+};
+
+export type DistrictGraphData = {
+  nodes: DistrictGraphNode[];
+  edges: DistrictGraphEdge[];
+};
+
+export type ClosedLoopStep = {
+  step: number;
+  true_axis: number[];
+  recovered_axis: number[];
+  axis_error_deg: number;
+  rble_score: number;
+  graph_nodes: number;
+  graph_edges: number;
+};
+
+export type ClosedLoopPanel = {
+  steps: ClosedLoopStep[];
+  graph: DistrictGraphData;
+  final_axis_error_deg: number | null;
+  cmb_values: number[];
+  cmb_lon?: number[];
+  cmb_lat?: number[];
+  nside: number;
+  true_axis?: number[];
+  recovered_axis?: number[];
+};
+
 export const api = {
   health: () => fetchJson<{ status: string }>("/health"),
   metrics: () => fetchJson<Record<string, unknown>>("/metrics"),
   prove: () =>
     fetch(`${API}/math/prove`, { method: "POST" }).then((r) => r.json()),
   proofs: () => fetchJson<{ cached: boolean; results?: unknown[] }>("/math/proofs"),
-  districtGraph: (choices = 5) => fetchJson(`/viz/district-graph?choices=${choices}`),
+  districtGraph: (opts?: { choices?: number; districts?: number; steps?: number; policy?: string }) => {
+    const q = new URLSearchParams();
+    q.set("choices", String(opts?.choices ?? 5));
+    q.set("districts", String(opts?.districts ?? 1));
+    q.set("steps", String(opts?.steps ?? 2));
+    q.set("policy", opts?.policy ?? "uniform");
+    return fetchJson<DistrictGraphData>(`/viz/district-graph?${q}`);
+  },
+  closedLoop: (opts?: { steps?: number; choices?: number; nside?: number; policy?: string }) => {
+    const q = new URLSearchParams();
+    q.set("steps", String(opts?.steps ?? 3));
+    q.set("choices", String(opts?.choices ?? 4));
+    q.set("nside", String(opts?.nside ?? 32));
+    q.set("policy", opts?.policy ?? "axis_biased");
+    return fetchJson<ClosedLoopPanel>(`/viz/closed-loop?${q}`);
+  },
   landscape: () => fetchJson("/viz/landscape"),
   scarSphere: (nside = 32, synthetic = false) =>
     fetchJson(`/viz/scar-sphere?synthetic=${synthetic}&nside=${nside}&map_product=wmap_k_band`),

@@ -11,7 +11,7 @@ from polomni.core.superspace.district_graph import ChoicePolicy, DistrictGraph
 from polomni.core.geometry import axis_separation_deg, coordinate_to_axis
 from polomni.integration.cmb_imprint import imprint_cmb_from_packets
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
-from polomni.observatory.scoring.rble_signature import DetectionReport, compute_rble_signature
+from polomni.observatory.scoring.rble_signature import DetectionReport
 
 FeedbackMode = Literal["coordinate_shift", "mutation_strength", "both"]
 
@@ -104,7 +104,6 @@ def run_closed_loop_step(
     bias_axis: np.ndarray | list[float] | None = None,
     apply_feedback: bool = True,
     scan_angles: int = 24,
-    hierarchical: bool = True,
 ) -> LoopStepResult:
     """Single loop: choice event → CMB imprint → RBLE scan → optional feedback."""
     packets = graph.trigger_choice_event(
@@ -117,16 +116,13 @@ def run_closed_loop_step(
     cmb, true_axis = imprint_cmb_from_packets(
         packets, graph, nside=nside, seed=imprint_seed
     )
-    if hierarchical and nside >= 16:
-        detection = hierarchical_sky_search(
-            cmb,
-            coarse_nside=min(16, nside),
-            refine_samples=max(12, scan_angles // 2),
-            coarse_scan_angles=max(8, scan_angles // 2),
-            seed=imprint_seed,
-        )
-    else:
-        detection = compute_rble_signature(cmb, scan_angles=scan_angles)
+    detection = hierarchical_sky_search(
+        cmb,
+        refine_samples=max(12, scan_angles // 2),
+        seed=imprint_seed,
+        search_n_eta=16,
+        report_n_eta=48,
+    )
     recovered = np.asarray(detection.preferred_axis, dtype=float)
     error_deg = axis_separation_deg(true_axis, recovered)
 

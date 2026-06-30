@@ -96,13 +96,31 @@ def closed_loop_panel(
         packets = graph.run_simulation_chain(steps=1, num_choices=num_choices)
         cmb, _ = imprint_cmb_from_packets(packets, graph, nside=nside, seed=seed)
 
-    return {
+    payload: dict[str, Any] = {
         "steps": [r.to_dict() for r in results],
         "graph": _graph_to_viz_payload(graph),
         "final_axis_error_deg": last.axis_error_deg if last else None,
-        "cmb_values": cmb.tolist() if cmb is not None else [],
         "nside": nside,
     }
+    if cmb is not None:
+        try:
+            import healpy as hp
+
+            n = hp.get_nside(cmb)
+            theta, phi = hp.pix2ang(n, np.arange(cmb.size))
+            payload["cmb_lon"] = np.degrees(phi).tolist()
+            payload["cmb_lat"] = (90.0 - np.degrees(theta)).tolist()
+        except ImportError:
+            n_pix = cmb.size
+            payload["cmb_lon"] = np.linspace(-180, 180, n_pix).tolist()
+            payload["cmb_lat"] = np.linspace(-90, 90, n_pix).tolist()
+        payload["cmb_values"] = cmb.tolist()
+        if last is not None:
+            payload["true_axis"] = last.true_axis
+            payload["recovered_axis"] = last.recovered_axis
+    else:
+        payload["cmb_values"] = []
+    return payload
 
 
 def landscape_surface(*, grid_size: int = 32) -> dict[str, Any]:
