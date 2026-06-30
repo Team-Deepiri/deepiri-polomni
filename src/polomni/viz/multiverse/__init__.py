@@ -2,6 +2,7 @@
 
 from polomni.viz.multiverse.serializers import (
     branch_simplex,
+    closed_loop_panel,
     district_graph_3d,
     falsification_panel,
     landscape_surface,
@@ -11,6 +12,7 @@ from polomni.viz.multiverse.serializers import (
 
 __all__ = [
     "branch_simplex",
+    "closed_loop_panel",
     "district_graph_3d",
     "falsification_panel",
     "landscape_surface",

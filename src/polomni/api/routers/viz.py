@@ -8,6 +8,7 @@ from fastapi import APIRouter, Query
 
 from polomni.viz.multiverse import (
     branch_simplex,
+    closed_loop_panel,
     district_graph_3d,
     falsification_panel,
     landscape_surface,
@@ -22,8 +23,20 @@ router = APIRouter(tags=["viz"])
 def get_district_graph(
     choices: int = Query(default=5, ge=2, le=20),
     districts: int = Query(default=1, ge=1, le=5),
+    steps: int = Query(default=2, ge=1, le=10),
+    policy: str = Query(default="uniform"),
 ) -> dict:
-    return district_graph_3d(choices=choices, districts=districts)
+    return district_graph_3d(choices=choices, districts=districts, steps=steps, policy=policy)
+
+
+@router.get("/closed-loop")
+def get_closed_loop(
+    steps: int = Query(default=3, ge=1, le=8),
+    choices: int = Query(default=4, ge=2, le=12),
+    nside: int = Query(default=32, ge=8, le=128),
+    policy: str = Query(default="axis_biased"),
+) -> dict:
+    return closed_loop_panel(steps=steps, num_choices=choices, nside=nside, policy=policy)
 
 
 @router.get("/landscape")
