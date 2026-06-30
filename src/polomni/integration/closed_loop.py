@@ -53,16 +53,20 @@ def apply_scan_feedback(
     parent_id: int,
     mode: FeedbackMode = "both",
     learning_rate: float = 0.15,
+    target_axis: np.ndarray | list[float] | None = None,
 ) -> dict[str, Any]:
     """Feed RBLE scan result into the next simulation step.
 
-    Shifts parent district coordinate toward the recovered axis and adjusts
-    ``gravity_mutation_strength`` when axis error is large.
+    Shifts parent district coordinate toward the recovered axis (or *target_axis*
+    when set, e.g. real-sky bridge) and adjusts ``gravity_mutation_strength``.
     """
     if parent_id not in graph.graph:
         raise KeyError(f"parent {parent_id} not in graph")
 
-    recovered = np.asarray(detection.preferred_axis, dtype=float)
+    if target_axis is not None:
+        recovered = np.asarray(target_axis, dtype=float)
+    else:
+        recovered = np.asarray(detection.preferred_axis, dtype=float)
     recovered = recovered / (np.linalg.norm(recovered) + 1e-15)
     coord = np.asarray(graph.graph.nodes[parent_id]["coordinate"], dtype=float).ravel()
     if coord.size < 3:
@@ -104,6 +108,8 @@ def run_closed_loop_step(
     bias_axis: np.ndarray | list[float] | None = None,
     apply_feedback: bool = True,
     scan_angles: int = 24,
+    feedback_target_axis: np.ndarray | list[float] | None = None,
+    feedback_learning_rate: float = 0.15,
 ) -> LoopStepResult:
     """Single loop: choice event → CMB imprint → RBLE scan → optional feedback."""
     packets = graph.trigger_choice_event(
@@ -129,7 +135,13 @@ def run_closed_loop_step(
 
     feedback: dict[str, Any] = {}
     if apply_feedback:
-        feedback = apply_scan_feedback(graph, detection, parent_id=parent_id)
+        feedback = apply_scan_feedback(
+            graph,
+            detection,
+            parent_id=parent_id,
+            target_axis=feedback_target_axis,
+            learning_rate=feedback_learning_rate,
+        )
 
     return LoopStepResult(
         step=step,

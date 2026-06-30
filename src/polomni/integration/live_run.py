@@ -82,6 +82,7 @@ class LiveRunReport:
     physics: dict[str, Any] | None = None
     physics_log_path: str | None = None
     convergence_improving: bool | None = None
+    converged_to_real: bool | None = None
     elapsed_seconds: float = 0.0
 
     @property
@@ -97,6 +98,7 @@ class LiveRunReport:
             "physics": self.physics,
             "physics_log_path": self.physics_log_path,
             "convergence_improving": self.convergence_improving,
+            "converged_to_real": self.converged_to_real,
             "ready_for_holdout": self.ready_for_holdout,
             "elapsed_seconds": self.elapsed_seconds,
         }
@@ -110,7 +112,7 @@ def run_live_pipeline(
     run_blind: bool = False,
     run_physics: bool = True,
     physics_steps: int = 3,
-    physics_nside: int = 32,
+    physics_nside: int = 64,
     gate_trials: int = 8,
     cache: DataCache | None = None,
     output_path: Path | None = None,
@@ -155,6 +157,8 @@ def run_live_pipeline(
         steps = physics.steps
         if len(steps) >= 2:
             report.convergence_improving = steps[-1].separation_deg < steps[0].separation_deg
+        if steps:
+            report.converged_to_real = steps[-1].separation_deg < 10.0
 
     report.elapsed_seconds = time.perf_counter() - t0
 

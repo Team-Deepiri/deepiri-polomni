@@ -115,6 +115,7 @@ def run_physics_loop(
     seed: int = 0,
     num_choices: int = 4,
     chain_depth: int = 1,
+    feedback_learning_rate: float = 0.35,
 ) -> PhysicsLoopResult:
     """Closed loop where each step biases simulation toward the real-sky preferred axis."""
     cache = cache or DataCache()
@@ -125,7 +126,7 @@ def run_physics_loop(
     root = graph.add_district(
         mass=10.0,
         law_of_gravity=[6.674e-11, 1.1e-52],
-        coordinate=[0.2, 0.3, 0.9],
+        coordinate=real_list,
         lambda_vacuum=1.0e-52,
     )
     active_parent = root
@@ -142,6 +143,8 @@ def run_physics_loop(
             policy=ChoicePolicy.AXIS_BIASED,
             bias_axis=real_list,
             apply_feedback=True,
+            feedback_target_axis=real_axis,
+            feedback_learning_rate=feedback_learning_rate,
         )
         alignment = align_sim_to_real(loop_result.recovered_axis, real_axis)
         step_results.append(

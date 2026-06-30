@@ -181,7 +181,7 @@ def live_run(
     skip_gates: Annotated[bool, typer.Option("--skip-gates", help="Skip P1 gate checks.")] = False,
     skip_physics: Annotated[bool, typer.Option("--skip-physics", help="Skip physics-loop convergence.")] = False,
     physics_steps: Annotated[int, typer.Option("--physics-steps", help="Physics loop steps.")] = 3,
-    physics_nside: Annotated[int, typer.Option("--physics-nside", help="NSIDE for physics loop.")] = 32,
+    physics_nside: Annotated[int, typer.Option("--physics-nside", help="NSIDE for physics loop.")] = 64,
     gate_trials: Annotated[int, typer.Option("--gate-trials", help="Injection trials for gates.")] = 8,
     output: Annotated[Path | None, typer.Option("--output", "-o", help="JSON report path.")] = None,
 ) -> None:
@@ -225,7 +225,7 @@ def live_run(
     if report.physics:
         console.print(
             f"Physics loop: final separation={report.physics['final_separation_deg']:.2f}° "
-            f"convergence_improving={report.convergence_improving}"
+            f"converged_to_real={report.converged_to_real}"
         )
         if report.physics_log_path:
             console.print(f"[dim]Logged {report.physics_log_path}[/dim]")
@@ -297,6 +297,11 @@ def physics_loop_run(
         f"Real axis score={result.real_score:.4f}, "
         f"map={result.map_product_id}, nside={result.nside}"
     )
+
+    from polomni.integration.live_run import log_physics_loop_run
+
+    log_path = log_physics_loop_run(result)
+    console.print(f"[dim]Logged physics convergence {log_path}[/dim]")
 
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)

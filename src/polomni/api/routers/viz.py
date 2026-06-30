@@ -89,3 +89,15 @@ def get_neural_corpus() -> dict:
     from polomni.neural.datasets.loop_corpus import load_corpus
 
     return load_corpus().summary()
+
+
+@router.get("/live-run")
+def get_live_run_report() -> dict:
+    """Latest real-data live pipeline report (``data/reports/live_run.json``)."""
+    from pathlib import Path
+    import json
+
+    path = Path("data/reports/live_run.json")
+    if not path.is_file():
+        return {"ready": False, "message": "Run: polomni run live"}
+    return {"ready": True, **json.loads(path.read_text(encoding="utf-8"))}

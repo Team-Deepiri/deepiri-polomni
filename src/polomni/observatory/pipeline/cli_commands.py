@@ -77,12 +77,24 @@ def fetch(
     if not ids:
         ids = list(STANDARD_FETCH_IDS)
 
+    failed: list[str] = []
     for pid in dict.fromkeys(ids):
         product = get_product(pid)
         console.print(f"[cyan]Fetching[/cyan] {product.name}…")
-        result = fetch_product(product, cache, force=force)
+        try:
+            result = fetch_product(product, cache, force=force)
+        except Exception as exc:
+            failed.append(pid)
+            console.print(f"  [yellow]✗[/yellow] {pid}: {exc}")
+            continue
         src = "cache" if result.from_cache and not result.downloaded else "network"
         console.print(f"  → {result.path} ({result.bytes_written / 1024:.1f} KiB, {src})")
+
+    if failed:
+        console.print(
+            f"[yellow]{len(failed)} product(s) failed[/yellow] ({', '.join(failed)}); "
+            "required maps: wmap_k_band, planck_smica_cmb"
+        )
 
     if gw and not no_gw:
         from polomni.observatory.pipeline.sources.gwosc import fetch_gwtc_events
