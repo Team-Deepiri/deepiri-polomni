@@ -16,6 +16,7 @@ from polomni.viz.multiverse import (
     scar_sphere,
     stream_flux_series,
 )
+from polomni.viz.multiverse.proof_panel import multiverse_proof_panel
 
 router = APIRouter(tags=["viz"])
 
@@ -76,6 +77,11 @@ def get_branch_simplex(choices: int = Query(default=5, ge=2, le=12)) -> dict:
 @router.get("/falsification")
 def get_falsification() -> dict:
     return falsification_panel()
+
+
+@router.get("/multiverse-proof")
+def get_multiverse_proof(quick: bool = Query(default=True)) -> dict:
+    return multiverse_proof_panel(quick=quick)
 
 
 @router.get("/neural-corpus")

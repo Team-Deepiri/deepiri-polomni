@@ -3,6 +3,7 @@ import Plot from "react-plotly.js";
 import { api, DistrictGraphData } from "./api/client";
 import CosmosLab from "./components/CosmosLab";
 import ClosedLoopLab from "./components/ClosedLoopLab";
+import MultiverseProofPanel from "./components/MultiverseProofPanel";
 import PhysicsLoopLab from "./components/PhysicsLoopLab";
 import RadonTomography from "./components/RadonTomography";
 
@@ -109,6 +110,7 @@ export default function App() {
       </header>
       {error && <p className="error" style={{ padding: "0 1.5rem" }}>{error}</p>}
 
+      <MultiverseProofPanel />
       <CosmosLab />
       <ClosedLoopLab onGraphUpdate={setDistrict} />
       <PhysicsLoopLab />

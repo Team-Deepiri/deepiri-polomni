@@ -24,8 +24,8 @@ This is an active lab. Core physics ships as tested, typed Python modules. Exper
 **Establishing RBLE as physics:** see [docs/PHYSICS_ESTABLISHMENT.md](docs/PHYSICS_ESTABLISHMENT.md) — pre-registered P1 CMB scar search, blind holdout protocol, and replication package.
 
 ```bash
+./setup.sh --dev --run                      # install + interactive lab menu
 poetry run polomni study gates              # Gates 1–3 before holdout
-make reproduce-p1                           # WMAP calibration run
 poetry run polomni study run p1 --blind     # one-shot Planck holdout
 ```
 
@@ -261,14 +261,21 @@ poetry run polomni scan --real --hierarchical --nside 128
 
 ---
 
-## Batch Simulation & Makefile
+## Setup & Lab Menu
+
+```bash
+./setup.sh --dev                  # poetry + npm install
+./setup.sh --dev --run            # install, then interactive menu
+poetry run polomni run menu       # menu only (proof, corpus, train, serve, …)
+poetry run polomni run            # same as menu
+```
+
+Existing helper scripts in `scripts/` (p1-gates, verify-stack, dev-up, etc.) still work.
 
 ```bash
 poetry run polomni simulate batch --count 10 --choices 5
-make test          # unit tests
-make verify        # full stack smoke
-make docker-up     # start lab + Jupyter
-make serve         # API on :8091 → http://localhost:8091/dashboard
+bash scripts/verify-stack.sh      # full stack smoke
+bash scripts/dev-up.sh            # start lab + Jupyter
 ```
 
 Docker watch profile for continuous GW polling:
@@ -302,7 +309,7 @@ poetry run polomni math equations
 ```bash
 poetry run polomni serve --port 8091
 cd frontend && npm install && npm run dev   # http://localhost:5173
-make frontend-build                         # production → http://localhost:8091/app
+cd frontend && npm run build                # production → http://localhost:8091/app
 ```
 
 Proof notebooks: `experiments/09_variational_principle.ipynb` through `13_real_data_theory_bridge.ipynb`.

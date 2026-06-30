@@ -14,6 +14,7 @@ from polomni.core.superspace.district_graph import ChoicePolicy
 from polomni.integration.benchmarks import run_benchmark_suite
 from polomni.integration.closed_loop import run_closed_loop
 from polomni.integration.loop_batch import run_loop_batch
+from polomni.integration.multiverse_proof import run_multiverse_proof
 from polomni.integration.loop_logger import log_loop_run
 from polomni.integration.real_sky_bridge import run_physics_loop
 from polomni.observatory.pipeline.cache import DataCache
@@ -22,6 +23,23 @@ from polomni.observatory.reports.detection_report import format_report
 
 app = typer.Typer(help="Run integrated lab workflows and benchmarks.")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def run_group(ctx: typer.Context) -> None:
+    """With no subcommand, open the interactive lab menu."""
+    if ctx.invoked_subcommand is None:
+        from polomni.cli.lab_menu import run_interactive_menu
+
+        run_interactive_menu()
+
+
+@app.command("menu")
+def run_menu() -> None:
+    """Interactive lab menu (same as `polomni run` with no subcommand)."""
+    from polomni.cli.lab_menu import run_interactive_menu
+
+    run_interactive_menu()
 
 
 @app.command("workflow")
@@ -113,6 +131,44 @@ def closed_loop_run(
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         console.print(f"[green]Wrote {output}[/green]")
+
+
+@app.command("proof")
+def multiverse_proof_run(
+    quick: Annotated[bool, typer.Option("--quick", help="Fast proof for CI (~15s).")] = False,
+    batch: Annotated[int, typer.Option("--batch", help="Optional loop batch count for corpus.")] = 0,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
+) -> None:
+    """Run multiverse computational proof battery (injection, loop, branching)."""
+    report = run_multiverse_proof(quick=quick, batch_runs=batch)
+    table = Table(title=f"Multiverse Proof ({report.mode})")
+    table.add_column("ID")
+    table.add_column("Metric")
+    table.add_column("Pass")
+    table.add_column("Value")
+    for m in report.metrics:
+        table.add_row(
+            m.id,
+            m.name,
+            "✓" if m.passed else "✗",
+            m.message[:60],
+        )
+    console.print(table)
+    if report.p1_gates is not None:
+        console.print(f"P1 gates: {report.p1_gates.passed_count}/{len(report.p1_gates.checks)}")
+    console.print(
+        f"[{'green' if report.all_passed else 'yellow'}]"
+        f"Overall: {report.pass_rate:.0%} pass rate in {report.elapsed_seconds:.1f}s[/]"
+    )
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            __import__("json").dumps(report.to_dict(), indent=2),
+            encoding="utf-8",
+        )
+        console.print(f"[green]Wrote {output}[/green]")
+    if not report.all_passed and not quick:
+        raise typer.Exit(code=1)
 
 
 @app.command("loop-batch")
