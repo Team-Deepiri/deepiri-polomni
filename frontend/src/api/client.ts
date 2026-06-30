@@ -87,6 +87,35 @@ export type ClosedLoopPanel = {
   recovered_axis?: number[];
 };
 
+export type PhysicsLoopStep = {
+  step: number;
+  synthetic_axis: number[];
+  real_axis: number[];
+  separation_deg: number;
+  alignment_quality: number;
+  rble_score: number;
+};
+
+export type PhysicsLoopPanel = {
+  map_product_id: string;
+  nside: number;
+  real_axis: number[];
+  real_score: number;
+  steps: PhysicsLoopStep[];
+  final_separation_deg: number | null;
+  final_alignment_quality: number | null;
+  graph?: DistrictGraphData;
+};
+
+export type NeuralCorpusSummary = {
+  n_runs: number;
+  n_samples: number;
+  max_nodes: number;
+  max_branches: number;
+  mean_axis_error_deg: number;
+  source_dir?: string;
+};
+
 export const api = {
   health: () => fetchJson<{ status: string }>("/health"),
   metrics: () => fetchJson<Record<string, unknown>>("/metrics"),
@@ -109,6 +138,14 @@ export const api = {
     q.set("policy", opts?.policy ?? "axis_biased");
     return fetchJson<ClosedLoopPanel>(`/viz/closed-loop?${q}`);
   },
+  physicsLoop: (opts?: { steps?: number; nside?: number; mapProduct?: string }) => {
+    const q = new URLSearchParams();
+    q.set("steps", String(opts?.steps ?? 3));
+    q.set("nside", String(opts?.nside ?? 32));
+    q.set("map_product", opts?.mapProduct ?? "wmap_k_band");
+    return fetchJson<PhysicsLoopPanel>(`/viz/physics-loop?${q}`);
+  },
+  neuralCorpus: () => fetchJson<NeuralCorpusSummary>("/viz/neural-corpus"),
   landscape: () => fetchJson("/viz/landscape"),
   scarSphere: (nside = 32, synthetic = false) =>
     fetchJson(`/viz/scar-sphere?synthetic=${synthetic}&nside=${nside}&map_product=wmap_k_band`),

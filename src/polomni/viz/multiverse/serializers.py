@@ -13,6 +13,8 @@ from polomni.core.landscape.superpotential import superpotential_W
 from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
 from polomni.core.superspace.district_graph import ChoicePolicy, DistrictGraph
 from polomni.integration.closed_loop import run_closed_loop
+from polomni.integration.real_sky_bridge import run_physics_loop
+from polomni.observatory.pipeline.cache import DataCache
 from polomni.integration.cmb_imprint import imprint_cmb_from_packets
 from polomni.math.proofs.base import load_cached_suite, prove_all
 from polomni.observatory.ingest.healpix_loader import downsample_map, load_healpix_map, synthetic_cmb_map
@@ -120,6 +122,26 @@ def closed_loop_panel(
             payload["recovered_axis"] = last.recovered_axis
     else:
         payload["cmb_values"] = []
+    return payload
+
+
+def physics_loop_panel(
+    *,
+    steps: int = 3,
+    nside: int = 32,
+    map_product_id: str = "wmap_k_band",
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Physics loop viz: real-sky axis biases synthetic closed loop."""
+    result = run_physics_loop(
+        steps=steps,
+        nside=nside,
+        map_product_id=map_product_id,
+        cache=DataCache(),
+        seed=seed,
+    )
+    payload = result.to_dict()
+    payload["graph"] = _graph_to_viz_payload(result.graph)
     return payload
 
 

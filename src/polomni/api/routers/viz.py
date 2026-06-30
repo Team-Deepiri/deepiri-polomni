@@ -12,6 +12,7 @@ from polomni.viz.multiverse import (
     district_graph_3d,
     falsification_panel,
     landscape_surface,
+    physics_loop_panel,
     scar_sphere,
     stream_flux_series,
 )
@@ -37,6 +38,15 @@ def get_closed_loop(
     policy: str = Query(default="axis_biased"),
 ) -> dict:
     return closed_loop_panel(steps=steps, num_choices=choices, nside=nside, policy=policy)
+
+
+@router.get("/physics-loop")
+def get_physics_loop(
+    steps: int = Query(default=3, ge=1, le=8),
+    nside: int = Query(default=32, ge=8, le=128),
+    map_product: str = Query(default="wmap_k_band"),
+) -> dict:
+    return physics_loop_panel(steps=steps, nside=nside, map_product_id=map_product)
 
 
 @router.get("/landscape")
@@ -66,3 +76,10 @@ def get_branch_simplex(choices: int = Query(default=5, ge=2, le=12)) -> dict:
 @router.get("/falsification")
 def get_falsification() -> dict:
     return falsification_panel()
+
+
+@router.get("/neural-corpus")
+def get_neural_corpus() -> dict:
+    from polomni.neural.datasets.loop_corpus import load_corpus
+
+    return load_corpus().summary()

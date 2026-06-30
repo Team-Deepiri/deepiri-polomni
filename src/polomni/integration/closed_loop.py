@@ -121,7 +121,8 @@ def run_closed_loop_step(
         refine_samples=max(12, scan_angles // 2),
         seed=imprint_seed,
         search_n_eta=16,
-        report_n_eta=48,
+        report_n_eta=32,
+        full_tomogram=False,
     )
     recovered = np.asarray(detection.preferred_axis, dtype=float)
     error_deg = axis_separation_deg(true_axis, recovered)

@@ -3,6 +3,7 @@ import Plot from "react-plotly.js";
 import { api, DistrictGraphData } from "./api/client";
 import CosmosLab from "./components/CosmosLab";
 import ClosedLoopLab from "./components/ClosedLoopLab";
+import PhysicsLoopLab from "./components/PhysicsLoopLab";
 import RadonTomography from "./components/RadonTomography";
 
 type PanelProps = { title: string; children: React.ReactNode };
@@ -110,6 +111,7 @@ export default function App() {
 
       <CosmosLab />
       <ClosedLoopLab onGraphUpdate={setDistrict} />
+      <PhysicsLoopLab />
       <RadonTomography />
 
       <div className="section-label">Multiverse Engine (synthetic)</div>

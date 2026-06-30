@@ -13,6 +13,10 @@ from rich.table import Table
 from polomni.core.superspace.district_graph import ChoicePolicy
 from polomni.integration.benchmarks import run_benchmark_suite
 from polomni.integration.closed_loop import run_closed_loop
+from polomni.integration.loop_batch import run_loop_batch
+from polomni.integration.loop_logger import log_loop_run
+from polomni.integration.real_sky_bridge import run_physics_loop
+from polomni.observatory.pipeline.cache import DataCache
 from polomni.integration.workflow import run_lab_workflow
 from polomni.observatory.reports.detection_report import format_report
 
@@ -84,6 +88,13 @@ def closed_loop_run(
         nside=nside,
         policy=ChoicePolicy(policy),
     )
+    log_path = log_loop_run(
+        graph,
+        results,
+        policy=ChoicePolicy(policy),
+        nside=nside,
+        seed=0,
+    )
     table = Table(title="Closed Loop Steps")
     table.add_column("Step")
     table.add_column("Axis error (°)")
@@ -92,6 +103,7 @@ def closed_loop_run(
         table.add_row(str(r.step), f"{r.axis_error_deg:.2f}", f"{r.rble_score:.4f}")
     console.print(table)
     console.print(f"Graph: {graph.graph.number_of_nodes()} nodes")
+    console.print(f"[dim]Logged {log_path}[/dim]")
 
     if output is not None:
         payload = {
@@ -100,6 +112,76 @@ def closed_loop_run(
         }
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        console.print(f"[green]Wrote {output}[/green]")
+
+
+@app.command("loop-batch")
+def loop_batch_run(
+    count: Annotated[int, typer.Option("--count", help="Number of loop runs.")] = 10,
+    steps: Annotated[int, typer.Option("--steps")] = 3,
+    choices: Annotated[int, typer.Option("--choices")] = 4,
+    nside: Annotated[int, typer.Option("--nside")] = 32,
+    policy: Annotated[str, typer.Option("--policy")] = "axis_biased",
+    workers: Annotated[int, typer.Option("--workers", help="Parallel workers (1=sequential).")] = 1,
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
+) -> None:
+    """Generate neural training corpus via batch closed-loop runs."""
+    result = run_loop_batch(
+        count=count,
+        steps=steps,
+        num_choices=choices,
+        nside=nside,
+        policy=ChoicePolicy(policy),
+        workers=workers,
+    )
+    console.print(
+        f"[green]Batch complete[/green] {result.n_runs} runs → {result.output_dir}, "
+        f"mean final axis error={result.mean_final_error_deg:.2f}°"
+    )
+    console.print("[dim]Train with: polomni neural train[/dim]")
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(result.to_dict(), indent=2), encoding="utf-8")
+        console.print(f"[green]Wrote {output}[/green]")
+
+
+@app.command("physics-loop")
+def physics_loop_run(
+    steps: Annotated[int, typer.Option("--steps")] = 3,
+    nside: Annotated[int, typer.Option("--nside")] = 64,
+    map_product: Annotated[
+        str, typer.Option("--map-product", help="Cached CMB product id (e.g. wmap_k_band).")
+    ] = "wmap_k_band",
+    output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
+) -> None:
+    """Run closed loop biased toward real-sky preferred axis from cached map."""
+    result = run_physics_loop(
+        steps=steps,
+        nside=nside,
+        map_product_id=map_product,
+        cache=DataCache(),
+    )
+    table = Table(title="Physics Loop (Real Sky Bridge)")
+    table.add_column("Step")
+    table.add_column("Separation (°)")
+    table.add_column("Alignment")
+    table.add_column("S_RBLE")
+    for s in result.steps:
+        table.add_row(
+            str(s.step),
+            f"{s.separation_deg:.2f}",
+            f"{s.alignment_quality:.4f}",
+            f"{s.rble_score:.4f}",
+        )
+    console.print(table)
+    console.print(
+        f"Real axis score={result.real_score:.4f}, "
+        f"map={result.map_product_id}, nside={result.nside}"
+    )
+
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(result.to_dict(), indent=2), encoding="utf-8")
         console.print(f"[green]Wrote {output}[/green]")
 
 

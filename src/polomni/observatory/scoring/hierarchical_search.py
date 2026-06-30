@@ -28,6 +28,7 @@ def hierarchical_sky_search(
     seed: int = 0,
     search_n_eta: int = 16,
     report_n_eta: int = 48,
+    full_tomogram: bool = True,
 ) -> DetectionReport:
     """Search for preferred RBLE axis — one filter pass, pixel Radon throughout."""
     full_map = np.asarray(healpix_map, dtype=float).ravel()
@@ -44,13 +45,21 @@ def hierarchical_sky_search(
         seed=seed,
     )
 
-    tomogram = build_radon_tomogram(
-        prepared.raw,
-        refine_axis,
-        n_eta=report_n_eta,
-        method="pixel",
-    )
-    final_score = max(refine_score, tomogram.score_integral)
+    if full_tomogram:
+        tomogram = build_radon_tomogram(
+            prepared.raw,
+            refine_axis,
+            n_eta=report_n_eta,
+            method="pixel",
+        )
+        final_score = max(refine_score, tomogram.score_integral)
+        tomogram_meta = {
+            "tomogram_integral": tomogram.score_integral,
+            "tomogram_bifurcation": tomogram.score_bifurcation,
+        }
+    else:
+        final_score = refine_score
+        tomogram_meta = {"tomogram_integral": refine_score, "tomogram_bifurcation": 0.0}
 
     import healpy as hp
 
@@ -72,8 +81,7 @@ def hierarchical_sky_search(
         "refine_cone_deg": refine_cone_deg,
         "report_n_eta": report_n_eta,
         "score_method": "pixel_radon_cached_filter",
-        "tomogram_integral": tomogram.score_integral,
-        "tomogram_bifurcation": tomogram.score_bifurcation,
+        **tomogram_meta,
         "bonferroni_n_tests": n_tests,
         "bonferroni_corrected_sigma": bonf_sigma,
         "bonferroni_alpha": bonf_alpha,

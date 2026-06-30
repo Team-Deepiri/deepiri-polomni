@@ -20,8 +20,11 @@ This document is the execution path from **computational lab** → **data-driven
 |-------------|--------|
 | Closed loop: district → CMB imprint → RBLE scan → feedback | ✅ |
 | Path C stubs: inflation patches, Graph-NODE train, PINN loss, GW, UQE | ✅ |
-| Frontend closed-loop panel | 🔄 this PR |
-| Axis search optimization (cached filter, pixel Radon) | 🔄 this PR |
+| Frontend closed-loop + physics-loop panels | ✅ |
+| Axis search optimization (vectorized anisotropy, cached filter, skip tomogram in loop) | ✅ |
+| Loop telemetry + `polomni run loop-batch` corpus generator | ✅ |
+| Neural corpus loader + `polomni neural train` | ✅ |
+| Real-sky physics bridge (`polomni run physics-loop`) | ✅ |
 
 ---
 

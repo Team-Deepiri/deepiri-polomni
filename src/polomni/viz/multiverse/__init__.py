@@ -6,6 +6,7 @@ from polomni.viz.multiverse.serializers import (
     district_graph_3d,
     falsification_panel,
     landscape_surface,
+    physics_loop_panel,
     scar_sphere,
     stream_flux_series,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "district_graph_3d",
     "falsification_panel",
     "landscape_surface",
+    "physics_loop_panel",
     "scar_sphere",
     "stream_flux_series",
 ]
