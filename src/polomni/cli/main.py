@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from polomni.cli.commands import falsify, frontend, info, math, report, run, scan, serve, simulate, study, viz
+from polomni.cli.commands import falsify, frontend, info, math, neural, report, run, scan, serve, simulate, study, viz
 from polomni.observatory.pipeline import cli_commands as data
 
 app = typer.Typer(
@@ -24,6 +24,7 @@ app.add_typer(report.app, name="report")
 app.add_typer(math.app, name="math")
 app.add_typer(falsify.app, name="falsify")
 app.add_typer(study.app, name="study")
+app.add_typer(neural.app, name="neural")
 app.add_typer(frontend.app, name="frontend")
 
 

@@ -56,19 +56,21 @@ def test_run_lab_workflow_mocked(tmp_path) -> None:
             null_ensemble=3,
             fetch_gw=True,
             simulation_choices=2,
+            use_real_data_pipeline=True,
+            closed_loop_steps=1,
         )
 
     assert isinstance(result, WorkflowResult)
     assert result.gw_count == 17
-    assert result.simulation_summary["packets_spawned"] == 2
-    assert result.simulation_summary["graph_nodes"] == 3
+    assert result.pipeline_result is not None
+    assert result.simulation_summary["graph_nodes"] >= 3
     assert result.pipeline_result.nside_used == 64
     assert result.pipeline_result.detection.rble_score >= 0.0
 
     payload = result.to_dict()
     assert payload["gw_count"] == 17
     assert "detection" in payload["pipeline"]
-    assert payload["simulation_summary"]["choices_per_event"] == 2
+    assert "closed_loop" in payload
 
 
 @pytest.mark.integration

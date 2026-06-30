@@ -11,14 +11,24 @@ from polomni.core.gravity.information_tensor import information_tensor_N
 from polomni.core.landscape.kahler import kahler_total
 from polomni.core.landscape.superpotential import superpotential_W
 from polomni.core.radon.vacuum_stream import RadonVacuumPipeline
-from polomni.core.superspace.district_graph import DistrictGraph
+from polomni.core.superspace.district_graph import ChoicePolicy, DistrictGraph
+from polomni.integration.closed_loop import run_closed_loop
+from polomni.integration.real_sky_bridge import run_physics_loop
+from polomni.observatory.pipeline.cache import DataCache
+from polomni.integration.cmb_imprint import imprint_cmb_from_packets
 from polomni.math.proofs.base import load_cached_suite, prove_all
 from polomni.observatory.ingest.healpix_loader import downsample_map, load_healpix_map, synthetic_cmb_map
 from polomni.observatory.reports.comparison import latest_report, load_report
 from polomni.observatory.scoring.rble_signature import compute_rble_signature
 
 
-def district_graph_3d(*, choices: int = 5, districts: int = 1) -> dict[str, Any]:
+def district_graph_3d(
+    *,
+    choices: int = 5,
+    districts: int = 1,
+    steps: int = 2,
+    policy: str = "uniform",
+) -> dict[str, Any]:
     graph = DistrictGraph()
     roots = []
     for i in range(districts):
@@ -30,9 +40,18 @@ def district_graph_3d(*, choices: int = 5, districts: int = 1) -> dict[str, Any]
                 lambda_vacuum=1.0e-52,
             )
         )
+    choice_policy = ChoicePolicy(policy)
     for root in roots:
-        graph.trigger_choice_event(root, num_choices=choices)
+        graph.run_simulation_chain(
+            steps=steps,
+            num_choices=choices,
+            policy=choice_policy,
+        )
 
+    return _graph_to_viz_payload(graph)
+
+
+def _graph_to_viz_payload(graph: DistrictGraph) -> dict[str, Any]:
     nodes = []
     for nid, attrs in graph.graph.nodes(data=True):
         coord = attrs.get("coordinate", [0, 0, 0])
@@ -55,6 +74,75 @@ def district_graph_3d(*, choices: int = 5, districts: int = 1) -> dict[str, Any]
             }
         )
     return {"nodes": nodes, "edges": edges}
+
+
+def closed_loop_panel(
+    *,
+    steps: int = 3,
+    num_choices: int = 4,
+    nside: int = 32,
+    policy: str = "axis_biased",
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Closed-loop viz: sim imprint → RBLE scan → feedback history."""
+    graph, results = run_closed_loop(
+        steps=steps,
+        num_choices=num_choices,
+        nside=nside,
+        seed=seed,
+        policy=ChoicePolicy(policy),
+    )
+    last = results[-1] if results else None
+    cmb = None
+    if last is not None:
+        packets = graph.run_simulation_chain(steps=1, num_choices=num_choices)
+        cmb, _ = imprint_cmb_from_packets(packets, graph, nside=nside, seed=seed)
+
+    payload: dict[str, Any] = {
+        "steps": [r.to_dict() for r in results],
+        "graph": _graph_to_viz_payload(graph),
+        "final_axis_error_deg": last.axis_error_deg if last else None,
+        "nside": nside,
+    }
+    if cmb is not None:
+        try:
+            import healpy as hp
+
+            n = hp.get_nside(cmb)
+            theta, phi = hp.pix2ang(n, np.arange(cmb.size))
+            payload["cmb_lon"] = np.degrees(phi).tolist()
+            payload["cmb_lat"] = (90.0 - np.degrees(theta)).tolist()
+        except ImportError:
+            n_pix = cmb.size
+            payload["cmb_lon"] = np.linspace(-180, 180, n_pix).tolist()
+            payload["cmb_lat"] = np.linspace(-90, 90, n_pix).tolist()
+        payload["cmb_values"] = cmb.tolist()
+        if last is not None:
+            payload["true_axis"] = last.true_axis
+            payload["recovered_axis"] = last.recovered_axis
+    else:
+        payload["cmb_values"] = []
+    return payload
+
+
+def physics_loop_panel(
+    *,
+    steps: int = 3,
+    nside: int = 32,
+    map_product_id: str = "wmap_k_band",
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Physics loop viz: real-sky axis biases synthetic closed loop."""
+    result = run_physics_loop(
+        steps=steps,
+        nside=nside,
+        map_product_id=map_product_id,
+        cache=DataCache(),
+        seed=seed,
+    )
+    payload = result.to_dict()
+    payload["graph"] = _graph_to_viz_payload(result.graph)
+    return payload
 
 
 def landscape_surface(*, grid_size: int = 32) -> dict[str, Any]:
