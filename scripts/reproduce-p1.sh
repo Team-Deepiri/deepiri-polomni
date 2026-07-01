@@ -46,6 +46,10 @@ echo "=== 5. Artifact manifest ==="
 } | tee "$OUT_DIR/manifest.sha256"
 
 echo ""
+echo "=== 6. Gate 5 — independent replication verify ==="
+poetry run polomni study replicate --json | tee "$OUT_DIR/gate5_verify.json"
+
+echo ""
 echo "=== REPLICATION COMPLETE ==="
 echo "Results: data/studies/p1_holdout/RESULT.json"
 echo "Logs: $OUT_DIR/"

@@ -13,6 +13,7 @@ from polomni.observatory.pipeline.cache import DataCache
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
 from polomni.observatory.scoring.rble_signature import compute_rble_signature, inject_synthetic_scar
 from polomni.observatory.studies.config import P1StudyConfig, load_p1_config
+from polomni.observatory.studies.replication import run_independent_replication
 
 
 @dataclass
@@ -198,14 +199,44 @@ def check_gate4_blind_holdout(path: Path | None = None) -> GateCheck:
     )
 
 
+def check_gate5_replication(*, rerun: bool = False) -> GateCheck:
+    """Gate 5: independent replication matches golden holdout within tolerance."""
+    try:
+        report = run_independent_replication(rerun=rerun)
+        passed = bool(report.get("passed"))
+        obs = report.get("observed", {})
+        return GateCheck(
+            gate="G5",
+            name="Independent replication",
+            passed=passed,
+            message=(
+                f"cache_ok={report.get('cache_checksums_ok')} "
+                f"holdout_ok={report.get('holdout_match_ok')} "
+                f"S={obs.get('rble_score', 0):.4f}"
+            ),
+            details=report,
+        )
+    except Exception as exc:
+        return GateCheck(
+            gate="G5",
+            name="Independent replication",
+            passed=False,
+            message=str(exc),
+        )
+
+
 def run_p1_gates_full(
     config_path: Path | None = None,
     *,
     injection_trials: int = 30,
     require_blind: bool = False,
+    require_replication: bool = False,
+    replication_rerun: bool = False,
 ) -> GateReport:
-    """Run Gates 1–4 (4 only when holdout RESULT exists or require_blind)."""
+    """Run Gates 1–4 (4 with --full) and optional Gate 5 replication."""
     report = run_p1_gates(config_path, injection_trials=injection_trials)
     if require_blind:
         report.checks.append(check_gate4_blind_holdout())
+    if require_replication:
+        report.checks.append(check_gate5_replication(rerun=replication_rerun))
     return report

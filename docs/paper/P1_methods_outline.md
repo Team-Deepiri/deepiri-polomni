@@ -99,5 +99,6 @@ Run: `polomni study run p1 --blind` (config frozen in `study_config.json` **befo
 - [x] Blind Planck holdout executed  
 - [x] `make reproduce-p1` one-shot replication  
 - [x] Docker `reproduce` profile  
-- [ ] Independent team replication (Gate 5)  
+- [x] Gate 5 golden reference + `polomni study replicate`  
+- [ ] Independent team replication (external Gate 5 sign-off)  
 - [ ] Peer-reviewed submission (Gate 6)

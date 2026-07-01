@@ -1,0 +1,37 @@
+{
+  "version": "p1-v1.0.0",
+  "study_id": "p1_cmb_radon_scar",
+  "config_version": "1.0.0",
+  "description": "Golden blind holdout reference for independent replication (Gate 5).",
+  "required_cache_sha256": {
+    "wmap_k_band": "8bb6a5b4e2d9c27fbc320333a51b0aa52fa3282f8c7c4c52f97edc0c82e6958f",
+    "planck_smica_cmb": "8dca51299f2b0e53187810db6edead9c369757b519a66fe7c41288fa45b4cd98",
+    "planck_cmb_tt_power": "ed2b8b51b033e668e661f6cf4eb7705f15bcaf358189dfc4a4481cc7020130cd"
+  },
+  "frozen_seeds": {
+    "search_seed": 0,
+    "null_ensemble_seed": 7,
+    "null_tier_seed": 11
+  },
+  "expected_holdout": {
+    "map_product_id": "planck_smica_cmb",
+    "nside": 128,
+    "blind": true,
+    "p1_supported": false,
+    "p1_falsified": true,
+    "rble_score": 1.2048278974270774,
+    "preferred_axis": [-0.24774533341577676, -0.816121511808279, 0.5220803843609458],
+    "bonferroni_pass": false,
+    "te_correlation_pass": false,
+    "null_tier_p_values": {
+      "grf": 2.7771500166607795e-105,
+      "camb_noise": 9.114641761601008e-05,
+      "rotation_shuffled": 0.6865898484928639
+    }
+  },
+  "tolerances": {
+    "rble_score_abs": 0.05,
+    "axis_dot_min": 0.995,
+    "tier_p_value_rel": 0.15
+  }
+}

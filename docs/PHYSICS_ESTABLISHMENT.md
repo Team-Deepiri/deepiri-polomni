@@ -25,7 +25,7 @@ Physics **is** established when:
 6. **Predictions** are unique enough that ΛCDM + known systematics cannot explain them
 
 Polomni today is at **Stage 3–4 of 6** (pre-registered P1 blind holdout executed on Planck SMICA; P1 **falsified** on holdout — see `data/studies/p1_holdout/RESULT.json`).  
-The next jump is **Gate 5–6**: independent replication + peer-reviewed Methods paper.
+The next jump is **Gate 6**: peer-reviewed Methods paper + external sign-off on Gate 5.
 
 ---
 

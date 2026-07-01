@@ -51,7 +51,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: deepiri/polomni-lab:0.1.0
+    image: deepiri/polomni-reproduce:p1-v1.0.0
     container_name: polomni-reproduce
     volumes:
       - polomni-cache:/app/data/cache
