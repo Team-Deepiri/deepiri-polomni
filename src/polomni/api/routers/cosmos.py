@@ -7,8 +7,10 @@ import json
 from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, BackgroundTasks, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
+from polomni.viz.cosmos.catalog_overlay import cosmos_world_payload
+from polomni.viz.cosmos.raster import sky_overlays_geojson, sky_raster_png
 from polomni.viz.cosmos.serializers import (
     cosmos_axis_profile_payload,
     cosmos_compare_payload,
@@ -37,6 +39,55 @@ def get_cosmos_sky(
     force: bool = Query(default=False),
 ) -> dict:
     return cosmos_sky_payload(map_product_id=map_product, nside=nside, force=force)
+
+
+@router.get("/sky/raster")
+def get_cosmos_sky_raster(
+    map_product: str = Query(default="wmap_k_band"),
+    nside: int = Query(default=64, ge=16, le=256),
+    width: int = Query(default=1024, ge=256, le=4096),
+    height: int = Query(default=512, ge=128, le=2048),
+    force: bool = Query(default=False),
+) -> Response:
+    """Equirectangular PNG of real CMB sky for MapLibre image source."""
+    png = sky_raster_png(
+        map_product_id=map_product,
+        nside=nside,
+        width=width,
+        height=height,
+        force=force,
+    )
+    return Response(
+        content=png,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=600"},
+    )
+
+
+@router.get("/sky/overlays")
+def get_cosmos_sky_overlays(
+    map_product: str = Query(default="wmap_k_band"),
+    nside: int = Query(default=64, ge=16, le=256),
+    force: bool = Query(default=False),
+) -> dict:
+    """GeoJSON scar ring + preferred axis for MapLibre overlay layers."""
+    return sky_overlays_geojson(map_product_id=map_product, nside=nside, force=force)
+
+
+@router.get("/sky/world")
+def get_cosmos_sky_world(
+    map_product: str = Query(default="wmap_k_band"),
+    nside: int = Query(default=64, ge=16, le=256),
+    frame: str = Query(default="galactic", pattern="^(galactic|equatorial)$"),
+    force: bool = Query(default=False),
+) -> dict:
+    """Real-sky world model: HiPS surveys, GW/SDSS catalogs, RBLE CV overlays."""
+    return cosmos_world_payload(
+        map_product_id=map_product,
+        nside=nside,
+        frame=frame,  # type: ignore[arg-type]
+        force=force,
+    )
 
 
 @router.get("/power-spectrum")

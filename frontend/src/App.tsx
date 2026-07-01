@@ -3,6 +3,8 @@ import Plot from "react-plotly.js";
 import { api } from "./api/client";
 import CosmosLab from "./components/CosmosLab";
 import RadonTomography from "./components/RadonTomography";
+import SkyMapLibre from "./components/SkyMapLibre";
+import AladinSkyViewer from "./components/AladinSkyViewer";
 
 type PanelProps = { title: string; children: React.ReactNode };
 
@@ -84,15 +86,6 @@ export default function App() {
       }
     : null;
 
-  const scarTrace = scar
-    ? {
-        type: "scattergeo" as const,
-        lon: scar.lon,
-        lat: scar.lat,
-        marker: { size: 2, color: scar.values, colorscale: "RdBu", opacity: 0.6 },
-      }
-    : null;
-
   return (
     <>
       <header>
@@ -109,6 +102,22 @@ export default function App() {
 
       <CosmosLab />
       <RadonTomography />
+
+      <div className="section-label">Multiverse Engine — Real Cosmos (Aladin HiPS)</div>
+      <div className="multiverse-sky-wrap">
+        <AladinSkyViewer
+          mapProduct="wmap_k_band"
+          nside={64}
+          height={500}
+          title="RBLE multiverse on real sky surveys"
+        />
+        {scar && (
+          <p className="multiverse-sky-meta">
+            S_RBLE={scar.rble_score?.toFixed(4)} · axis=[
+            {scar.preferred_axis?.map((v: number) => v.toFixed(2)).join(", ")}]
+          </p>
+        )}
+      </div>
 
       <div className="section-label">Multiverse Engine (synthetic)</div>
       <div className="grid">
@@ -143,26 +152,6 @@ export default function App() {
               config={{ displayModeBar: false }}
               style={{ width: "100%" }}
             />
-          )}
-        </Panel>
-        <Panel title="RBLE Scar Sphere (real WMAP)">
-          {scarTrace && (
-            <Plot
-              data={[scarTrace]}
-              layout={{
-                paper_bgcolor: "#161b22",
-                geo: { bgcolor: "#161b22", projection: { type: "orthographic" } },
-                margin: { l: 0, r: 0, t: 0, b: 0 },
-                height: 260,
-              }}
-              config={{ displayModeBar: false }}
-              style={{ width: "100%" }}
-            />
-          )}
-          {scar && (
-            <p style={{ fontSize: 12, color: "#8b949e" }}>
-              S_RBLE={scar.rble_score?.toFixed(4)} axis=[{scar.preferred_axis?.map((v: number) => v.toFixed(2)).join(", ")}]
-            </p>
           )}
         </Panel>
         <Panel title="Stream Horizon Flux">

@@ -42,6 +42,42 @@ def test_cosmos_sky_when_cached() -> None:
     assert "scar_ring" in data
 
 
+def test_cosmos_sky_raster_when_cached() -> None:
+    if not cache_ready():
+        return
+    client = TestClient(create_app())
+    r = client.get("/cosmos/sky/raster?nside=32&width=256&height=128")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/png"
+    assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_cosmos_sky_overlays_when_cached() -> None:
+    if not cache_ready():
+        return
+    client = TestClient(create_app())
+    r = client.get("/cosmos/sky/overlays?nside=32")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["type"] == "FeatureCollection"
+    assert len(data["features"]) == 2
+    assert "metadata" in data
+
+
+def test_cosmos_sky_world_when_cached() -> None:
+    if not cache_ready():
+        return
+    client = TestClient(create_app())
+    r = client.get("/cosmos/sky/world?nside=32&frame=galactic")
+    assert r.status_code == 200
+    data = r.json()
+    assert "surveys" in data
+    assert "dss2" in data["surveys"]
+    assert "rble" in data
+    assert "gw_events" in data
+    assert len(data["rble"]["scar_ring"]) > 0
+
+
 def test_cosmos_compare_when_cached() -> None:
     if not cache_ready():
         return
