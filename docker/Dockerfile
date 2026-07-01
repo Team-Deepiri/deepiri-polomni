@@ -25,6 +25,10 @@ COPY src ./src
 COPY tests ./tests
 COPY experiments ./experiments
 COPY docs ./docs
+COPY scripts ./scripts
+COPY data/studies ./data/studies
+
+RUN chmod +x scripts/reproduce-p1.sh scripts/p1-gates.sh
 
 RUN poetry install --with dev --no-ansi
 

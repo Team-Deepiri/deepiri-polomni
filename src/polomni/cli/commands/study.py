@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from polomni.observatory.studies.gates import load_latest_result, run_p1_gates
+from polomni.observatory.studies.gates import load_latest_result, run_p1_gates, run_p1_gates_full
 from polomni.observatory.studies.p1_runner import run_p1_study
 
 app = typer.Typer(help="Run pre-registered RBLE observatory studies.")
@@ -20,10 +20,11 @@ console = Console()
 @app.command("gates")
 def study_gates(
     config: Annotated[Path | None, typer.Option("--config", help="Study config JSON.")] = None,
+    full: Annotated[bool, typer.Option("--full", help="Include Gate 4 if holdout exists.")] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON only.")] = False,
 ) -> None:
-    """Check Gates 1–3 before blind holdout."""
-    report = run_p1_gates(config)
+    """Check Gates 1–3 (or 1–4 with --full) before/after blind holdout."""
+    report = run_p1_gates_full(config, require_blind=full)
     if as_json:
         console.print(json.dumps(report.to_dict(), indent=2))
     else:

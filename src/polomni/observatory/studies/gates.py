@@ -161,3 +161,51 @@ def load_latest_result(path: Path | None = None) -> dict[str, Any] | None:
     import json
 
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def check_gate4_blind_holdout(path: Path | None = None) -> GateCheck:
+    """Gate 4: pre-registered blind holdout executed with sealed config."""
+    result = load_latest_result(path)
+    if result is None:
+        return GateCheck(
+            gate="G4",
+            name="Blind holdout executed",
+            passed=False,
+            message="No RESULT.json — run: polomni study run p1 --blind",
+        )
+    blind = bool(result.get("blind"))
+    holdout = result.get("map_product_id") == "planck_smica_cmb"
+    has_tiers = bool(result.get("null_tier_comparison", {}).get("tiers"))
+    tiers = result.get("null_tier_comparison", {}).get("tiers", {})
+    n_tiers = len(tiers)
+    passed = blind and holdout and has_tiers and n_tiers >= 3
+    verdict = "SUPPORTED" if result.get("p1_supported") else "FALSIFIED"
+    return GateCheck(
+        gate="G4",
+        name="Blind holdout executed",
+        passed=passed,
+        message=(
+            f"P1 {verdict} on {result.get('map_product_id')} "
+            f"S={result['detection']['rble_score']:.4f} "
+            f"null_tiers={n_tiers}"
+        ),
+        details={
+            "p1_supported": result.get("p1_supported"),
+            "p1_falsified": result.get("p1_falsified"),
+            "ran_at": result.get("ran_at"),
+            "git_sha": result.get("git_sha"),
+        },
+    )
+
+
+def run_p1_gates_full(
+    config_path: Path | None = None,
+    *,
+    injection_trials: int = 30,
+    require_blind: bool = False,
+) -> GateReport:
+    """Run Gates 1–4 (4 only when holdout RESULT exists or require_blind)."""
+    report = run_p1_gates(config_path, injection_trials=injection_trials)
+    if require_blind:
+        report.checks.append(check_gate4_blind_holdout())
+    return report

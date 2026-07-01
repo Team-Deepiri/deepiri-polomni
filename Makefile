@@ -22,7 +22,7 @@ falsify:
 	poetry run polomni falsify --real --fetch
 
 reproduce-p1:
-	poetry run polomni study run p1 --calibration
+	bash scripts/reproduce-p1.sh
 
 p1-gates:
 	bash scripts/p1-gates.sh
@@ -47,6 +47,9 @@ docker-up:
 
 docker-down:
 	docker compose -f docker/docker-compose.yml down
+
+docker-reproduce:
+	docker compose -f docker/docker-compose.yml --profile reproduce run --rm polomni-reproduce
 
 verify:
 	bash scripts/verify-stack.sh
