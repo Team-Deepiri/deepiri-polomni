@@ -4,6 +4,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 > A research-ready computational cosmology lab implementing **RBLE** — the Radon-Bifurcated Landscape Engine — for choice-driven multiverse simulation, Radon-vacuum streaming, and CMB observatory validation.
+<img width="1277" height="666" alt="image" src="https://github.com/user-attachments/assets/a07eba7f-66c8-46f4-a430-5c33cbe97861" />
 
 ---
 
