@@ -3,10 +3,10 @@ import Plot from "react-plotly.js";
 import {
   api,
   type CosmosSnapshot,
-  type CosmosSky,
   type ProgressEvent,
 } from "../api/client";
-import CosmosSkyPlot from "./CosmosSkyPlot";
+import SkyMapLibre from "./SkyMapLibre";
+import AladinSkyViewer from "./AladinSkyViewer";
 
 const plotLayout = {
   paper_bgcolor: "#161b22",
@@ -31,11 +31,7 @@ export default function CosmosLab() {
   const [progress, setProgress] = useState<ProgressEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastTick, setLastTick] = useState("");
-  const [projection, setProjection] = useState<"orthographic" | "mollweide" | "equirectangular">(
-    "mollweide",
-  );
   const [autoRotate, setAutoRotate] = useState(true);
-  const [rotLon, setRotLon] = useState(30);
   const progressRef = useRef<EventSource | null>(null);
 
   const loadCosmos = useCallback(async () => {
@@ -80,12 +76,6 @@ export default function CosmosLab() {
     return () => es.close();
   }, []);
 
-  useEffect(() => {
-    if (!autoRotate || projection !== "orthographic") return;
-    const id = setInterval(() => setRotLon((l) => (l + 0.8) % 360), 40);
-    return () => clearInterval(id);
-  }, [autoRotate, projection]);
-
   const startVerify = async (blind: boolean) => {
     setVerifyRunning(true);
     setProgress([]);
@@ -120,8 +110,8 @@ export default function CosmosLab() {
 
   const gates = snapshot?.gates ?? study?.gates;
   const result = snapshot?.study ?? study?.result ?? compare?.study_result;
-  const calSky: CosmosSky | null = compare?.calibration?.sky ?? null;
-  const holdSky: CosmosSky | null = compare?.holdout?.sky ?? null;
+  const calSky = compare?.calibration?.sky ?? null;
+  const holdSky = compare?.holdout?.sky ?? null;
   const calProfile = compare?.calibration?.axis_profile;
   const holdProfile = compare?.holdout?.axis_profile;
   const verdict = compare?.verdict;
@@ -153,15 +143,6 @@ export default function CosmosLab() {
             />
             Spin globe
           </label>
-          <select
-            value={projection}
-            onChange={(e) => setProjection(e.target.value as typeof projection)}
-            className="proj-select"
-          >
-            <option value="mollweide">Mollweide</option>
-            <option value="orthographic">Orthographic</option>
-            <option value="equirectangular">Equirectangular</option>
-          </select>
           <button disabled={verifyRunning} onClick={() => startVerify(false)}>
             {verifyRunning ? "Running…" : "Full Verification"}
           </button>
@@ -180,25 +161,34 @@ export default function CosmosLab() {
       )}
 
       <div className="cosmos-grid-v2">
+        <div className="card cosmos-dual cosmos-sky-hero">
+          <AladinSkyViewer
+            mapProduct="wmap_k_band"
+            nside={64}
+            height={520}
+            title="Live Cosmos Observatory — real telescope & satellite surveys"
+          />
+        </div>
+
         <div className="card cosmos-dual">
-          <h3>Calibration vs Holdout — Real CMB Skies</h3>
+          <h3>Calibration vs Holdout — CMB microwave globes</h3>
           <div className="dual-sky-row">
-            {calSky && (
-              <CosmosSkyPlot
-                sky={calSky}
-                title={`WMAP Ka (${calSky.map_product_id})`}
-                projection={projection}
-                rotationLon={rotLon}
-              />
-            )}
-            {holdSky && (
-              <CosmosSkyPlot
-                sky={holdSky}
-                title={`Planck SMICA (${holdSky.map_product_id})`}
-                projection={projection}
-                rotationLon={rotLon + 180}
-              />
-            )}
+            <SkyMapLibre
+              mapProduct="wmap_k_band"
+              nside={64}
+              height={320}
+              title="WMAP Ka calibration"
+              autoRotate={autoRotate}
+              showControls={false}
+            />
+            <SkyMapLibre
+              mapProduct="planck_smica_cmb"
+              nside={64}
+              height={320}
+              title="Planck SMICA holdout"
+              autoRotate={autoRotate}
+              showControls={false}
+            />
           </div>
           {verdict && (
             <div className="verdict-bar">

@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/client.ts","./src/components/CosmosLab.tsx","./src/components/CosmosSkyPlot.tsx","./src/components/RadonTomography.tsx"],"version":"5.9.3"}
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/aladin/types.ts","./src/api/client.ts","./src/components/AladinSkyViewer.tsx","./src/components/CosmosLab.tsx","./src/components/CosmosSkyPlot.tsx","./src/components/RadonTomography.tsx","./src/components/SkyMapLibre.tsx"],"version":"5.9.3"}

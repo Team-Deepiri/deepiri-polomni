@@ -81,4 +81,8 @@ export const api = {
     fetchJson(`/cosmos/tomogram?nside=${nside}&map_product=${product}`),
   cosmosLandscape: (product = "wmap_k_band", nside = 64) =>
     fetchJson(`/cosmos/landscape?nside=${nside}&map_product=${product}`),
+  cosmosSkyOverlays: (nside = 64, product = "wmap_k_band") =>
+    fetchJson(`/cosmos/sky/overlays?nside=${nside}&map_product=${product}`),
+  cosmosSkyRasterUrl: (nside = 64, product = "wmap_k_band", width = 1536, height = 768) =>
+    `/cosmos/sky/raster?nside=${nside}&map_product=${product}&width=${width}&height=${height}`,
 };

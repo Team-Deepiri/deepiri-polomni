@@ -40,7 +40,8 @@ def create_app() -> FastAPI:
     if _FRONTEND_DIST.is_dir() and (_FRONTEND_DIST / "index.html").is_file():
         assets = _FRONTEND_DIST / "assets"
         if assets.is_dir():
-            app.mount("/assets", StaticFiles(directory=assets), name="frontend-assets")
+            # Must match Vite `base: "/app/"` in frontend/vite.config.ts
+            app.mount("/app/assets", StaticFiles(directory=assets), name="frontend-assets")
 
         @app.get("/app")
         @app.get("/app/{path:path}")
