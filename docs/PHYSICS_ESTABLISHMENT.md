@@ -24,8 +24,8 @@ Physics **is** established when:
 5. **Reviewers** accept that the statistic is not tuned post hoc to one map
 6. **Predictions** are unique enough that ΛCDM + known systematics cannot explain them
 
-Polomni today is at **Stage 2 of 6** (pipeline exists, real data runs, falsification CLI).  
-The next jump is **Stage 3–4**: pre-registered P1 analysis + blind holdout + paper Methods that survive scrutiny.
+Polomni today is at **Stage 3–4 of 6** (pre-registered P1 blind holdout executed on Planck SMICA; P1 **falsified** on holdout — see `data/studies/p1_holdout/RESULT.json`).  
+The next jump is **Gate 6**: peer-reviewed Methods paper + external sign-off on Gate 5.
 
 ---
 
@@ -109,7 +109,7 @@ Three null tiers (must all be implemented and reported):
 
 Real-sky \(S_{\max}\) must exceed **all three** null distributions at Bonferroni-corrected \(p < 0.01\) to claim P1 support.
 
-**Current gap:** We only use N0-style `generate_null_ensemble`. N1/N2 are not shipped.
+**Current gap:** N1/N2 are shipped in `null_models.py` and used by `p1_runner.py`. Holdout completed 2026-06-28 with P1 falsified.
 
 ### Gate 4 — Blind / holdout analysis
 

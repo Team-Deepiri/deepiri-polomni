@@ -10,8 +10,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from polomni.observatory.studies.gates import load_latest_result, run_p1_gates
+from polomni.observatory.studies.gates import load_latest_result, run_p1_gates, run_p1_gates_full
 from polomni.observatory.studies.p1_runner import run_p1_study
+from polomni.observatory.studies.replication import run_independent_replication
 
 app = typer.Typer(help="Run pre-registered RBLE observatory studies.")
 console = Console()
@@ -20,10 +21,22 @@ console = Console()
 @app.command("gates")
 def study_gates(
     config: Annotated[Path | None, typer.Option("--config", help="Study config JSON.")] = None,
+    full: Annotated[bool, typer.Option("--full", help="Include Gate 4 blind holdout check.")] = False,
+    replicate: Annotated[
+        bool, typer.Option("--replicate", help="Include Gate 5 independent replication.")
+    ] = False,
+    rerun: Annotated[
+        bool, typer.Option("--rerun", help="Re-run blind holdout for Gate 5 verify.")
+    ] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Output JSON only.")] = False,
 ) -> None:
-    """Check Gates 1–3 before blind holdout."""
-    report = run_p1_gates(config)
+    """Check Gates 1–3; add --full for G4, --replicate for G5."""
+    report = run_p1_gates_full(
+        config,
+        require_blind=full,
+        require_replication=replicate,
+        replication_rerun=rerun,
+    )
     if as_json:
         console.print(json.dumps(report.to_dict(), indent=2))
     else:
@@ -86,3 +99,28 @@ def study_run(
 
     if blind and not result["p1_supported"]:
         raise typer.Exit(2)
+
+
+@app.command("replicate")
+def study_replicate(
+    rerun: Annotated[
+        bool, typer.Option("--rerun", help="Re-execute blind holdout before verify.")
+    ] = False,
+    as_json: Annotated[bool, typer.Option("--json", help="Print JSON only.")] = False,
+) -> None:
+    """Gate 5: verify independent replication against golden holdout reference."""
+    report = run_independent_replication(rerun=rerun)
+    if as_json:
+        console.print(json.dumps(report, indent=2))
+    else:
+        status = "[green]PASS[/green]" if report["passed"] else "[red]FAIL[/red]"
+        console.print(f"Gate 5 independent replication: {status}")
+        console.print(f"  cache checksums: {report['cache_checksums_ok']}")
+        console.print(f"  holdout match: {report['holdout_match_ok']}")
+        console.print(f"  S_RBLE={report['observed']['rble_score']:.6f}")
+        if report.get("holdout_errors"):
+            for err in report["holdout_errors"]:
+                console.print(f"  [red]• {err}[/red]")
+        console.print(f"  report: {report.get('report_path')}")
+    if not report["passed"]:
+        raise typer.Exit(1)

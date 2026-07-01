@@ -13,6 +13,7 @@ from polomni.observatory.pipeline.cache import DataCache
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
 from polomni.observatory.scoring.rble_signature import compute_rble_signature, inject_synthetic_scar
 from polomni.observatory.studies.config import P1StudyConfig, load_p1_config
+from polomni.observatory.studies.replication import run_independent_replication
 
 
 @dataclass
@@ -161,3 +162,81 @@ def load_latest_result(path: Path | None = None) -> dict[str, Any] | None:
     import json
 
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def check_gate4_blind_holdout(path: Path | None = None) -> GateCheck:
+    """Gate 4: pre-registered blind holdout executed with sealed config."""
+    result = load_latest_result(path)
+    if result is None:
+        return GateCheck(
+            gate="G4",
+            name="Blind holdout executed",
+            passed=False,
+            message="No RESULT.json — run: polomni study run p1 --blind",
+        )
+    blind = bool(result.get("blind"))
+    holdout = result.get("map_product_id") == "planck_smica_cmb"
+    has_tiers = bool(result.get("null_tier_comparison", {}).get("tiers"))
+    tiers = result.get("null_tier_comparison", {}).get("tiers", {})
+    n_tiers = len(tiers)
+    passed = blind and holdout and has_tiers and n_tiers >= 3
+    verdict = "SUPPORTED" if result.get("p1_supported") else "FALSIFIED"
+    return GateCheck(
+        gate="G4",
+        name="Blind holdout executed",
+        passed=passed,
+        message=(
+            f"P1 {verdict} on {result.get('map_product_id')} "
+            f"S={result['detection']['rble_score']:.4f} "
+            f"null_tiers={n_tiers}"
+        ),
+        details={
+            "p1_supported": result.get("p1_supported"),
+            "p1_falsified": result.get("p1_falsified"),
+            "ran_at": result.get("ran_at"),
+            "git_sha": result.get("git_sha"),
+        },
+    )
+
+
+def check_gate5_replication(*, rerun: bool = False) -> GateCheck:
+    """Gate 5: independent replication matches golden holdout within tolerance."""
+    try:
+        report = run_independent_replication(rerun=rerun)
+        passed = bool(report.get("passed"))
+        obs = report.get("observed", {})
+        return GateCheck(
+            gate="G5",
+            name="Independent replication",
+            passed=passed,
+            message=(
+                f"cache_ok={report.get('cache_checksums_ok')} "
+                f"holdout_ok={report.get('holdout_match_ok')} "
+                f"S={obs.get('rble_score', 0):.4f}"
+            ),
+            details=report,
+        )
+    except Exception as exc:
+        return GateCheck(
+            gate="G5",
+            name="Independent replication",
+            passed=False,
+            message=str(exc),
+        )
+
+
+def run_p1_gates_full(
+    config_path: Path | None = None,
+    *,
+    injection_trials: int = 30,
+    require_blind: bool = False,
+    require_replication: bool = False,
+    replication_rerun: bool = False,
+) -> GateReport:
+    """Run Gates 1–4 (4 with --full) and optional Gate 5 replication."""
+    report = run_p1_gates(config_path, injection_trials=injection_trials)
+    if require_blind:
+        report.checks.append(check_gate4_blind_holdout())
+    if require_replication:
+        report.checks.append(check_gate5_replication(rerun=replication_rerun))
+    return report

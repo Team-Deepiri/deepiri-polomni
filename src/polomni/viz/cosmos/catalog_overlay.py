@@ -82,9 +82,9 @@ def cartesian_to_galactic(axis: list[float] | np.ndarray) -> tuple[float, float]
 def _sdss_specobj_query(*, limit: int = 80) -> list[dict[str, Any]]:
     """Fetch SDSS spectroscopic objects with sky positions (public SkyServer API)."""
     sql = (
-        "SELECT TOP {limit} ra, dec, z "
+        f"SELECT TOP {limit} ra, dec, z "
         "FROM SpecObj WHERE z BETWEEN 0.05 AND 1.2 ORDER BY z DESC"
-    ).format(limit=limit)
+    )
     cmd = urllib.parse.quote(sql)
     url = (
         "https://skyserver.sdss.org/dr18/SkyServerWS/SearchTools/SqlSearch"

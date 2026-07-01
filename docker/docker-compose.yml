@@ -46,6 +46,22 @@ services:
       polomni-lab:
         condition: service_healthy
 
+  polomni-reproduce:
+    profiles: ["reproduce"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: deepiri/polomni-reproduce:p1-v1.0.0
+    container_name: polomni-reproduce
+    volumes:
+      - polomni-cache:/app/data/cache
+      - ../data/studies:/app/data/studies
+      - ../data/reports:/app/data/reports
+    environment:
+      - POLOMNI_DATA_CACHE=/app/data/cache
+      - POLOMNI_ENV=reproduce
+    command: bash scripts/reproduce-p1.sh
+
   polomni-lab-gpu:
     profiles: ["gpu"]
     extends:

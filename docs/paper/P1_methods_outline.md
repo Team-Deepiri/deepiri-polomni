@@ -2,73 +2,103 @@
 
 **Working title:** *Radon-anisotropic CMB scar search with pre-registered axis statistics*
 
-**Not a discovery paper.** Submit after injection recovery + null hierarchy validated; holdout results go in Paper 1b.
+**Status:** Methods + calibration + **blind holdout executed** (2026-06-28). See `data/studies/p1_holdout/RESULT.json`.
 
 ---
 
 ## Abstract (draft)
 
-We introduce a pre-registered search statistic \(\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})\) for anisotropic large-scale CMB features motivated by stream-injection models, implemented in the open Polomni pipeline. We define three null tiers (GRF, CAMB+noise, rotation-shuffled), Bonferroni-corrected axis search, injection recovery calibration, and a \(T\)–\(E\) correlation cross-check. We validate the pipeline on WMAP Ka-band; Planck SMICA holdout analysis is pre-registered separately.
+We introduce a pre-registered search statistic \(\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})\) for anisotropic large-scale CMB features, implemented in the open Polomni pipeline. We define three null tiers (N0 GRF, N1 CAMB+noise, N2 rotation-shuffled), Bonferroni-corrected hierarchical axis search, injection recovery calibration, and a \(T\)–\(E\) correlation cross-check. We validate the pipeline on WMAP Ka-band calibration; a blind Planck SMICA holdout **falsifies P1** under the frozen protocol — demonstrating the analysis is empirically constrained, not post-hoc tuned.
 
 ---
 
 ## 1. Introduction
 
-- Motivation: anisotropic CMB features beyond azimuthally symmetric bubble collisions  
-- Relation to existing searches (Hemisphere power asymmetry, Axis of Evil literature)  
-- **Claim scope:** methods + calibration; not "multiverse confirmed"  
-- Polomni / RBLE as open reproducible framework  
+- Motivation: testable anisotropic CMB features beyond azimuthally symmetric templates  
+- Relation to Axis of Evil / hemispherical asymmetry literature  
+- **Claim scope:** methods + pre-registered falsification; not multiverse confirmation  
+- Open replication: `make reproduce-p1`, `docs/REPLICATION.md`
 
 ## 2. Data
 
-| Product | Mission | Role |
-|---------|---------|------|
-| WMAP Ka-band | WMAP 9yr | Calibration |
-| Planck SMICA | Planck 2018 | Holdout (pre-registered) |
-| Planck TT binned | Planck 2018 | N1 null Cl |
+| Product | Mission | Role | URL (catalog) |
+|---------|---------|------|---------------|
+| WMAP Ka-band | WMAP 9yr | Calibration | `lambda.gsfc.nasa.gov` |
+| Planck SMICA | Planck 2018 | **Blind holdout** | `irsa.ipac.caltech.edu` |
+| Planck TT binned | Planck 2018 | N1 null \(C_\ell\) | IRSA DR3 |
 
-Cite: Bennett et al., Planck Collaboration papers. URLs from `pipeline/catalog.py`.
+Downloads: SHA256-verified cache (`data/cache/manifest.json`).
 
 ## 3. Statistic
 
-- Define \(\mathcal{S}_{\text{RBLE}}\) (Eq. 6) — ref [CMB_OBSERVATORY_MATH.md](../theory/CMB_OBSERVATORY_MATH.md)  
-- String landscape filter + Radon bifurcation filter  
-- Hierarchical axis search  
+- \(\mathcal{S}_{\text{RBLE}}(\hat{\mathbf{n}})\) — `rble_signature.py`, geodesic Radon on \(S^2\)  
+- String landscape filter + Radon bifurcation filter (`string_filter.py`, `radon_bifurcation.py`)  
+- Hierarchical coarse→fine axis search (`hierarchical_sky_search`)
 
-## 4. Null models
+## 4. Null models (N0, N1, N2 — shipped)
 
-- N0 GRF (`generate_null_ensemble`)  
-- N1 CAMB+noise (`generate_camb_noise_null`)  
-- N2 rotation-shuffled (`generate_rotation_shuffled_null`)  
-- Bonferroni over declared search trials  
+| Tier | Implementation | Module |
+|------|----------------|--------|
+| **N0** | Isotropic GRF ensemble | `generate_grf_null` |
+| **N1** | Planck \(C_\ell\) + noise realizations | `generate_camb_noise_null` |
+| **N2** | HEALPix rotation-shuffled map | `generate_rotation_shuffled_null` |
 
-## 5. Injection recovery
+Bonferroni over declared search trials (`count_sky_search_tests`, \(\alpha=0.01\)).
 
-- Synthetic scar on GRF at known axis  
-- ROC: detection rate vs axis error vs SNR  
-- Pass criterion: 90% @ SNR≥3, error < 5°  
+## 5. Injection recovery (Gate 2)
 
-## 6. Calibration run (WMAP)
+- Synthetic scar at known axis on GRF  
+- **Pass:** ≥90% trials recover axis within 5° at SNR≥3  
+- Test: `tests/observatory/test_p1_injection_recovery.py`
 
-- Report \(S_{\max}\), axis, null tier \(p\)-values  
-- **No discovery language**  
+## 6. Results
+
+### 6.1 Calibration (WMAP Ka, NSIDE 128)
+
+Run: `polomni study run p1 --calibration`
+
+Pipeline validates on independent WMAP map; scores recorded in `RESULT.json` (mode=`calibration`).
+
+### 6.2 Blind holdout (Planck SMICA, NSIDE 128)
+
+Run: `polomni study run p1 --blind` (config frozen in `study_config.json` **before** holdout)
+
+| Quantity | Holdout value |
+|----------|---------------|
+| \(S_{\text{RBLE}}\) | 1.130 |
+| Bonferroni pass | **No** (ensemble null \(\sigma < 0\)) |
+| N0 GRF \(p\) (Bonf.) | 0.032 × 36 > \(\alpha\) |
+| N2 rotation \(p\) | 0.319 (not significant) |
+| TE cross-check | **Fail** (\(\sigma \approx -0.09\)) |
+| **P1 supported** | **false** |
+| **P1 falsified** | **true** |
+
+**Interpretation:** The pre-registered hypothesis is **not supported** on Planck holdout. This is a valid scientific outcome — the pipeline ingested real 384 MB Planck SMICA FITS and applied locked filters/search/nulls without peeking.
 
 ## 7. Discussion
 
-- Look-elsewhere effect limits  
-- TE proxy limitations (full Planck Q/U maps needed for publication-grade TE)  
-- What would falsify the statistic  
+- Falsification ≠ pipeline failure; it constrains RBLE CMB scar claims  
+- TE check uses Q/U proxy; full Planck polarization likelihood needed for publication-grade TE  
+- Independent replication (Gate 5) remains open  
 
 ## Appendix A — Code map
 
-| Equation | Module |
-|----------|--------|
-| Eq. 6 | `rble_signature.py`, `transform_s2.py` |
-| Filters | `string_filter.py`, `radon_bifurcation.py` |
-| Study | `p1_runner.py`, `study_config.json` |
+| Component | Module |
+|-----------|--------|
+| Study runner | `p1_runner.py` |
+| Gates 1–4 | `gates.py` |
+| Frozen config | `data/studies/p1_holdout/study_config.json` |
+| Pre-registration | `docs/studies/P1_CMB_RADON_SCAR_PREREG.md` |
+| Replication | `scripts/reproduce-p1.sh`, `docs/REPLICATION.md` |
 
-## Current gaps (honest)
+## Replication checklist
 
-- [ ] Holdout not yet run at time of methods draft  
-- [ ] TE check is proxy, not full Planck polarization likelihood  
-- [ ] N1 depends on cache availability  
+- [x] Pre-registration before holdout  
+- [x] N0/N1/N2 null tiers implemented  
+- [x] Injection recovery test  
+- [x] Blind Planck holdout executed  
+- [x] `make reproduce-p1` one-shot replication  
+- [x] Docker `reproduce` profile  
+- [x] Gate 5 golden reference + `polomni study replicate`  
+- [ ] Independent team replication (external Gate 5 sign-off)  
+- [ ] Peer-reviewed submission (Gate 6)
