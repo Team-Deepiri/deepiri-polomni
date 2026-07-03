@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Plot from "react-plotly.js";
-import { api } from "./api/client";
+import { api, DistrictGraphData } from "./api/client";
 import CosmosLab from "./components/CosmosLab";
+import ClosedLoopLab from "./components/ClosedLoopLab";
+import MultiverseProofPanel from "./components/MultiverseProofPanel";
+import PhysicsLoopLab from "./components/PhysicsLoopLab";
 import RadonTomography from "./components/RadonTomography";
 import SkyMapLibre from "./components/SkyMapLibre";
 import AladinSkyViewer from "./components/AladinSkyViewer";
@@ -20,7 +23,7 @@ function Panel({ title, children }: PanelProps) {
 export default function App() {
   const [health, setHealth] = useState("…");
   const [error, setError] = useState<string | null>(null);
-  const [district, setDistrict] = useState<any>(null);
+  const [district, setDistrict] = useState<DistrictGraphData | null>(null);
   const [landscape, setLandscape] = useState<any>(null);
   const [scar, setScar] = useState<any>(null);
   const [stream, setStream] = useState<any>(null);
@@ -100,7 +103,10 @@ export default function App() {
       </header>
       {error && <p className="error" style={{ padding: "0 1.5rem" }}>{error}</p>}
 
+      <MultiverseProofPanel />
       <CosmosLab />
+      <ClosedLoopLab onGraphUpdate={setDistrict} />
+      <PhysicsLoopLab />
       <RadonTomography />
 
       <div className="section-label">Multiverse Engine — Real Cosmos (Aladin HiPS)</div>

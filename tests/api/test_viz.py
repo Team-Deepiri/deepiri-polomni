@@ -34,3 +34,13 @@ def test_viz_falsification() -> None:
     assert r.status_code == 200
     data = r.json()
     assert "p1" in data and "p2" in data and "p3" in data
+
+
+def test_viz_physics_loop() -> None:
+    client = TestClient(create_app())
+    r = client.get("/viz/physics-loop?steps=1&nside=16")
+    assert r.status_code == 200
+    data = r.json()
+    assert "real_axis" in data
+    assert "steps" in data
+    assert "graph" in data

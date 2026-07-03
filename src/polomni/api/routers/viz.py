@@ -8,12 +8,15 @@ from fastapi import APIRouter, Query
 
 from polomni.viz.multiverse import (
     branch_simplex,
+    closed_loop_panel,
     district_graph_3d,
     falsification_panel,
     landscape_surface,
+    physics_loop_panel,
     scar_sphere,
     stream_flux_series,
 )
+from polomni.viz.multiverse.proof_panel import multiverse_proof_panel
 
 router = APIRouter(tags=["viz"])
 
@@ -22,8 +25,29 @@ router = APIRouter(tags=["viz"])
 def get_district_graph(
     choices: int = Query(default=5, ge=2, le=20),
     districts: int = Query(default=1, ge=1, le=5),
+    steps: int = Query(default=2, ge=1, le=10),
+    policy: str = Query(default="uniform"),
 ) -> dict:
-    return district_graph_3d(choices=choices, districts=districts)
+    return district_graph_3d(choices=choices, districts=districts, steps=steps, policy=policy)
+
+
+@router.get("/closed-loop")
+def get_closed_loop(
+    steps: int = Query(default=3, ge=1, le=8),
+    choices: int = Query(default=4, ge=2, le=12),
+    nside: int = Query(default=32, ge=8, le=128),
+    policy: str = Query(default="axis_biased"),
+) -> dict:
+    return closed_loop_panel(steps=steps, num_choices=choices, nside=nside, policy=policy)
+
+
+@router.get("/physics-loop")
+def get_physics_loop(
+    steps: int = Query(default=3, ge=1, le=8),
+    nside: int = Query(default=32, ge=8, le=128),
+    map_product: str = Query(default="wmap_k_band"),
+) -> dict:
+    return physics_loop_panel(steps=steps, nside=nside, map_product_id=map_product)
 
 
 @router.get("/landscape")
@@ -53,3 +77,27 @@ def get_branch_simplex(choices: int = Query(default=5, ge=2, le=12)) -> dict:
 @router.get("/falsification")
 def get_falsification() -> dict:
     return falsification_panel()
+
+
+@router.get("/multiverse-proof")
+def get_multiverse_proof(quick: bool = Query(default=True)) -> dict:
+    return multiverse_proof_panel(quick=quick)
+
+
+@router.get("/neural-corpus")
+def get_neural_corpus() -> dict:
+    from polomni.neural.datasets.loop_corpus import load_corpus
+
+    return load_corpus().summary()
+
+
+@router.get("/live-run")
+def get_live_run_report() -> dict:
+    """Latest real-data live pipeline report (``data/reports/live_run.json``)."""
+    from pathlib import Path
+    import json
+
+    path = Path("data/reports/live_run.json")
+    if not path.is_file():
+        return {"ready": False, "message": "Run: polomni run live"}
+    return {"ready": True, **json.loads(path.read_text(encoding="utf-8"))}

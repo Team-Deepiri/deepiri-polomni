@@ -138,6 +138,38 @@ button {
   50% { opacity: 0.3; }
 }
 .btn-warn { background: var(--warn); }
+.closed-loop-lab {
+  padding: 0 1.5rem 1rem;
+}
+.loop-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 14px;
+}
+.loop-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+}
+.loop-controls input[type="range"] {
+  width: 120px;
+}
+.loop-controls select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.loop-summary {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
 .section-label {
   padding: 0.75rem 1.5rem 0;
   font-size: 0.75rem;

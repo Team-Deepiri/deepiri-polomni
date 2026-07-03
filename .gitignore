@@ -119,6 +119,7 @@ data/proofs/*
 # Study outputs (configs tracked; results generated)
 data/studies/**/RESULT.json
 data/studies/**/replication/
+data/studies/live_runs/
 
 # Frontend
 frontend/node_modules/

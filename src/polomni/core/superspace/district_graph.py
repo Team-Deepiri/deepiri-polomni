@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 
 import networkx as nx
@@ -10,6 +11,14 @@ import numpy as np
 from numpy.typing import NDArray
 
 from polomni.core.state.stream_packet import StreamPacket
+
+
+class ChoicePolicy(str, Enum):
+    """Branch-weight policies at graviton-well choice events."""
+
+    UNIFORM = "uniform"
+    AXIS_BIASED = "axis_biased"
+    ENTROPY_MAX = "entropy_max"
 
 
 def _as_float_array(value: NDArray[np.floating] | list[float] | tuple[float, ...]) -> NDArray[np.floating]:
@@ -64,7 +73,14 @@ class DistrictGraph:
         )
         return district_id
 
-    def trigger_choice_event(self, parent_sector: int, num_choices: int) -> list[StreamPacket]:
+    def trigger_choice_event(
+        self,
+        parent_sector: int,
+        num_choices: int,
+        *,
+        policy: ChoicePolicy = ChoicePolicy.UNIFORM,
+        bias_axis: NDArray[np.floating] | list[float] | None = None,
+    ) -> list[StreamPacket]:
         """Spawn ``num_choices`` child districts and emit vacuum stream packets.
 
         Implements the superspace branching rule from RBLE Eq. (6):
@@ -91,8 +107,12 @@ class DistrictGraph:
         parent_mass = float(parent["mass"])
         parent_lambda = float(parent["lambda_vacuum"])
 
-        log_odds = np.linspace(-0.5, 0.5, num_choices)
-        branch_weights = _softmax(log_odds)
+        branch_weights = _branch_weights_for_policy(
+            num_choices,
+            policy=policy,
+            parent_coord=parent_coord,
+            bias_axis=bias_axis,
+        )
         phi_stream = _compute_phi_stream(
             mass=parent_mass,
             lambda_vacuum=parent_lambda,
@@ -132,11 +152,49 @@ class DistrictGraph:
                     information_trace=information_trace,
                     timestamp=datetime.now(timezone.utc),
                     branch_weights=[float(w) for w in branch_weights],
-                    metadata={"branch_index": k, "gravity_mutation": float(mutation)},
+                    metadata={
+                        "branch_index": k,
+                        "gravity_mutation": float(mutation),
+                        "choice_policy": policy.value,
+                    },
                 )
             )
 
         return packets
+
+    def run_simulation_chain(
+        self,
+        *,
+        steps: int = 5,
+        num_choices: int = 4,
+        policy: ChoicePolicy = ChoicePolicy.UNIFORM,
+        bias_axis: NDArray[np.floating] | list[float] | None = None,
+    ) -> list[StreamPacket]:
+        """Run multiple chained choice events on highest-conductance children."""
+        if self.graph.number_of_nodes() == 0:
+            raise ValueError("graph has no districts; call add_district first")
+
+        roots = [n for n, d in self.graph.in_degree() if d == 0]
+        parent = roots[0] if roots else 0
+        all_packets: list[StreamPacket] = []
+        axis = bias_axis
+
+        for _ in range(steps):
+            packets = self.trigger_choice_event(
+                parent,
+                num_choices,
+                policy=policy,
+                bias_axis=axis,
+            )
+            all_packets.extend(packets)
+            children = [v for u, v in self.graph.edges() if u == parent]
+            if not children:
+                break
+            parent = max(children, key=lambda c: self.get_conductance(parent, c))
+            if axis is not None:
+                axis = np.asarray(self.graph.nodes[parent]["coordinate"], dtype=float)
+
+        return all_packets
 
     def get_conductance(self, i: int, j: int) -> float:
         """Return ER=EPR conductance ``G_ij`` on directed edge ``i → j``."""
@@ -213,6 +271,48 @@ def _softmax(log_odds: NDArray[np.floating]) -> NDArray[np.floating]:
     shifted = log_odds - np.max(log_odds)
     exp_vals = np.exp(shifted)
     return exp_vals / np.sum(exp_vals)
+
+
+def _branch_weights_for_policy(
+    num_choices: int,
+    *,
+    policy: ChoicePolicy,
+    parent_coord: NDArray[np.floating],
+    bias_axis: NDArray[np.floating] | list[float] | None,
+) -> NDArray[np.floating]:
+    """Compute normalized branch weights for the selected choice policy."""
+    if policy == ChoicePolicy.UNIFORM:
+        return np.ones(num_choices, dtype=float) / num_choices
+
+    if policy == ChoicePolicy.ENTROPY_MAX:
+        # Flat logits → near-uniform but not identical (max entropy on simplex interior).
+        log_odds = np.zeros(num_choices, dtype=float)
+        return _softmax(log_odds)
+
+    # AXIS_BIASED: weight branches by alignment of child mutation index with bias axis.
+    if bias_axis is None:
+        coord = np.asarray(parent_coord, dtype=float).ravel()
+        if coord.size < 3:
+            coord = np.pad(coord, (0, 3 - coord.size))
+        norm = float(np.linalg.norm(coord))
+        bias_axis = coord / norm if norm > 1e-12 else np.array([0.0, 0.0, 1.0])
+
+    bias = np.asarray(bias_axis, dtype=float).ravel()
+    bias = bias / (np.linalg.norm(bias) + 1e-15)
+    child_dirs = []
+    for k in range(num_choices):
+        theta = np.pi * (k + 1) / (num_choices + 1)
+        phi = 2.0 * np.pi * k / num_choices
+        child_dirs.append(
+            np.array(
+                [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)],
+                dtype=float,
+            )
+        )
+    child_dirs = np.stack(child_dirs)
+    alignments = child_dirs @ bias
+    log_odds = 2.0 * alignments
+    return _softmax(log_odds)
 
 
 def _compute_phi_stream(
