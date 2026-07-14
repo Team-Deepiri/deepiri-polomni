@@ -34,6 +34,14 @@ done
 
 echo "=== Polomni setup ==="
 
+# Git Hooks Setup
+if [ -d ".git-hooks" ]; then
+    git config core.hooksPath .git-hooks
+    echo "Git hooks configured (core.hooksPath = .git-hooks)"
+else
+    echo "No .git-hooks directory found, skipping hooks setup"
+fi
+
 if ! command -v poetry >/dev/null 2>&1; then
   echo "Poetry is required: https://python-poetry.org/docs/#installation"
   exit 1
