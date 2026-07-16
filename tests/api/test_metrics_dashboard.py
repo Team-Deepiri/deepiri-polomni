@@ -23,17 +23,18 @@ def test_dashboard_html() -> None:
 
 def test_frontend_spa_assets() -> None:
     """Built JS/CSS must be served under /app/assets (Vite base path)."""
+    import pathlib
+    dist = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if not dist.is_dir() or not (dist / "index.html").is_file():
+        __import__("pytest").skip("frontend not built")
     client = TestClient(create_app())
     r = client.get("/app")
     assert r.status_code == 200
     assert "Polomni Multiverse Frontend" in r.text
-
-    dist = (
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "frontend" / "dist" / "assets"
-    )
-    if not dist.is_dir():
+    assets = dist / "assets"
+    if not assets.is_dir():
         return
-    js = next(dist.glob("index-*.js"), None)
+    js = next(assets.glob("index-*.js"), None)
     if js is None:
         return
     asset = client.get(f"/app/assets/{js.name}")

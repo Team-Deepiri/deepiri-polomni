@@ -27,6 +27,16 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Frontend build
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
       - name: Unit tests (exclude integration)
         run: poetry run pytest -m "not integration" -q
 
@@ -41,13 +51,3 @@ jobs:
 
       - name: Math proof suite
         run: poetry run polomni math prove
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Frontend build
-        run: |
-          cd frontend
-          npm install
-          npm run build
