@@ -29,3 +29,12 @@ def test_fetch_gwosc_catalog_live(tmp_path) -> None:
     snap = fetch_gwtc_events(cache, max_pages=1)
     assert snap.results_count >= 20
     assert snap.events[0].name.startswith("GW")
+
+@pytest.mark.integration
+@pytest.mark.observatory
+def test_fetch_wmap_k_band_live(tmp_path) -> None:
+    cache = DataCache(tmp_path)
+    product = get_product("wmap_k_band")
+    result = fetch_product(product, cache, force=True)
+    assert result.path.exists()
+    assert result.bytes_written > 1000
