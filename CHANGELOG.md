@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **World Atlas** — maps the real sky positions of every confirmed exoplanet (NASA Exoplanet Archive, `nasa_exoplanet_ps`) to a HEALPix density map and runs the RBLE geodesic-Radon scar scan over the distribution of worlds. Includes a **footprint-matched null** (counts reshuffled within the survey mask) and a **per-method axis audit** referenced to the Galactic pole, so a scar claim is not a Kepler-field or disk-plane artifact. `polomni data worlds`, `GET /cosmos/worlds`, and a MapLibre **World Atlas** frontend panel. Theory + invariants: `docs/theory/WORLD_ATLAS.md`.
+- **Exoplanet source adapter** — `nasa_exoplanet_ps` CSV product (`csv` kind) in the data catalog; parser, RA/Dec→HEALPix density maps, alignment (nematic) tensor with the Tr(Q)≡1 invariant, footprint-permuted nulls (`src/polomni/observatory/pipeline/sources/exoplanets.py`).
 - **Math proof engine** — `polomni.math` provers for VP + Eq1–8 + falsification P1–P3; `polomni math prove` CLI and `/math/*` API.
 - **Proof notebooks** — `experiments/09`–`13` variational principle, falsification trinity, integrated loop, Kähler Eq8, real-data bridge.
 - **Viz API** — `/viz/*` JSON serializers for multiverse visualizations (`src/polomni/viz/multiverse/`).

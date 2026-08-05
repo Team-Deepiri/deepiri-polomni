@@ -1,0 +1,153 @@
+# World Atlas — RBLE scan over the NASA Exoplanet Archive
+
+**Status:** applied-mathematics note + live observatory feature (not a claim of new physics)
+**Data:** NASA Exoplanet Archive planetary-systems table (`nasa_exoplanet_ps`, `polomni data fetch`)
+**Code:** `src/polomni/observatory/pipeline/sources/exoplanets.py`, `src/polomni/viz/cosmos/worlds.py`
+**Routes/CLI:** `GET /cosmos/worlds`, `polomni data worlds`
+
+---
+
+## System (plain language)
+
+The NASA Exoplanet Archive lists every *confirmed* planet outside the Solar System —
+6,333 as of 2026 — each with a real position on the sky (right ascension, declination).
+A "world atlas" asks a single question:
+
+> Is the distribution of worlds on the sky ordered around a preferred axis, the way the
+> RBLE multiverse picture predicts scars should be — and, if so, is that order real
+> physics or just an artifact of how we look?
+
+There are three sub-systems tangled together, and untangling them is the whole problem:
+
+1. **The worlds themselves** — where each confirmed planet actually points.
+2. **The survey footprint** — the telescope fields that happened to look there
+   (Kepler stared at one patch of sky; TESS scans bands; microlensing follows the
+   Galactic bulge).
+3. **The Milky Way** — a disk of stars whose plane is a natural axis in the sky.
+
+A naive scan cannot tell these apart. This note builds the scan so it can.
+
+## Inventory
+
+| Entity | What it is | Measurables |
+|---|---|---|
+| World | A confirmed exoplanet | RA (deg), Dec (deg), period (d), radius (R⊕), mass (M♃), host T_eff (K), disc. year, method |
+| Host star | Star the world orbits | position, T_eff |
+| Survey footprint | Set of sky pixels that were observed | the occupied HEALPix mask |
+| Galactic plane | Milky Way disk reference | Galactic pole unit vector (equatorial) |
+
+Measurable quantities with units: positions (deg), counts (dimensionless), angular
+separation (deg), order parameters (dimensionless).
+
+## Observations (grounded in the real 6,333-row catalog)
+
+- Worlds occupy **only 5.4% of the sky** at NSIDE 64, 17.8% at NSIDE 32 — a heavily
+  footprint-dominated distribution.
+- Discovery methods dominate asymmetrically: **Transit 4,674, Radial Velocity 1,196,
+  Microlensing 282, Imaging 98**, + 7 minor methods.
+- Alignment-order parameter S (see below) by method:
+
+| Method | N | S | axis ↔ Galactic pole |
+|---|---|---|---|
+| All worlds | 6,333 | 0.425 | 16.6° |
+| Transit | 4,674 | 0.581 | 78° |
+| Radial Velocity | 1,196 | **0.058** | 53° |
+| Microlensing | 282 | **0.980** | **88°** |
+| Imaging | 98 | 0.278 | 71° |
+
+**Reading the table:** the sky-complete method (Radial Velocity) is nearly *isotropic*.
+The most-ordered method (Microlensing) is ordered *in the Galactic plane* — its axis is
+88° from the pole, i.e. pointing at the bulge. The full-sample anisotropy is therefore a
+mixture of Kepler-field footprint (Transit) and Galactic-plane crowding (Microlensing).
+This is the selection-bias statement the whole design exists to make.
+
+## Candidate invariants
+
+- **Tr(Q) ≡ 1 exactly**, for any subset, any NSIDE, any weight. Q = ⟨n nᵀ⟩ over world
+  unit vectors; the trace of the outer-product mean is the mean of unit traces.
+  Verified numerically to 1e-15 across all method subsets. Used as the test that the
+  tensor is well-formed in the API (`Tr(Q) invariant`).
+- **Q symmetric** ⇒ real eigenvalues, always diagonalizable (no fudge required).
+- **λ₁ ≥ 1/3** always (Rayleigh quotient of a PSD matrix against any direction ≥ 0;
+  with the constraint λ₁ ≥ λ₂ ≥ λ₃, trace 1 ⇒ λ₁ ≥ 1/3). Isotropy is λ = (1/3, 1/3, 1/3).
+  The scalar `S = (3λ₁ − 1)/2` runs 0 (isotropic) → 1 (perfectly aligned).
+
+## Dimensionless groups
+
+Everything is already dimensionless (unit vectors, order parameters, separations in deg).
+The only free parameter is the scan NSIDE (a resolution choice, not a physical one) and
+the density weight (`count` / `teff` / `period` — which physical quantity is stacked into
+the HEALPix bins). The RBLE score S_RBLE is the existing dimensionless scar integral.
+
+## Candidate state variables
+
+- **The occupancy mask** is the state variable that restores the Markov property to the
+  null problem: "which pixels *can* be occupied" is the full survey-footprint summary.
+- **Per-method preferred axis** is the state variable that separates footprint physics
+  from true physics — each method has a different mask, so axis *agreement* across methods
+  is the only thing that can survive selection.
+
+## The null model — footprint-matched permutation
+
+An isotropic null is **not** reachable for this system: the survey mask already breaks
+isotropy, so comparing against a uniform sphere would condemn the footprint, not the
+physics. The honest null is:
+
+1. Fix the observed occupancy mask (which pixels are occupied).
+2. Permute the per-pixel world counts **within** the mask.
+3. Score each permuted map at the **observed** preferred axis (single geodesic integral,
+   ~30 ms/map ⇒ 40-ensemble null in ~1.2 s).
+4. Report σ = (S_obs − μ_null) / σ_null.
+
+Current result: S_RBLE = 0.44 vs null μ=0.24 σ=0.013 → **+15.5σ**. This says the world
+density is strongly ordered at the found axis even against random reshuffling in the
+mask — but it does **not** by itself distinguish Galactic-plane crowding from true
+beyond-Milky-Way order. That job belongs to the method audit.
+
+## Adversarial validation (symmetry broken)
+
+- **Method split:** the full-sample axis does **not** persist across methods with different
+  footprints — Transit and Microlensing disagree strongly with sky-complete Radial
+  Velocity (S≈0). A genuine scar would survive the split.
+- **Galactic-pole reference:** Microlensing is *in-plane* (88°) — its order is the Milky
+  Way, not the multiverse. The tool reports the separation from the pole for the full
+  sample and every method, so a user cannot mistake disk physics for a world scar.
+- **Weight sweep:** the payload can re-run with `weight=teff|period`; the null is
+  regenerated for each weight, so no weighting can hide the footprint.
+
+## Proof strategy (what we assert vs what we conjecture)
+
+- **Asserted (verified numerically):** Tr(Q)=1 invariant; S ∈ [0,1]; null permutation
+  preserves the mask exactly; fixed-axis null scores are cheap.
+- **Conjecture (labeled as such):** the world distribution contains axis-aligned order
+  *beyond* survey footprint and Milky Way structure. The current evidence *rejects* this
+  conjecture for the full sample (RV ≈ isotropic). The machinery is built so a future
+  dataset — e.g. a sky-complete transit survey — can re-run the exact same nulls.
+
+## Domain of validity
+
+- The significance is against **footprint-matched permutation**, not against unknown
+  survey selection. It cannot see a selection effect that permuting within the mask
+  preserves (e.g. a radial gradient within the Kepler field).
+- The catalog is detection-limited: fainter worlds exist where telescopes didn't look.
+  "Isotropic RV sample" is the best-available proxy for a sky-complete sample, not a
+  guarantee.
+- The axis audit is per *discovery method*, not per *instrument*. A single instrument
+  used by two methods would still share a footprint.
+- Small-N methods (Imaging N=98) have poorly constrained axes; treat their S as noise.
+
+## Failed guesses and what they revealed
+
+- **Guess 1: "score vs uniform-sphere null."** Rejected: it measures footprint-ness, not
+  world-ness. Revealed the occupancy mask as the true state variable → footprint null.
+- **Guess 2: "the preferred axis is the scar."** Rejected after the method split: the
+  axis is dominated by Microlensing's bulge crowding. Revealed the per-method audit and
+  the Galactic-pole reference as necessary guards.
+
+## Generalization
+
+The same pattern — footprint-matched null + per-instrument axis audit + fixed reference
+axis — applies to any point distribution on the sphere gathered by surveys: galaxy
+catalogs (SDSS footprint), cosmic-ray arrival directions (observatory fields), and
+future all-sky exoplanet surveys. The exoplanet machinery in `exoplanets.py` is written
+to be reusable for any such catalog.

@@ -157,10 +157,11 @@ Fetch public CMB and GW catalogs, cache locally, and run the full RBLE observato
 
 | Command | Description |
 |---------|-------------|
-| `polomni data list` | Show the online data catalog (Planck, WMAP, GWOSC) |
+| `polomni data list` | Show the online data catalog (Planck, WMAP, GWOSC, NASA exoplanets) |
 | `polomni data status` | List cached files and sizes under `data/cache/` |
 | `polomni data fetch` | Download lite products + GWTC (use `--wmap`, `--planck` for maps) |
 | `polomni data pipeline` | Ingest cached data and run RBLE scan (default WMAP K-band, NSIDE 128) |
+| `polomni data worlds` | Scan the real NASA exoplanet sky with RBLE + footprint-matched null |
 | `polomni data watch` | Poll GWOSC on an interval; optional `--scan-on-gw` re-scan |
 | `polomni data plot power` | Plot cached CMB power spectrum PNG |
 | `polomni data plot gw` | Plot GW event timeline from cache |
@@ -178,6 +179,34 @@ poetry run polomni data watch --interval 60 --iterations 3
 ```
 
 Cache directory: `data/cache/` (override with `POLOMNI_DATA_CACHE`). See [docs/guides/real_time_data.md](docs/guides/real_time_data.md).
+
+---
+
+## World Atlas — NASA Exoplanet Archive
+
+Maps the **real sky positions of every confirmed exoplanet** (NASA Exoplanet Archive,
+`nasa_exoplanet_ps`) onto a HEALPix density map, runs the RBLE geodesic-Radon scar
+scan over the distribution of worlds, and reports **two selection-bias audits** that a
+naive scan would fake:
+
+1. **Footprint-matched null** — world counts are reshuffled *within* the observed
+   survey mask (Kepler field, TESS bands), so the reported σ is against an honest null,
+   not an unreachable isotropic sky.
+2. **Per-method axis audit** — the preferred axis is recomputed per discovery method
+   and referenced to the Galactic pole. Sky-complete Radial Velocity worlds are nearly
+   isotropic (S≈0.06); Microlensing worlds are ordered *in the Galactic plane*
+   (S≈0.98, 88° from pole). A genuine world scar must survive both checks.
+
+```bash
+poetry run polomni data fetch nasa_exoplanet_ps
+poetry run polomni data worlds --nside 32 --ensemble 40
+```
+
+The **World Atlas** panel in the frontend (`/app`) renders all worlds on a MapLibre
+globe colored by host temperature (or discovery method), with the RBLE scar ring +
+preferred axis overlaid and the full selection-bias audit table.
+
+Theory, invariants (Tr(Q)≡1), and domain of validity: [docs/theory/WORLD_ATLAS.md](docs/theory/WORLD_ATLAS.md).
 
 ---
 
@@ -202,6 +231,7 @@ poetry run polomni serve
 | `/observatory/pipeline` | POST | Full ingest → score → report pipeline |
 | `/observatory/reports` | GET | List JSON detection reports |
 | `/observatory/compare` | POST | Compare two detection reports |
+| `/cosmos/worlds` | GET | World Atlas — RBLE scan of real exoplanet sky positions + footprint null |
 | `/metrics` | GET | Lab operational metrics |
 | `/dashboard` | GET | Browser dashboard UI |
 | `/stream/gw/poll` | GET | SSE stream of GW catalog poll events |
@@ -317,6 +347,10 @@ poetry run polomni serve --port 8091
 cd frontend && npm install && npm run dev   # http://localhost:5173
 cd frontend && npm run build                # production → http://localhost:8091/app
 ```
+
+Panels include the **World Atlas** (real NASA exoplanets + RBLE scan), Cosmos Lab
+(WMAP/Planck dual-map calibration), 3D multiverse DAG, Kähler landscape, and the proof
+suite.
 
 Proof notebooks: `experiments/09_variational_principle.ipynb` through `13_real_data_theory_bridge.ipynb`.
 
