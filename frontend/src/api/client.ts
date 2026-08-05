@@ -109,12 +109,34 @@ export type WorldAtlas = {
     references: WorldDipoleRefs;
     bootstrap: {
       n_boot: number;
+      n_units: number;
+      per_host: boolean;
       sigma68_deg: number;
       median_deg: number;
       observed_dipole: number[];
       observed_magnitude: number;
     };
+    bootstrap_per_host: {
+      n_boot: number;
+      n_units: number;
+      per_host: boolean;
+      sigma68_deg: number;
+      median_deg: number;
+    };
     method_dipoles: Record<string, WorldMethodDipole>;
+    kepler_excision: {
+      reference: string;
+      n_worlds_full: number;
+      full_magnitude: number;
+      full_isotropic_expectation: number;
+      rows: {
+        radius_deg: number;
+        n_worlds: number;
+        magnitude: number;
+        isotropic_expectation: number;
+        references: WorldDipoleRefs;
+      }[];
+    };
   };
   spectrum: WorldSpectrum;
   points: {

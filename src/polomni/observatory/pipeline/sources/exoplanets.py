@@ -250,27 +250,48 @@ def dipole_bootstrap(
     *,
     n_boot: int = 200,
     seed: int = 7,
+    per_host: bool = False,
 ) -> dict[str, object]:
     """Bootstrap the world-dipole direction for the full sample.
 
-    Resamples worlds with replacement and recomputes the dipole each time;
-    returns the mean separation of bootstrap dipoles from the observed dipole
-    (68% confidence radius, degrees).
+    Resamples worlds (or, with ``per_host=True``, *hosts* — drawing each host's
+    planets together, which respects the physical fact that planets in one
+    system share a sky position and are not independent) with replacement and
+    recomputes the dipole each time; returns the mean separation of bootstrap
+    dipoles from the observed dipole (68% confidence radius, degrees).
     """
     vecs, good = world_vectors(catalog)
     observed, mag = world_dipole(vecs)
     rng = np.random.default_rng(seed)
+
+    if per_host:
+        hosts = np.asarray(catalog.hosts)[good]
+        uniq_hosts = np.unique(hosts)
+        host_vecs = np.stack(
+            [
+                np.mean(vecs[hosts == h], axis=0)
+                for h in uniq_hosts
+            ]
+        )
+        n = host_vecs.shape[0]
+        pool = host_vecs
+        observed = world_dipole(host_vecs)[0]
+    else:
+        n = vecs.shape[0]
+        pool = vecs
+
     separations: list[float] = []
     directions: list[list[float]] = []
-    n = vecs.shape[0]
     for _ in range(n_boot):
         idx = rng.integers(0, n, size=n)
-        d, _ = world_dipole(vecs[idx])
+        d, _ = world_dipole(pool[idx])
         directions.append(d.tolist())
         separations.append(angular_separation_deg(observed, d))
     separations = np.asarray(separations)
     return {
         "n_boot": n_boot,
+        "n_units": int(n),
+        "per_host": bool(per_host),
         "observed_dipole": observed.tolist(),
         "observed_magnitude": mag,
         "sigma68_deg": float(np.percentile(separations, 68)),
@@ -401,6 +422,60 @@ def method_dipole_scan(
             "references": refs_out,
         }
     return out
+
+
+def kepler_excision_scan(
+    catalog: ExoplanetCatalog,
+    *,
+    radii_deg: tuple[float, ...] = (5.0, 8.0, 12.0, 20.0),
+    reference: str = "kepler_field_center",
+) -> dict[str, object]:
+    """World dipole after excising worlds near a reference direction.
+
+    The decisive adversarial test for a *physical* scar: if the world dipole
+    is real cosmology it must survive removing the survey field it currently
+    points at (the Kepler footprint). If the dipole collapses toward zero as
+    the excision radius grows, the "scar" was the footprint all along.
+
+    Returns the dipole magnitude and reference separations per excision radius,
+    plus the isotropic threshold |⟨n⟩|_iso = 1/sqrt(3N) expected from pure
+    shot noise in an isotropic sample of the same size.
+    """
+    vecs, good = world_vectors(catalog)
+    refs = reference_directions()
+    ref = refs.get(reference, refs["kepler_field_center"])
+
+    rows: list[dict[str, float]] = []
+    for r_deg in radii_deg:
+        dots = vecs @ ref
+        sep = np.degrees(np.arccos(np.clip(np.abs(dots), 0.0, 1.0)))
+        keep = sep > r_deg
+        if keep.sum() == 0:
+            continue
+        d, mag = world_dipole(vecs[keep])
+        n = int(keep.sum())
+        rows.append(
+            {
+                "radius_deg": float(r_deg),
+                "n_worlds": n,
+                "magnitude": float(mag),
+                "isotropic_expectation": float(1.0 / np.sqrt(3.0 * n)),
+                "references": {
+                    name: float(angular_separation_deg(d, r))
+                    for name, r in refs.items()
+                },
+            }
+        )
+
+    full, full_mag = world_dipole(vecs)
+    n_full = int(vecs.shape[0])
+    return {
+        "reference": reference,
+        "n_worlds_full": n_full,
+        "full_magnitude": float(full_mag),
+        "full_isotropic_expectation": float(1.0 / np.sqrt(3.0 * n_full)),
+        "rows": rows,
+    }
 
 
 def angular_separation_deg(a: np.ndarray, b: np.ndarray) -> float:

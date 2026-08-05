@@ -127,6 +127,29 @@ and Galactic pole for *every* discovery method. The cosmic-rest-frame test is th
 **negative**: the only significant world dipole is the survey footprint, and no sample
 leans toward the CMB rest frame.
 
+**Robustness — multiplicity:** planets in the same system share one sky position and are
+not independent. Resampling per *host* (each system's planets drawn together; 4,747
+systems) leaves the result essentially unchanged: dipole 0.407, still 6.4° from the
+Kepler field, 68% cone 1.3° vs 1.1° per-world. Multiplicity is not manufacturing the
+signal.
+
+**Robustness — Kepler excision (the decisive test):** a *physical* scar must survive
+removing the survey field it points at. Excising worlds near the Kepler field center:
+
+| Cut radius | N left | \|⟨n⟩\| | isotropic expectation | ↔ Kepler |
+|---|---|---|---|---|
+| full | 6,333 | 0.422 | 0.007 | 4.8° |
+| >5° | 4,844 | 0.250 | 0.008 | 10.6° |
+| **>8°** | **3,498** | **0.075** | **0.010** | **60.3°** |
+| >12° | 3,443 | 0.078 | 0.010 | 58.5° |
+| >20° | 3,313 | 0.081 | 0.010 | 58.6° |
+
+At >8° the dipole collapses to 0.075 — **7.5× the isotropic shot-noise expectation, and
+no longer pointed at Kepler** (60° away). The full-sample dipole was the Kepler
+footprint; what survives excision is a small residual that does not point at any cosmic
+reference and is far from a scar claim. This is the strongest evidence in the atlas that
+**no axis-aligned world order exists beyond the survey footprint.**
+
 Per-method dipoles (bootstrap 68% cone):
 
 | Method | N | \|⟨n⟩\| | 68% cone | ↔ Kepler | ↔ CMB apex |
@@ -177,12 +200,14 @@ a model of detector-level selection within the field.
 - **Asserted (verified numerically):** Tr(Q)=1 invariant; S ∈ [0,1]; null permutation
   preserves the mask exactly; fixed-axis null scores are cheap; the dipole bootstrap
   cone is a finite-sample error budget; the world C_ℓ has a well-defined
-  uniform-within-footprint null.
+  uniform-within-footprint null; per-host resampling leaves the dipole conclusion
+  unchanged; Kepler excision collapses the dipole toward the isotropic expectation.
 - **Conjecture (labeled as such):** the world distribution contains axis-aligned order
   *beyond* survey footprint and Milky Way structure. The current evidence *rejects* this
-  conjecture for the full sample (RV ≈ isotropic; dipole = Kepler footprint; C_ℓ = null
-  except the footprint dipole at ℓ=1). The machinery is built so a future dataset — e.g.
-  a sky-complete transit survey — can re-run the exact same nulls.
+  conjecture for the full sample (RV ≈ isotropic; dipole = Kepler footprint, collapsing
+  to ~shot noise on excision; C_ℓ = null except the footprint dipole at ℓ=1). The
+  machinery is built so a future dataset — e.g. a sky-complete transit survey — can
+  re-run the exact same nulls.
 
 ## Domain of validity
 

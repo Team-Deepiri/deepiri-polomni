@@ -13,6 +13,7 @@ from polomni.observatory.pipeline.sources.exoplanets import (
     exoplanet_density_map,
     footprint_permuted_density_map,
     galactic_pole_vector,
+    kepler_excision_scan,
     load_exoplanet_catalog,
     method_alignment_scan,
     method_dipole_scan,
@@ -150,6 +151,27 @@ def test_dipole_bootstrap_returns_cone(catalog) -> None:
     assert boot["median_deg"] >= 0.0
     assert len(boot["directions"]) == 50
     assert len(boot["observed_dipole"]) == 3
+    assert boot["n_units"] == 7
+    assert boot["per_host"] is False
+
+
+def test_dipole_bootstrap_per_host(catalog) -> None:
+    boot = dipole_bootstrap(catalog, n_boot=50, seed=1, per_host=True)
+    assert boot["per_host"] is True
+    assert boot["n_units"] == 7
+    assert boot["sigma68_deg"] >= 0.0
+
+
+def test_kepler_excision_scan_collapses_dipole(catalog) -> None:
+    ex = kepler_excision_scan(catalog, radii_deg=(1.0, 5.0, 8.0))
+    assert ex["n_worlds_full"] == 7
+    assert ex["full_magnitude"] > 0.0
+    assert len(ex["rows"]) == 3
+    assert ex["rows"][-1]["n_worlds"] < 7
+    for row in ex["rows"]:
+        assert row["magnitude"] >= 0.0
+        assert "kepler_field_center" in row["references"]
+        assert row["isotropic_expectation"] > 0.0
 
 
 def test_reference_directions_are_unit() -> None:

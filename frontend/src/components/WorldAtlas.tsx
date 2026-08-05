@@ -63,6 +63,64 @@ function WorldSpectrumChart({ spectrum }: { spectrum: WorldSpectrum }) {
   );
 }
 
+type ExcisionRow = {
+  radius: string;
+  n: number;
+  mag: number;
+  iso: number;
+  kepler: number;
+};
+
+function ExcisionTable({ worlds }: { worlds: WorldAtlas }) {
+  const rows: ExcisionRow[] = [
+    {
+      radius: "full",
+      n: worlds.dipole.kepler_excision.n_worlds_full,
+      mag: worlds.dipole.kepler_excision.full_magnitude,
+      iso: worlds.dipole.kepler_excision.full_isotropic_expectation,
+      kepler: worlds.dipole.references.kepler_field_center.separation_deg,
+    },
+    ...worlds.dipole.kepler_excision.rows.map((r) => ({
+      radius: `>${r.radius_deg.toFixed(0)}°`,
+      n: r.n_worlds,
+      mag: r.magnitude,
+      iso: r.isotropic_expectation,
+      kepler: r.references.kepler_field_center.separation_deg,
+    })),
+  ];
+
+  return (
+    <div>
+      <table className="world-method-table">
+        <thead>
+          <tr>
+            <th>Cut</th>
+            <th>N</th>
+            <th>|dipole|</th>
+            <th>iso exp</th>
+            <th>↔ Kepler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.radius}>
+              <td>{r.radius}</td>
+              <td>{r.n}</td>
+              <td>{r.mag.toFixed(3)}</td>
+              <td>{r.iso.toFixed(3)}</td>
+              <td>{r.kepler.toFixed(0)}°</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Removing the Kepler field collapses the dipole toward the isotropic expectation —
+        the "scar" is the footprint, not physics.
+      </p>
+    </div>
+  );
+}
+
 const EMPTY_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
@@ -451,6 +509,15 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
                 </p>
                 <p>
                   68% cone <strong>{worlds.dipole.bootstrap.sigma68_deg.toFixed(1)}°</strong>
+                  {worlds.dipole.bootstrap_per_host && (
+                    <>
+                      {" "}
+                      <span className="muted">
+                        (per-host {worlds.dipole.bootstrap_per_host.sigma68_deg.toFixed(1)}°,
+                        {worlds.dipole.bootstrap_per_host.n_units} systems)
+                      </span>
+                    </>
+                  )}
                 </p>
                 {Object.entries(worlds.dipole.references).map(([name, ref]) => {
                   const isKepler = name === "kepler_field_center";
@@ -472,6 +539,11 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
                 </p>
               </>
             )}
+          </div>
+
+          <div className="card cosmos-metrics">
+            <h3>Kepler-excision scan</h3>
+            {worlds?.dipole?.kepler_excision && <ExcisionTable worlds={worlds} />}
           </div>
 
           <div className="card cosmos-metrics">

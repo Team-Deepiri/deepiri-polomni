@@ -265,6 +265,37 @@ def worlds(
         d_table.add_row(name, value)
     console.print(d_table)
 
+    excision = dipole["kepler_excision"]
+    ex_table = Table(title="Kepler-excision scan — dipole vs removed footprint")
+    ex_table.add_column("Cut radius")
+    ex_table.add_column("N left")
+    ex_table.add_column("|dipole|")
+    ex_table.add_column("iso. expect.")
+    ex_table.add_column("↔ Kepler")
+    ex_table.add_column("↔ CMB apex")
+    ex_table.add_row(
+        "full",
+        str(excision["n_worlds_full"]),
+        f"{excision['full_magnitude']:.3f}",
+        f"{excision['full_isotropic_expectation']:.3f}",
+        f"{dipole['references']['kepler_field_center']['separation_deg']:.1f}°",
+        f"{dipole['references']['CMB_dipole_apex']['separation_deg']:.1f}°",
+    )
+    for row in excision["rows"]:
+        ex_table.add_row(
+            f">{row['radius_deg']:.0f}°",
+            str(row["n_worlds"]),
+            f"{row['magnitude']:.3f}",
+            f"{row['isotropic_expectation']:.3f}",
+            f"{row['references']['kepler_field_center']:.1f}°",
+            f"{row['references']['CMB_dipole_apex']:.1f}°",
+        )
+    console.print(ex_table)
+    console.print(
+        "[dim]If the dipole collapses toward the isotropic expectation as the Kepler "
+        "field is cut out, the 'scar' was the footprint, not physics.[/dim]"
+    )
+
     s_table = Table(title="World-sky power spectrum (uniform-within-footprint null)")
     s_table.add_column("ℓ")
     s_table.add_column("C_ℓ")

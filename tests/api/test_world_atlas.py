@@ -67,6 +67,9 @@ def test_world_payload_dipole_and_spectrum(tmp_path) -> None:
     assert dipole["bootstrap"]["n_boot"] >= 1
     assert "sigma68_deg" in dipole["bootstrap"]
     assert "Transit" in dipole["method_dipoles"]
+    assert dipole["bootstrap_per_host"]["per_host"] is True
+    assert dipole["bootstrap_per_host"]["n_units"] >= 1
+    assert len(dipole["kepler_excision"]["rows"]) >= 1
 
     spectrum = payload["spectrum"]
     assert spectrum["nside"] == 16
@@ -91,6 +94,7 @@ def test_world_route_includes_dipole(tmp_path, monkeypatch) -> None:
     assert data["dipole"]["references"]["CMB_dipole_apex"]["separation_deg"] >= 0.0
     assert len(data["spectrum"]["null"]["z_score"]) == 48
     assert data["spectrum"]["null"]["n_null"] == 20
+    assert data["dipole"]["kepler_excision"]["rows"][-1]["n_worlds"] > 0
 
 
 def test_world_payload_weight_teff(tmp_path) -> None:

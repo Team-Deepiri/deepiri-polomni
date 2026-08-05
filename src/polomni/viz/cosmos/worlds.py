@@ -31,6 +31,7 @@ from polomni.observatory.pipeline.sources.exoplanets import (
     exoplanet_density_map,
     footprint_permuted_density_map,
     galactic_pole_vector,
+    kepler_excision_scan,
     load_exoplanet_catalog,
     method_alignment_scan,
     method_dipole_scan,
@@ -153,8 +154,10 @@ def exoplanet_world_payload(
     vecs, _good = world_vectors(catalog)
     dipole, dipole_mag = world_dipole(vecs)
     bootstrap = dipole_bootstrap(catalog, n_boot=200)
+    bootstrap_per_host = dipole_bootstrap(catalog, n_boot=200, per_host=True)
     dipole_refs = reference_alignment_table(dipole)
     method_dipoles = method_dipole_scan(catalog, min_worlds=min_worlds)
+    excision = kepler_excision_scan(catalog)
 
     # World-sky angular power spectrum: only multipoles clearing the
     # uniform-within-footprint null deserve a physical reading.
@@ -217,12 +220,22 @@ def exoplanet_world_payload(
             "references": dipole_refs,
             "bootstrap": {
                 "n_boot": bootstrap["n_boot"],
+                "n_units": bootstrap["n_units"],
+                "per_host": bootstrap["per_host"],
                 "sigma68_deg": bootstrap["sigma68_deg"],
                 "median_deg": bootstrap["median_deg"],
                 "observed_dipole": bootstrap["observed_dipole"],
                 "observed_magnitude": bootstrap["observed_magnitude"],
             },
+            "bootstrap_per_host": {
+                "n_boot": bootstrap_per_host["n_boot"],
+                "n_units": bootstrap_per_host["n_units"],
+                "per_host": bootstrap_per_host["per_host"],
+                "sigma68_deg": bootstrap_per_host["sigma68_deg"],
+                "median_deg": bootstrap_per_host["median_deg"],
+            },
             "method_dipoles": method_dipoles,
+            "kepler_excision": excision,
         },
         "spectrum": {
             "nside": spectrum["nside"],
