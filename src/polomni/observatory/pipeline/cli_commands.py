@@ -199,6 +199,71 @@ def plot_gw(
     console.print(f"[green]Saved {path}[/green]")
 
 
+@app.command("worlds")
+def worlds(
+    nside: Annotated[int, typer.Option("--nside", help="HEALPix NSIDE for density scan.")] = 32,
+    weight: Annotated[
+        str, typer.Option("--weight", help="Density weight: count | teff | period.")
+    ] = "count",
+    ensemble: Annotated[
+        int, typer.Option("--ensemble", help="Footprint-matched null ensemble size.")
+    ] = 40,
+) -> None:
+    """Scan the real NASA exoplanet sky with RBLE + footprint-matched null."""
+    from polomni.viz.cosmos.worlds import exoplanet_world_payload
+
+    payload = exoplanet_world_payload(nside=nside, weight=weight, n_ensemble=ensemble)
+    scan = payload["scan"]
+    align = payload["alignment"]
+    cat = payload["catalog"]
+
+    table = Table(title=f"World Atlas — NASA Exoplanet Archive (NSIDE {nside}, {weight})")
+    table.add_column("Quantity")
+    table.add_column("Value")
+    rows = [
+        ("Worlds", f"{cat['n_worlds']} confirmed ({cat['n_hosts']} host stars)"),
+        ("Sky occupancy", f"{cat['occupied_pixels']} px ({cat['occupancy_fraction']:.1%} of sky)"),
+        ("S_RBLE (geodesic Radon)", f"{scan['rble_score']:.4f}"),
+        ("Preferred axis", f"[{', '.join(f'{v:.3f}' for v in scan['preferred_axis'])}]"),
+        (
+            "Footprint-matched null",
+            f"μ={scan['null_mu']:.4f} σ={scan['null_sigma']:.4f} → "
+            f"{scan['null_sigma_significance']:+.2f}σ",
+        ),
+        ("Alignment order S", f"{align['order_parameter_s']:.4f} (isotropic → 0)"),
+        ("Tr(Q) invariant", f"{align['trace']:.6f}"),
+        ("Nematic eigenvalues", f"{', '.join(f'{v:.4f}' for v in align['eigenvalues'])}"),
+        (
+            "Axis ↔ Galactic pole",
+            f"{scan['separation_from_galactic_pole_deg']:.1f}° (90° = in-plane)",
+        ),
+    ]
+    for name, value in rows:
+        table.add_row(name, value)
+    console.print(table)
+
+    methods = payload["methods"]
+    if methods:
+        m_table = Table(title="Per-method axis audit (selection-bias check)")
+        m_table.add_column("Method")
+        m_table.add_column("N")
+        m_table.add_column("S (order)")
+        m_table.add_column("Axis")
+        m_table.add_column("↔ Gal. pole")
+        for method, info in methods.items():
+            m_table.add_row(
+                method,
+                str(info["n_worlds"]),
+                f"{info['order_parameter_s']:.3f}",
+                f"[{', '.join(f'{v:.2f}' for v in info['preferred_axis'])}]",
+                f"{info['separation_from_galactic_pole_deg']:.0f}°",
+            )
+        console.print(m_table)
+    if cat["methods"]:
+        console.print(f"[dim]Discovery methods: {', '.join(cat['methods'])}[/dim]")
+    console.print("[dim]A genuine scar must survive the footprint null AND persist across methods.[/dim]")
+
+
 @app.command("correlate")
 def correlate(
     report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,
