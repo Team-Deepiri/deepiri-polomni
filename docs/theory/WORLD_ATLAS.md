@@ -229,25 +229,45 @@ Aguirre, Johnson & Larfors; Feeney et al. 2011 "First observational tests of ete
 inflation" searched for exactly these circles and found none in WMAP).
 
 `polomni data bubble` (`GET /cosmos/bubble-search`) is a search instrument for this
-signature:
+signature. It runs **two complementary statistics**, each against its own
+C_ℓ-matched + mask-matched Gaussian null:
 
 1. **Edge statistic** — for every candidate circle (grid of centers × radii), the edge
    amplitude is `⟨T⟩ just outside − ⟨T⟩ just inside` the boundary, in µK.
-2. **Honest null** — C_ℓ-matched Gaussian realizations (true large-scale correlation
-   structure preserved) with the **same Galactic mask and same geometry**, and the
-   **look-elsewhere correction**: the p-value asks how often the *strongest circle in a
-   null realization* beats the observed strongest circle.
-3. **Injection gate** — a synthetic step (a planted collision) is recovered **exactly**
-   (same center, same radius) by the scan, proving the instrument can find a real
-   collision if one is there.
-4. **Step check** — a collision is a *step* (flat inside, flat outside, one sharp edge).
+2. **Rank-1 harmonic-axis statistic** — a new, scale-free test. A collision about
+   axis n̂_c makes the map azimuthally symmetric about that axis, and by the
+   spherical-harmonic addition theorem:
+
+   ```
+   a_lm = C_l · Y_lm(n̂_c)        at every l
+   ```
+
+   i.e. the collision's harmonic content is **rank-1**: at every multipole its
+   m-vector points in one fixed direction. The CMB background is statistically
+   isotropic and fills all m at every l. So rotate the map so n̂ becomes the pole and
+   measure the **m=0 power fraction** at each multipole; at the true collision axis it
+   is 1 (vs the isotropic expectation `1/(2l+1)`), everywhere else it is ~0. Summing
+   the excess over multipoles separates a collision from the CMB's own low-multipole
+   alignment (the "axis of evil"), because that alignment is what the C_ℓ-matched null
+   absorbs.
+3. **Honest null** — for each statistic, C_ℓ-matched Gaussian realizations (true
+   large-scale correlation structure preserved) with the **same Galactic mask and same
+   geometry**, and the **look-elsewhere correction**: the p-value asks how often the
+   *strongest score in a null realization* beats the observed strongest score.
+4. **Injection gate** — a synthetic step (a planted collision) is recovered **exactly**
+   (same center, same radius) by the edge scan, and the rank-1 search recovers the
+   planted axis to ~3° and beats the null (p < 0.05 at ≥ ~300 µK amplitude). Both
+   gates prove the instrument can find a real collision if one is there.
+5. **Step check** — a collision is a *step* (flat inside, flat outside, one sharp edge).
    The radial profile of the strongest circle is shipped so a smooth large-scale
    gradient cannot masquerade as a bubble.
 
 **Current result on real Planck SMICA:** strongest edge 35.9 µK vs null median 34.6 µK,
 **p = 0.35 — no statistically significant circular temperature edge**. The strongest
-circle's radial profile is a smooth gradient, not a step. This is consistent with the
-published null result (Feeney et al. 2011). The instrument is the deliverable: a
+circle's radial profile is a smooth gradient, not a step. The rank-1 axis search finds
+**no axisymmetric structure above its C_ℓ-matched null** — the CMB's own "axis of evil"
+is correctly reported as part of the null, not as a collision. Both are consistent with
+the published null result (Feeney et al. 2011). The instrument is the deliverable: a
 falsifiable, injection-validated search for the one observable eternal inflation
 predicts, run on real sky data.
 

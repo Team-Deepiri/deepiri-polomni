@@ -206,7 +206,22 @@ export type BubbleSearchReport = {
     radial_profile: BubbleProfileRow[];
   };
   top_candidates: BubbleCandidate[];
+  harmonic_axis: {
+    axis: { gal_lon: number; gal_lat: number };
+    score: number;
+    lmax: number;
+    n_dir: number;
+    null: {
+      n_realizations: number;
+      max_score_observed: number;
+      max_score_median: number;
+      max_score_p84: number;
+    };
+    p_value: number;
+    verdict: string;
+  };
   verdict: string;
+  equations?: { edge?: string; rank1?: string };
   timestamp: string;
 };
 
@@ -351,8 +366,10 @@ export const api = {
   cosmosCompare: (nside = 64) => fetchJson(`/cosmos/compare?nside=${nside}`),
   cosmosCrossSky: (minObjects = 20) =>
     fetchJson<CrossSkyReport>(`/cosmos/cross-sky?min_objects=${minObjects}`),
-  cosmosBubbleSearch: (nside = 128, nNull = 16) =>
-    fetchJson<BubbleSearchReport>(`/cosmos/bubble-search?nside=${nside}&n_null=${nNull}`),
+  cosmosBubbleSearch: (nside = 128, nNull = 16, nNullRank1 = 16) =>
+    fetchJson<BubbleSearchReport>(
+      `/cosmos/bubble-search?nside=${nside}&n_null=${nNull}&n_null_rank1=${nNullRank1}`,
+    ),
   cosmosHistogram: (product = "wmap_k_band", nside = 64) =>
     fetchJson(`/cosmos/null-histogram?nside=${nside}&map_product=${product}`),
   cosmosStudy: () => fetchJson("/cosmos/study"),

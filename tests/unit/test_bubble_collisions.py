@@ -9,6 +9,7 @@ from polomni.observatory.pipeline.sources.bubble_collisions import (
     bubble_scan_geometry,
     circle_edge_statistic,
     galactic_edge_mask,
+    harmonic_axis_search,
     inject_bubble_collision,
     load_planck_for_search,
     scan_circle_edges,
@@ -95,3 +96,42 @@ def test_mask_edge_circles_excluded() -> None:
         theta, _ = hp.pix2ang(64, g.inner_pix)
         b_min = float(np.min(np.abs(90.0 - np.degrees(theta))))
         assert b_min >= 19.0
+
+
+def test_rank1_pure_disk_axis_recovered() -> None:
+    import healpy as hp
+
+    nside = 64
+    npix = hp.nside2npix(nside)
+    t = np.zeros(npix)
+    nc = np.array([0.6, 0.8, 0.2])
+    nc = nc / np.linalg.norm(nc)
+    t = inject_bubble_collision(t, nc, 40.0, 1000.0, nside)
+    res = harmonic_axis_search(t, nside, lmax=20, nside_dir=8, n_null=4)
+    th_r = np.radians(90.0 - res["axis"]["gal_lat"])
+    ph_r = np.radians(res["axis"]["gal_lon"])
+    nr = np.array(
+        [np.sin(th_r) * np.cos(ph_r), np.sin(th_r) * np.sin(ph_r), np.cos(th_r)]
+    )
+    err = np.degrees(np.arccos(np.clip(nr @ nc, -1, 1)))
+    # a pure axisymmetric disk is exactly rank-1: the axis must come out on top
+    assert err < 5.0
+    assert res["score"] > 0.1
+
+
+def test_rank1_collision_over_null_on_planck() -> None:
+    t, _pid = load_planck_for_search(nside=64)
+    nc = np.array([0.6, 0.8, 0.2])
+    nc = nc / np.linalg.norm(nc)
+    injected = inject_bubble_collision(t, nc, 40.0, 1500.0, 64)
+    res = harmonic_axis_search(injected, 64, lmax=20, nside_dir=8, n_null=16)
+    # the injected collision must beat the C_ℓ-matched null
+    assert res["p_value"] < 0.2
+    assert res["score"] > res["null"]["max_score_median"]
+
+
+def test_rank1_planck_no_false_detection() -> None:
+    t, _pid = load_planck_for_search(nside=64)
+    res = harmonic_axis_search(t, 64, lmax=20, nside_dir=4, n_null=12)
+    # the CMB's own "axis of evil" must NOT be reported as a collision
+    assert res["p_value"] > 0.1

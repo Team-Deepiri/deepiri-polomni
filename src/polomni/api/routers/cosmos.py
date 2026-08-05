@@ -141,17 +141,21 @@ def get_cross_sky(
 def get_bubble_search(
     nside: int = Query(default=128, ge=32, le=256),
     n_null: int = Query(default=16, ge=4, le=64),
+    n_null_rank1: int = Query(default=16, ge=4, le=64),
 ) -> dict:
     """Bubble-collision search — the falsifiable multiverse observable.
 
     Scans a real CMB map for circular temperature edges, the signature of a
     bubble colliding with ours in eternal inflation. Compares the strongest
     edge against a C_ℓ-matched + mask-matched Gaussian null (look-elsewhere
-    corrected) and reports an honest verdict.
+    corrected) and reports an honest verdict. Also runs the rank-1 harmonic
+    axis search: a collision about n̂_c has ``a_lm = C_l·Y_lm(n̂_c)`` at every
+    l, so the m=0 power fraction at the collision axis is 1 at every multipole
+    (vs the isotropic 1/(2l+1)).
     """
     from polomni.observatory.pipeline.sources.bubble_collisions import bubble_collision_report
 
-    return bubble_collision_report(nside=nside, n_null=n_null)
+    return bubble_collision_report(nside=nside, n_null=n_null, n_null_rank1=n_null_rank1)
 
 
 @router.get("/study")

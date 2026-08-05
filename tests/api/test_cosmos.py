@@ -36,12 +36,13 @@ def test_cosmos_bubble_search_when_cached() -> None:
     if DataCache().resolved_path("planck_smica_cmb") is None:
         return
     client = TestClient(create_app())
-    r = client.get("/cosmos/bubble-search?nside=32&n_null=4")
+    r = client.get("/cosmos/bubble-search?nside=32&n_null=4&n_null_rank1=4")
     assert r.status_code == 200
     data = r.json()
     assert data["instrument"].startswith("bubble-collision")
     assert data["p_value"] >= 0.0
     assert "strongest_circle" in data
+    assert "harmonic_axis" in data
     assert "verdict" in data
 
 

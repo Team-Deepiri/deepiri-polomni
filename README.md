@@ -213,11 +213,16 @@ naive scan would fake:
    `network_axis` is detector geometry and is rejected, not shipped as a sky direction.
 6. **Bubble-collision search** — the one multiverse signature with a concrete
    observable: in eternal inflation a bubble colliding with ours leaves a **circular
-   temperature edge** in the CMB. Scans the real Planck SMICA map for such edges against
-   a C_ℓ- and mask-matched null (look-elsewhere corrected), validated by an injection
-   gate that recovers planted collisions exactly. Current result: **no significant edge
-   (p≈0.35)** — consistent with the published null (Feeney et al. 2011), and the
-   strongest circle's radial profile is a smooth gradient, not a step.
+   temperature edge** in the CMB. Two complementary statistics on the real Planck SMICA
+   map, each vs a C_ℓ- and mask-matched null (look-elsewhere corrected): (a) the
+   **circle-edge** scan, validated by an injection gate that recovers planted
+   collisions exactly; (b) the **rank-1 harmonic-axis** search — by the addition
+   theorem a collision about n̂_c has `a_lm = C_l·Y_lm(n̂_c)` at every l, so its m=0
+   power fraction at the axis is 1 per multipole (isotropic: 1/(2l+1)); this separates
+   a collision from the CMB's own "axis of evil" by absorbing that alignment into the
+   null. Current result: **no significant edge (p≈0.35)** and **no axisymmetric
+   structure above the null** — consistent with the published null (Feeney et al.
+   2011), and the strongest circle's radial profile is a smooth gradient, not a step.
 
 ```bash
 poetry run polomni data fetch nasa_exoplanet_ps sdss_bao_ladder

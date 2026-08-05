@@ -14,15 +14,23 @@ This module builds the search instrument:
 * ``bubble_scan_geometry`` — precomputes the ring pixel lists for a grid of
   centers × radii (identical for every null realization, so the scan is
   cheap per map).
-* ``bubble_collision_report`` — runs the scan on a real CMB map, compares the
-  strongest edge against a C_ℓ-matched Gaussian null (with the same sky mask),
-  and reports the most significant circular edge on the sky.
+* ``harmonic_axis_search`` — the **rank-1 harmonic invariant**: by the
+  addition theorem a collision about n̂_c has ``a_lm = C_l · Y_lm(n̂_c)`` at
+  every l, so the map is axisymmetric about the collision axis and its m=0
+  power fraction there is 1 per multipole (isotropic: 1/(2l+1)). The search
+  rotates the map per candidate axis and sums the m=0-fraction excess — a
+  scale-free statistic that separates a collision from the CMB's own
+  low-multipole alignment by absorbing that alignment into the null.
+* ``bubble_collision_report`` — runs both statistics on a real CMB map,
+  compares each against a C_ℓ-matched Gaussian null (with the same sky mask),
+  and reports the most significant circular edge and axis on the sky.
 * ``inject_bubble_collision`` — plants a synthetic collision step into a map
   so the instrument can be validated by signal recovery.
 
 Honesty contract: the null is C_ℓ-matched (preserves the true large-scale
 correlation structure) and mask-matched; the look-elsewhere effect is handled
-by asking how often *any* circle in the null exceeds the observed maximum.
+by asking how often *any* circle (or axis) in the null exceeds the observed
+maximum. The CMB's own "axis of evil" is the null, not a detection.
 """
 
 from __future__ import annotations
@@ -224,6 +232,158 @@ def load_planck_for_search(
     return down * scale, map_product_id
 
 
+def _rank1_score(alm: np.ndarray, lmax: int, th_grid: np.ndarray, ph_grid: np.ndarray) -> np.ndarray:
+    """Axisymmetric-alignment score per candidate axis.
+
+    For each axis the map is rotated so the axis becomes the pole; the
+    fraction of power in m=0 at each multipole is measured and compared to
+    the isotropic expectation 1/(2l+1). The excess, summed over multipoles,
+    is the rank-1 statistic: a collision (rank-1 map) gives a large excess
+    at its true axis; the CMB background gives ~0 everywhere.
+
+    Returns a score array over the axis grid (higher = more axisymmetric
+    than isotropic — a collision signature).
+    """
+    import healpy as hp
+
+    l_arr, m_arr = hp.Alm.getlm(lmax)
+    idx = {}
+    for i in range(len(l_arr)):
+        idx[(int(l_arr[i]), int(m_arr[i]))] = i
+
+    def m0_frac(l: int, alm_r: np.ndarray) -> float:
+        p0 = abs(alm_r[idx[(l, 0)]]) ** 2
+        ptot = sum(abs(alm_r[idx[(l, m)]]) ** 2 for m in range(l + 1))
+        if ptot < 1e-30:
+            return 0.0
+        return p0 / ptot
+
+    n_dir = len(th_grid)
+    scores = np.zeros(n_dir)
+    ls = np.arange(2, lmax + 1)
+    iso = np.mean(1.0 / (2 * ls + 1))
+    for i in range(n_dir):
+        rot = hp.Rotator(
+            rot=[np.degrees(ph_grid[i]), -np.degrees(th_grid[i]), 0.0], deg=True
+        )
+        alm_r = rot.rotate_alm(alm, lmax)
+        fracs = np.array([m0_frac(l, alm_r) for l in ls])
+        scores[i] = float(np.mean(fracs) - iso)
+    return scores
+
+
+def harmonic_axis_search(
+    t_map: np.ndarray,
+    nside: int,
+    *,
+    lmax: int = 20,
+    nside_dir: int = 8,
+    n_null: int = 16,
+    b_cut: float = 20.0,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Search for a collision axis via the rank-1 harmonic invariant.
+
+    A bubble collision about axis n̂_c makes the map azimuthally symmetric
+    about that axis. By the spherical-harmonic addition theorem,
+
+        a_lm = C_l · Y_lm(n̂_c)        (every l),
+
+    so at every multipole the collision's m-vector points in ONE fixed
+    direction — the map is rank-1 in harmonic space. The CMB background is
+    statistically isotropic and fills all m at every l, so the *aligned*
+    power is coherent only along the collision axis.
+
+    The statistic is scale-free: rotate the map so n̂ becomes the pole and
+    measure the excess of m=0 power fraction over the isotropic expectation
+    1/(2l+1), summed over multipoles. This separates the collision from the
+    CMB's own low-multipole alignment: the search is over the *rank-1 excess*,
+    not over absolute power.
+
+    Significance is established against a C_ℓ-matched Gaussian null with the
+    same Galactic mask: p = P(null max score >= observed max score), the
+    look-elsewhere-corrected verdict.
+
+    Returns the best axis, score, and the null comparison.
+    """
+    import healpy as hp
+
+    lmax = min(lmax, 2 * nside)
+    mask = galactic_edge_mask(nside, b_cut)
+    prepared = _prepare_map(t_map, nside, mask)
+    alm = hp.map2alm(prepared, lmax=lmax)
+    l_arr, m_arr = hp.Alm.getlm(lmax)
+    for l in (0, 1):
+        for m in range(l + 1):
+            alm[int(np.where((l_arr == l) & (m_arr == m))[0][0])] = 0.0
+
+    n_dir = hp.nside2npix(nside_dir)
+    th_grid, ph_grid = hp.pix2ang(nside_dir, np.arange(n_dir))
+    scores = _rank1_score(alm, lmax, th_grid, ph_grid)
+
+    cl = hp.anafast(prepared, lmax=2 * nside)
+    cl[0] = 0.0
+    cl[1] = 0.0
+    rng = np.random.default_rng(seed)
+    null_max: list[float] = []
+    for _ in range(n_null):
+        sim = hp.synfast(cl, nside, new=True, pol=False, verbose=False)
+        sim = _prepare_map(sim, nside, mask)
+        alm_s = hp.map2alm(sim, lmax=lmax)
+        for l in (0, 1):
+            for m in range(l + 1):
+                alm_s[int(np.where((l_arr == l) & (m_arr == m))[0][0])] = 0.0
+        s_s = _rank1_score(alm_s, lmax, th_grid, ph_grid)
+        null_max.append(float(np.max(s_s)))
+    null_arr = np.asarray(null_max)
+
+    obs_max = float(np.max(scores))
+    p_value = float((1 + int(np.sum(null_arr >= obs_max))) / (n_null + 1.0))
+
+    best = int(np.argmax(scores))
+    th_b, ph_b = th_grid[best], ph_grid[best]
+    lat = 90.0 - np.degrees(th_b)
+    lon = np.degrees(ph_b)
+    if lon > 180.0:
+        lon -= 360.0
+
+    return {
+        "axis": {"gal_lon": round(float(lon), 2), "gal_lat": round(float(lat), 2)},
+        "score": round(obs_max, 4),
+        "lmax": int(lmax),
+        "n_dir": int(n_dir),
+        "null": {
+            "n_realizations": int(n_null),
+            "max_score_observed": round(obs_max, 4),
+            "max_score_median": round(float(np.median(null_arr)), 4),
+            "max_score_p84": round(float(np.percentile(null_arr, 84)), 4),
+        },
+        "p_value": round(p_value, 4),
+        "verdict": (
+            "No rank-1 (axisymmetric) collision structure beyond the "
+            "C_ℓ-matched + mask-matched null."
+            if p_value > 0.05
+            else "Candidate axisymmetric structure above the null — requires "
+            "adversarial checks (foregrounds, beam, mask leakage)."
+        ),
+    }
+
+
+def _prepare_map(t_map: np.ndarray, nside: int, mask: np.ndarray) -> np.ndarray:
+    """Zero the masked (Galactic-plane) pixels and re-zero the mean.
+
+    Both the observed map and every null realization pass through the same
+    preparation, so the mask's harmonic leakage is symmetric between data and
+    null and cannot fake an axisymmetry signal.
+    """
+    out = np.asarray(t_map, dtype=float).copy()
+    out[~mask] = 0.0
+    good = mask & np.isfinite(out)
+    if good.any():
+        out = out - float(np.mean(out[good]))
+    return out
+
+
 def bubble_collision_report(
     *,
     map_product_id: str = "planck_smica_cmb",
@@ -233,24 +393,29 @@ def bubble_collision_report(
     width_deg: float = 5.0,
     b_cut: float = 20.0,
     n_null: int = 24,
+    n_null_rank1: int = 16,
+    lmax_rank1: int = 20,
     seed: int = 42,
     cache: DataCache | None = None,
 ) -> dict[str, Any]:
     """Full bubble-collision search on a real CMB map with honest null.
 
-    Steps
-    -----
-    1. Load + downsample the real map (µK), apply the Galactic mask.
-    2. Precompute circle geometry (centers × radii), cached.
-    3. Measure the edge amplitude of every candidate circle.
-    4. Build a C_ℓ-matched Gaussian null: simulate maps with the observed
-       power spectrum, same mask, same geometry; record the max |edge| per
-       realization (the look-elsewhere-corrected null).
-    5. p-value = fraction of null realizations whose strongest circle exceeds
-       the observed strongest circle (+1 pseudo-count).
-    6. Report the top candidates with sky coordinates + a radial profile of
-       the strongest candidate (a collision is a *step*: flat inside, flat
-       outside, sharp edge).
+    Two complementary collision signatures are tested independently, each
+    against its own C_ℓ-matched + mask-matched Gaussian null:
+
+    1. **Circle-edge search** — a collision imprints a circular temperature
+       *step* (flat inside, flat outside, sharp edge): scan every candidate
+       circle and measure the edge amplitude.
+    2. **Rank-1 harmonic-axis search** — by the addition theorem a collision
+       about n̂_c has ``a_lm = C_l · Y_lm(n̂_c)`` at every l: the map is
+       axisymmetric about the collision axis, so its m=0 power fraction at the
+       true axis is 1 at every multipole (vs the isotropic 1/(2l+1)). Rotate
+       the map per candidate axis, measure the m=0-fraction excess over
+       isotropic — this separates a collision from the CMB's own low-multipole
+       alignment ("axis of evil"), which is absorbed into the null.
+
+    Both p-values are look-elsewhere corrected (observed max score vs the max
+    over each null realization).
     """
     import healpy as hp
 
@@ -309,8 +474,18 @@ def bubble_collision_report(
     for r_deg, mean_t, n in zip(profile[0], profile[1], profile[2]):
         top_profile.append({"radius_deg": float(r_deg), "mean_t_uk": float(mean_t), "n_pixels": int(n)})
 
+    rank1 = harmonic_axis_search(
+        t_map,
+        nside,
+        lmax=lmax_rank1,
+        nside_dir=nside_dir,
+        n_null=n_null_rank1,
+        b_cut=b_cut,
+        seed=seed,
+    )
+
     return {
-        "instrument": "bubble-collision circle-edge search (eternal inflation)",
+        "instrument": "bubble-collision search (eternal inflation)",
         "map_product_id": pid,
         "nside": nside,
         "n_centers": int(len(np.unique([g.center_idx for g in geometries]))),
@@ -334,6 +509,7 @@ def bubble_collision_report(
             "radial_profile": top_profile,
         },
         "top_candidates": candidates,
+        "harmonic_axis": rank1,
         "verdict": (
             "No statistically significant circular temperature edge "
             "found — the strongest edge is consistent with the "
@@ -342,7 +518,10 @@ def bubble_collision_report(
             else "Candidate circular edge above the null — requires "
             "adversarial foreground/excision checks before any claim."
         ),
-        "equation": "edge(n̂_c, θ) = ⟨T⟩_{θ..θ+w} − ⟨T⟩_{θ−w..θ}",
+        "equations": {
+            "edge": "edge(n̂_c, θ) = ⟨T⟩_{θ..θ+w} − ⟨T⟩_{θ−w..θ}",
+            "rank1": "a_lm = C_l · Y_lm(n̂_c)  ⇒  m0-frac(n̂) = (4π/(2l+1))·|a_lm Y*_lm(n̂)|²/P_l",
+        },
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 

@@ -409,11 +409,12 @@ def cross_sky(
 def bubble(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 128,
     n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    n_null_rank1: Annotated[int, typer.Option("--n-null-rank1", help="Rank-1 null realizations.")] = 16,
 ) -> None:
-    """Search a real CMB map for bubble collisions (circular temperature edges)."""
+    """Search a real CMB map for bubble collisions (two complementary statistics)."""
     from polomni.observatory.pipeline.sources.bubble_collisions import bubble_collision_report
 
-    rep = bubble_collision_report(nside=nside, n_null=n_null)
+    rep = bubble_collision_report(nside=nside, n_null=n_null, n_null_rank1=n_null_rank1)
 
     header = Table(title="Bubble-collision search — eternal-inflation signature")
     header.add_column("Field")
@@ -459,6 +460,27 @@ def bubble(
         "[dim]A collision is a STEP: flat inside, flat outside, one sharp edge. "
         "A smooth gradient is not a bubble.[/dim]"
     )
+
+    ha = rep.get("harmonic_axis") or {}
+    if ha:
+        ha_table = Table(title="Rank-1 harmonic axis search")
+        ha_table.add_column("Field")
+        ha_table.add_column("Value")
+        for key, val in [
+            ("Axis (gal)", f"({ha['axis']['gal_lon']}°, {ha['axis']['gal_lat']}°)"),
+            ("Score", str(ha["score"])),
+            ("Null median (max score)", str(ha["null"]["max_score_median"])),
+            ("p-value", str(ha["p_value"])),
+            ("Verdict", ha["verdict"]),
+        ]:
+            ha_table.add_row(key, val)
+        console.print(ha_table)
+        console.print(
+            "[dim]Rank-1 invariant: a collision about n̂_c gives a_lm = C_l·Y_lm(n̂_c) "
+            "at every l, so m=0 power fraction at the axis is 1 per multipole "
+            "(isotropic: 1/(2l+1)). The CMB's own 'axis of evil' is the null, "
+            "not a detection.[/dim]"
+        )
 
 
 @app.command("correlate")

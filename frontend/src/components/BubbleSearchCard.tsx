@@ -60,6 +60,7 @@ export default function BubbleSearchCard() {
 
   const edge = report.null.max_abs_edge_uk;
   const sc = report.strongest_circle;
+  const ha = report.harmonic_axis;
   return (
     <div className="card cosmos-metrics">
       <h3>Bubble-collision search — eternal inflation</h3>
@@ -82,6 +83,24 @@ export default function BubbleSearchCard() {
         </p>
       )}
       <RadialProfileChart report={report} />
+      {ha && (
+        <div style={{ marginTop: 10, borderTop: "1px solid var(--border, #30363d)", paddingTop: 8 }}>
+          <p>
+            <strong>Rank-1 axis search</strong> — best axis ({ha.axis.gal_lon.toFixed(1)}°,{" "}
+            {ha.axis.gal_lat.toFixed(1)}°) gal, score {ha.score.toFixed(3)} vs null max median{" "}
+            {ha.null.max_score_median.toFixed(3)} → <strong>p = {ha.p_value.toFixed(3)}</strong>
+            <span className={ha.p_value < 0.05 ? "warn" : "muted"}>
+              {" "}
+              {ha.p_value < 0.05 ? " — candidate, needs checks" : " — consistent with null"}
+            </span>
+          </p>
+          <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            Rank-1 invariant: a collision about n̂<sub>c</sub> has a_lm = C_l·Y_lm(n̂<sub>c</sub>) at every
+            l, so its m=0 power fraction at the axis is 1 per multipole (isotropic: 1/(2l+1)). The CMB's
+            own "axis of evil" alignment is absorbed into the null, not reported as a detection.
+          </p>
+        </div>
+      )}
       <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
         {report.verdict}
       </p>
