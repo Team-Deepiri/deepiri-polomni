@@ -351,6 +351,60 @@ def worlds(
     console.print("[dim]A genuine scar must survive the footprint null AND persist across methods.[/dim]")
 
 
+@app.command("cross-sky")
+def cross_sky(
+    min_objects: Annotated[
+        int, typer.Option("--min-objects", help="Min objects for a sky to count.")
+    ] = 20,
+) -> None:
+    """Compare world dipoles across independent skies (the two-sky test)."""
+    from polomni.observatory.pipeline.sources.cross_sky import cross_sky_report
+
+    report = cross_sky_report(min_objects=min_objects)
+    skies = report["skies"]
+    if not skies:
+        console.print("[yellow]No cached sky datasets found. Run `polomni data fetch` first.[/yellow]")
+        return
+
+    table = Table(title="Cross-sky dipole comparison (independent skies)")
+    table.add_column("Sky")
+    table.add_column("N")
+    table.add_column("|dipole|")
+    table.add_column("iso expect")
+    table.add_column("↔ CMB apex")
+    table.add_column("↔ Kepler")
+    table.add_column("↔ Ecliptic")
+    table.add_column("↔ Gal. pole")
+    for s in skies:
+        m = s.get("magnitude")
+        refs = s.get("references") or {}
+        table.add_row(
+            s["sky"],
+            str(s["n_objects"]),
+            f"{m:.3f}" if m is not None else "—",
+            f"{s['isotropic_expectation']:.3f}" if s.get("isotropic_expectation") else "—",
+            f"{refs['CMB_dipole_apex']['separation_deg']:.1f}°" if "CMB_dipole_apex" in refs else "—",
+            f"{refs['kepler_field_center']['separation_deg']:.1f}°" if "kepler_field_center" in refs else "—",
+            f"{refs['ecliptic_north_pole']['separation_deg']:.1f}°" if "ecliptic_north_pole" in refs else "—",
+            f"{refs['galactic_north_pole']['separation_deg']:.1f}°" if "galactic_north_pole" in refs else "—",
+        )
+    console.print(table)
+
+    pairs = report["pairwise"]
+    if pairs:
+        p_table = Table(title="Pairwise axis separations")
+        p_table.add_column("Sky A")
+        p_table.add_column("Sky B")
+        p_table.add_column("Separation (°)")
+        for p in pairs:
+            p_table.add_row(p["sky_a"], p["sky_b"], f"{p['separation_deg']:.1f}")
+        console.print(p_table)
+    console.print(
+        "[dim]A genuine scar must point at the SAME axis in every unrelated sky; "
+        "dipoles that disagree across skies are survey footprints, not physics.[/dim]"
+    )
+
+
 @app.command("correlate")
 def correlate(
     report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,

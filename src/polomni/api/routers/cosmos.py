@@ -121,6 +121,22 @@ def get_power_spectrum() -> dict:
     return cosmos_power_spectrum_payload()
 
 
+@router.get("/cross-sky")
+def get_cross_sky(
+    min_objects: int = Query(default=20, ge=1, le=100000),
+) -> dict:
+    """Cross-sky axis comparison across independent sky datasets.
+
+    A scar locked to a single preferred axis must appear in every sky. This
+    compares dipoles across the cached independent skies (exoplanets, SDSS
+    galaxies, GW events) — GW events whose ``network_axis`` is instrument
+    geometry rather than sky direction are excluded with a note.
+    """
+    from polomni.observatory.pipeline.sources.cross_sky import cross_sky_report
+
+    return cross_sky_report(min_objects=min_objects)
+
+
 @router.get("/study")
 def get_study_status() -> dict:
     return cosmos_study_payload()

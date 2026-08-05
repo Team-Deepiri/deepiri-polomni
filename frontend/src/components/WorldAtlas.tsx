@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { api, type WorldAtlas, type WorldMethodInfo, type WorldSpectrum } from "../api/client";
+import { api, type CrossSkyReport, type WorldAtlas, type WorldDipoleRefs, type WorldMethodInfo, type WorldSpectrum } from "../api/client";
 
 const SPECTRUM_W = 260;
 const SPECTRUM_H = 110;
@@ -121,6 +121,53 @@ function ExcisionTable({ worlds }: { worlds: WorldAtlas }) {
   );
 }
 
+function CrossSkyTable({ report }: { report: CrossSkyReport }) {
+  if (report.skies.length === 0) {
+    return <p className="muted">No independent skies cached yet.</p>;
+  }
+  const refLabel = (refs: WorldDipoleRefs, key: keyof WorldDipoleRefs) =>
+    refs[key] ? `${refs[key].separation_deg.toFixed(0)}°` : "—";
+  return (
+    <div>
+      <table className="world-method-table">
+        <thead>
+          <tr>
+            <th>Sky</th>
+            <th>N</th>
+            <th>|dipole|</th>
+            <th>iso exp</th>
+            <th>↔ CMB apex</th>
+            <th>↔ Kepler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {report.skies.map((s) => (
+            <tr key={s.sky}>
+              <td>{s.sky.replace(/_/g, " ")}</td>
+              <td>{s.n_objects}</td>
+              <td>{s.magnitude != null ? s.magnitude.toFixed(3) : "—"}</td>
+              <td>{s.isotropic_expectation != null ? s.isotropic_expectation.toFixed(3) : "—"}</td>
+              <td>{refLabel(s.references, "CMB_dipole_apex")}</td>
+              <td>{refLabel(s.references, "kepler_field_center")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {report.pairwise.map((p) => (
+        <p key={`${p.sky_a}-${p.sky_b}`} className={p.separation_deg < 30 ? "warn" : undefined}>
+          {p.sky_a.replace(/_/g, " ")} ↔ {p.sky_b.replace(/_/g, " ")} dipole axes{" "}
+          <strong>{p.separation_deg.toFixed(0)}°</strong> apart
+          {p.separation_deg >= 30 && <span className="muted"> — no common axis</span>}
+        </p>
+      ))}
+      <p className="muted" style={{ marginTop: 8 }}>
+        Independent skies must agree on a preferred axis for a scar to be physical. Dipoles
+        that point at each survey's own footprint are not physics.
+      </p>
+    </div>
+  );
+}
+
 const EMPTY_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
@@ -189,6 +236,7 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [worlds, setWorlds] = useState<WorldAtlas | null>(null);
+  const [crossSky, setCrossSky] = useState<CrossSkyReport | null>(null);
   const [nside, setNside] = useState(32);
   const [weight, setWeight] = useState("count");
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +262,19 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
   useEffect(() => {
     load(nside, weight);
   }, [nside, weight, load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .cosmosCrossSky(20)
+      .then((r) => {
+        if (!cancelled) setCrossSky(r);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -544,6 +605,11 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
           <div className="card cosmos-metrics">
             <h3>Kepler-excision scan</h3>
             {worlds?.dipole?.kepler_excision && <ExcisionTable worlds={worlds} />}
+          </div>
+
+          <div className="card cosmos-metrics">
+            <h3>Cross-sky axis test</h3>
+            {crossSky && <CrossSkyTable report={crossSky} />}
           </div>
 
           <div className="card cosmos-metrics">

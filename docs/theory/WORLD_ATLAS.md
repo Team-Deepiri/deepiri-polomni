@@ -184,6 +184,41 @@ divides by the window power (order-0 MASTER), which is unstable below the footpr
 angular resolution and is flagged as such; (c) the null is uniform-within-footprint, not
 a model of detector-level selection within the field.
 
+## The cross-sky test — independent skies must agree
+
+The sharpest falsifier of a *world* scar: if the axis is a property of the universe
+(multiverse coupling, preferred frame), every independent sky must point at it. Each
+catalog we hold has its own survey footprint and its own selection physics, so their
+dipoles should *coincide* under the scar hypothesis and *differ* under the footprint
+hypothesis. The tool (`polomni data cross-sky`, `GET /cosmos/cross-sky`) loads every
+cached independent sky, computes each sky's dipole, and reports the pairwise axis
+separations.
+
+| Sky | N | \|⟨n⟩\| | iso expect | ↔ CMB apex | ↔ Kepler |
+|-----|---|--------|-----------|-----------|---------|
+| exoplanets | 6,333 | 0.422 | 0.007 | 63.6° | 4.8° |
+| SDSS galaxies | 80 | 0.423 | 0.065 | 87.2° | 67.8° |
+
+**Pairwise axis separation: exoplanets ↔ SDSS galaxies = 71.9°.**
+
+The two genuinely independent skies disagree by nearly a right angle. A scar locked to
+one preferred axis must appear in *both* — it does not. Each dipole instead points at
+its own survey footprint: exoplanets at the Kepler field (4.8°), SDSS galaxies at the
+northern galactic cap the survey observes (|b|>~50°, the origin of its 0.423 dipole vs
+0.065 isotropic expectation — the footprint speaking again).
+
+Gravitational-wave events were **excluded from this comparison, not ignored**: the GWTC
+`network_axis` is the interferometer network's antenna-pattern geometry (5 unique
+directions across 100 events), not a sky direction, and `load_gw_vectors` now raises if
+fewer than half the directions are unique rather than shipping detector geometry as
+astronomy. The Planck SMICA CMB map was also attempted as a third sky; after masking
+|b|≤20° and removing the dipole the low-ℓ axes are the mask boundary, not a world
+signal.
+
+**Conclusion (honest null):** the cross-sky test *falsifies* a common world axis. The
+exoplanet dipole is the Kepler footprint; the SDSS dipole is the northern-cap footprint.
+No independent sky confirms the other's axis.
+
 ## Adversarial validation (symmetry broken)
 
 - **Method split:** the full-sample axis does **not** persist across methods with different
@@ -201,7 +236,10 @@ a model of detector-level selection within the field.
   preserves the mask exactly; fixed-axis null scores are cheap; the dipole bootstrap
   cone is a finite-sample error budget; the world C_ℓ has a well-defined
   uniform-within-footprint null; per-host resampling leaves the dipole conclusion
-  unchanged; Kepler excision collapses the dipole toward the isotropic expectation.
+  unchanged; Kepler excision collapses the dipole toward the isotropic expectation;
+  the cross-sky test falsifies a common world axis (independent skies disagree by
+  71.9°); GW `network_axis` is detector geometry and is rejected rather than shipped
+  as a sky direction.
 - **Conjecture (labeled as such):** the world distribution contains axis-aligned order
   *beyond* survey footprint and Milky Way structure. The current evidence *rejects* this
   conjecture for the full sample (RV ≈ isotropic; dipole = Kepler footprint, collapsing

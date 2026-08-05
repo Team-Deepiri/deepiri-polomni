@@ -155,6 +155,22 @@ export type WorldAtlas = {
   timestamp: string;
 };
 
+export type CrossSkySky = {
+  sky: string;
+  n_objects: number;
+  note?: string;
+  dipole: number[];
+  magnitude: number | null;
+  isotropic_expectation: number | null;
+  references: WorldDipoleRefs;
+};
+
+export type CrossSkyReport = {
+  skies: CrossSkySky[];
+  pairwise: { sky_a: string; sky_b: string; separation_deg: number }[];
+  n_skies: number;
+};
+
 export type CosmosSnapshot = {
   timestamp: string;
   gates_passed: boolean;
@@ -294,6 +310,8 @@ export const api = {
   cosmosNullTiers: (nside = 64, product = "wmap_k_band") =>
     fetchJson(`/cosmos/null-tiers?nside=${nside}&map_product=${product}`),
   cosmosCompare: (nside = 64) => fetchJson(`/cosmos/compare?nside=${nside}`),
+  cosmosCrossSky: (minObjects = 20) =>
+    fetchJson<CrossSkyReport>(`/cosmos/cross-sky?min_objects=${minObjects}`),
   cosmosHistogram: (product = "wmap_k_band", nside = 64) =>
     fetchJson(`/cosmos/null-histogram?nside=${nside}&map_product=${product}`),
   cosmosStudy: () => fetchJson("/cosmos/study"),

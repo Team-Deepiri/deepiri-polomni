@@ -206,10 +206,16 @@ naive scan would fake:
    for the confirmed-planet sky) with a uniform-within-footprint null. Only ℓ=1 (the
    Kepler dipole) exceeds the null at ~6.5σ; all ℓ≥2 are consistent with random
    placement within the footprint.
+5. **Cross-sky axis test** — independent skies must agree on a preferred axis, or there
+   is no axis. Compares the world dipole across every cached independent sky. Current
+   result: **exoplanets ↔ SDSS galaxies disagree by 71.9°** — each dipole points at its
+   own survey footprint (exoplanets → Kepler 4.8°, SDSS → northern cap). GWTC
+   `network_axis` is detector geometry and is rejected, not shipped as a sky direction.
 
 ```bash
-poetry run polomni data fetch nasa_exoplanet_ps
+poetry run polomni data fetch nasa_exoplanet_ps sdss_bao_ladder
 poetry run polomni data worlds --nside 32 --ensemble 40 --null 100
+poetry run polomni data cross-sky
 ```
 
 The **World Atlas** panel in the frontend (`/app`) renders all worlds on a MapLibre
