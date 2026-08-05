@@ -9,13 +9,20 @@ from polomni.observatory.pipeline.sources.exoplanets import (
     alignment_decomposition,
     alignment_tensor,
     angular_separation_deg,
+    dipole_bootstrap,
     exoplanet_density_map,
     footprint_permuted_density_map,
     galactic_pole_vector,
     load_exoplanet_catalog,
     method_alignment_scan,
+    method_dipole_scan,
     radec_to_sky_coords,
+    reference_alignment_table,
+    reference_directions,
     sky_occupancy_counts,
+    spectrum_null_percentiles,
+    world_dipole,
+    world_power_spectrum,
     world_vectors,
 )
 
@@ -123,3 +130,86 @@ def test_angular_separation_deg() -> None:
 def test_galactic_pole_vector_unit() -> None:
     g = galactic_pole_vector()
     assert np.isclose(np.linalg.norm(g), 1.0)
+
+
+def test_world_dipole_magnitude_bounds(catalog) -> None:
+    vecs, good = world_vectors(catalog)
+    d, mag = world_dipole(vecs)
+    assert np.isclose(np.linalg.norm(d), 1.0)
+    assert 0.0 <= mag <= 1.0
+    # Two mirrored microlensing worlds pull the dipole to ~0 near their midpoint
+    vecs_antipodal = np.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]])
+    _, mag_anti = world_dipole(vecs_antipodal)
+    assert mag_anti < 1e-12
+
+
+def test_dipole_bootstrap_returns_cone(catalog) -> None:
+    boot = dipole_bootstrap(catalog, n_boot=50, seed=1)
+    assert boot["n_boot"] == 50
+    assert boot["sigma68_deg"] >= 0.0
+    assert boot["median_deg"] >= 0.0
+    assert len(boot["directions"]) == 50
+    assert len(boot["observed_dipole"]) == 3
+
+
+def test_reference_directions_are_unit() -> None:
+    refs = reference_directions()
+    assert set(refs) == {
+        "CMB_dipole_apex",
+        "ecliptic_north_pole",
+        "kepler_field_center",
+        "galactic_north_pole",
+    }
+    for v in refs.values():
+        assert np.isclose(np.linalg.norm(v), 1.0)
+
+
+def test_reference_alignment_table_structure(catalog) -> None:
+    vecs, _ = world_vectors(catalog)
+    d, _ = world_dipole(vecs)
+    tab = reference_alignment_table(d)
+    assert set(tab) == {
+        "CMB_dipole_apex",
+        "ecliptic_north_pole",
+        "kepler_field_center",
+        "galactic_north_pole",
+    }
+    for info in tab.values():
+        assert 0.0 <= info["separation_deg"] <= 90.0
+
+
+def test_method_dipole_scan(catalog) -> None:
+    scan = method_dipole_scan(catalog, min_worlds=2, n_boot=30)
+    assert "Transit" in scan
+    assert "Microlensing" in scan
+    assert scan["Microlensing"]["magnitude"] > 0.9
+    assert scan["Microlensing"]["sigma68_deg"] < 10.0
+    refs = scan["Transit"]["references"]
+    assert "kepler_field_center" in refs
+
+
+def test_world_power_spectrum_shape_and_mask(catalog) -> None:
+    spec = world_power_spectrum(catalog, 16)
+    assert spec["nside"] == 16
+    assert spec["lmax"] == 3 * 16 - 1
+    assert len(spec["ell"]) == 48
+    assert len(spec["pseudo"]) == 48
+    assert len(spec["masked"]) == 48
+    assert spec["pseudo"][0] >= 0.0
+    assert spec["n_occupied_pixels"] >= 1
+    assert 0.0 < spec["occupancy_fraction"] <= 1.0
+
+
+def test_spectrum_null_returns_band_and_z(catalog) -> None:
+    nulls = spectrum_null_percentiles(catalog, 16, n_null=30)
+    assert nulls["n_null"] == 30
+    assert nulls["n_worlds"] == 7
+    assert len(nulls["p16"]) == 48
+    assert len(nulls["p50"]) == 48
+    assert len(nulls["p84"]) == 48
+    assert len(nulls["z_score"]) == 48
+    assert len(nulls["p_value"]) == 48
+    # Null band is positive and z-scores are finite everywhere
+    assert float(nulls["p50"][0]) > 0.0
+    assert all(np.isfinite(v) for v in nulls["z_score"])
+    assert all(0.0 <= v <= 1.0 for v in nulls["p_value"])

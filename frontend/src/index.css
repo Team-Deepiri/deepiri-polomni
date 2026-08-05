@@ -64,6 +64,7 @@ button {
 .lamp.fail { background: var(--fail); }
 .error { color: var(--fail); font-size: 0.85rem; }
 .muted { color: var(--muted); font-size: 0.85rem; }
+.warn { color: #d29922; font-size: 0.85rem; }
 .ok-text { color: var(--ok); font-size: 0.85rem; }
 .fail-text { color: var(--fail); font-size: 0.85rem; }
 
@@ -355,6 +356,18 @@ button {
 }
 .legend-swatch.sdss {
   background: #d29922;
+}
+.legend-swatch.world-dipole {
+  background: #a371f7;
+  border-radius: 50%;
+}
+.spectrum-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
 }
 .aladin-sky {
   position: relative;

@@ -27,6 +27,44 @@ export type WorldMethodInfo = {
   separation_from_galactic_pole_deg: number;
 };
 
+export type WorldDipoleRefs = {
+  CMB_dipole_apex: { separation_deg: number };
+  ecliptic_north_pole: { separation_deg: number };
+  kepler_field_center: { separation_deg: number };
+  galactic_north_pole: { separation_deg: number };
+};
+
+export type WorldMethodDipole = {
+  n_worlds: number;
+  dipole: number[];
+  magnitude: number;
+  sigma68_deg: number;
+  median_deg: number;
+  references: WorldDipoleRefs;
+};
+
+export type WorldSpectrumNull = {
+  n_null: number;
+  n_worlds: number;
+  p16: number[];
+  p50: number[];
+  p84: number[];
+  observed: number[];
+  z_score: number[];
+  p_value: number[];
+};
+
+export type WorldSpectrum = {
+  nside: number;
+  lmax: number;
+  weight: string;
+  ell: number[];
+  pseudo: number[];
+  masked: number[];
+  occupancy_fraction: number;
+  null: WorldSpectrumNull;
+};
+
 export type WorldScan = {
   rble_score: number;
   preferred_axis: number[];
@@ -65,6 +103,20 @@ export type WorldAtlas = {
     lam1_minus_isotropic: number;
   };
   methods: Record<string, WorldMethodInfo>;
+  dipole: {
+    vector: number[];
+    magnitude: number;
+    references: WorldDipoleRefs;
+    bootstrap: {
+      n_boot: number;
+      sigma68_deg: number;
+      median_deg: number;
+      observed_dipole: number[];
+      observed_magnitude: number;
+    };
+    method_dipoles: Record<string, WorldMethodDipole>;
+  };
+  spectrum: WorldSpectrum;
   points: {
     lon: number[];
     lat: number[];
@@ -239,11 +291,16 @@ export const api = {
     fetchJson(`/cosmos/sky/overlays?nside=${nside}&map_product=${product}`),
   cosmosSkyRasterUrl: (nside = 64, product = "wmap_k_band", width = 1536, height = 768) =>
     `/cosmos/sky/raster?nside=${nside}&map_product=${product}&width=${width}&height=${height}`,
-  cosmosWorlds: (opts?: { nside?: number; weight?: string; nEnsemble?: number }) => {
+  cosmosWorlds: (opts?: {
+    nside?: number;
+    weight?: string;
+    nEnsemble?: number;
+    nNull?: number;
+  }) => {
     const q = new URLSearchParams();
     q.set("nside", String(opts?.nside ?? 32));
     q.set("weight", opts?.weight ?? "count");
     q.set("n_ensemble", String(opts?.nEnsemble ?? 40));
+    q.set("n_null", String(opts?.nNull ?? 100));
     return fetchJson<WorldAtlas>(`/cosmos/worlds?${q}`);
-  },
-};
+  },};

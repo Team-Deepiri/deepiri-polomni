@@ -161,7 +161,7 @@ Fetch public CMB and GW catalogs, cache locally, and run the full RBLE observato
 | `polomni data status` | List cached files and sizes under `data/cache/` |
 | `polomni data fetch` | Download lite products + GWTC (use `--wmap`, `--planck` for maps) |
 | `polomni data pipeline` | Ingest cached data and run RBLE scan (default WMAP K-band, NSIDE 128) |
-| `polomni data worlds` | Scan the real NASA exoplanet sky with RBLE + footprint-matched null |
+| `polomni data worlds` | Scan the real NASA exoplanet sky with RBLE + footprint null + dipole + C_ℓ |
 | `polomni data watch` | Poll GWOSC on an interval; optional `--scan-on-gw` re-scan |
 | `polomni data plot power` | Plot cached CMB power spectrum PNG |
 | `polomni data plot gw` | Plot GW event timeline from cache |
@@ -186,7 +186,7 @@ Cache directory: `data/cache/` (override with `POLOMNI_DATA_CACHE`). See [docs/g
 
 Maps the **real sky positions of every confirmed exoplanet** (NASA Exoplanet Archive,
 `nasa_exoplanet_ps`) onto a HEALPix density map, runs the RBLE geodesic-Radon scar
-scan over the distribution of worlds, and reports **two selection-bias audits** that a
+scan over the distribution of worlds, and reports **four checks** that a
 naive scan would fake:
 
 1. **Footprint-matched null** — world counts are reshuffled *within* the observed
@@ -196,15 +196,26 @@ naive scan would fake:
    and referenced to the Galactic pole. Sky-complete Radial Velocity worlds are nearly
    isotropic (S≈0.06); Microlensing worlds are ordered *in the Galactic plane*
    (S≈0.98, 88° from pole). A genuine world scar must survive both checks.
+3. **World-dipole cosmic-rest-frame test** — the dipole of the world directions is
+   measured against the CMB dipole apex (the Solar System's motion through the cosmic
+   rest frame), the ecliptic pole, the Galactic pole, and the Kepler field. Current
+   result: the dipole sits **4.8° from the Kepler field** and ≥62° from every cosmic
+   reference — a physical anisotropy would point at the CMB rest frame; this points at
+   the survey footprint.
+4. **World-sky power spectrum C_ℓ** — a novel observable (no published spectrum exists
+   for the confirmed-planet sky) with a uniform-within-footprint null. Only ℓ=1 (the
+   Kepler dipole) exceeds the null at ~6.5σ; all ℓ≥2 are consistent with random
+   placement within the footprint.
 
 ```bash
 poetry run polomni data fetch nasa_exoplanet_ps
-poetry run polomni data worlds --nside 32 --ensemble 40
+poetry run polomni data worlds --nside 32 --ensemble 40 --null 100
 ```
 
 The **World Atlas** panel in the frontend (`/app`) renders all worlds on a MapLibre
 globe colored by host temperature (or discovery method), with the RBLE scar ring +
-preferred axis overlaid and the full selection-bias audit table.
+preferred axis overlaid, the world-dipole marker, the C_ℓ spectrum chart, and the full
+selection-bias audit table.
 
 Theory, invariants (Tr(Q)≡1), and domain of validity: [docs/theory/WORLD_ATLAS.md](docs/theory/WORLD_ATLAS.md).
 

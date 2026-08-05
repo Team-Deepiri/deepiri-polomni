@@ -1,7 +1,67 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { api, type WorldAtlas, type WorldMethodInfo } from "../api/client";
+import { api, type WorldAtlas, type WorldMethodInfo, type WorldSpectrum } from "../api/client";
+
+const SPECTRUM_W = 260;
+const SPECTRUM_H = 110;
+const SPECTRUM_PAD = { top: 8, right: 6, bottom: 18, left: 30 };
+
+function WorldSpectrumChart({ spectrum }: { spectrum: WorldSpectrum }) {
+  const { ell, pseudo, null: band } = spectrum;
+  const lCut = Math.max(...ell.filter((l) => l <= 40), 8);
+
+  const el = ell.slice(0, lCut + 1);
+  const obs = pseudo.slice(0, lCut + 1);
+  const p50 = band.p50.slice(0, lCut + 1);
+  const p16 = band.p16.slice(0, lCut + 1);
+  const p84 = band.p84.slice(0, lCut + 1);
+
+  const vals = [...obs, ...p16, ...p84, ...p50].filter((v) => Number.isFinite(v));
+  const vmax = Math.max(...vals.map((v) => Math.log10(Math.max(v, 1e-9))));
+  const vmin = Math.min(...vals.map((v) => Math.log10(Math.max(v, 1e-9))));
+
+  const x = (l: number) =>
+    SPECTRUM_PAD.left + ((l - 0) / Math.max(lCut, 1)) * (SPECTRUM_W - SPECTRUM_PAD.left - SPECTRUM_PAD.right);
+  const y = (v: number) =>
+    SPECTRUM_H -
+    SPECTRUM_PAD.bottom -
+    ((Math.log10(Math.max(v, 1e-9)) - vmin) / Math.max(vmax - vmin, 1e-9)) *
+      (SPECTRUM_H - SPECTRUM_PAD.top - SPECTRUM_PAD.bottom);
+
+  const line = (arr: number[]) => arr.map((v, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(v)}`).join(" ");
+  const bandPath = [
+    `M${x(0)},${y(p16[0])}`,
+    ...p84.map((_, i) => `L${x(i)},${y(p84[i])}`),
+    ...[...p16].reverse().map((_, i) => `L${x(p16.length - 1 - i)},${y(p16[p16.length - 1 - i])}`),
+    "Z",
+  ].join(" ");
+
+  return (
+    <div>
+      <svg width={SPECTRUM_W} height={SPECTRUM_H} className="spectrum-svg">
+        <path d={bandPath} fill="#3fb950" opacity={0.12} />
+        <path d={line(p50)} fill="none" stroke="#3fb950" strokeWidth={1} strokeDasharray="3 2" />
+        <path d={line(obs)} fill="none" stroke="#58a6ff" strokeWidth={1.6} />
+        {el.map((l) => (l % 8 === 0 || l === 0 ? (
+          <text key={l} x={x(l)} y={SPECTRUM_H - 4} fontSize={8} fill="#8b949e" textAnchor="middle">
+            {l}
+          </text>
+        ) : null))}
+        <text x={4} y={10} fontSize={8} fill="#8b949e">
+          log C_ℓ
+        </text>
+        <text x={SPECTRUM_W - 4} y={10} fontSize={8} fill="#8b949e" textAnchor="end">
+          ℓ
+        </text>
+      </svg>
+      <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+        blue = observed pseudo-C_ℓ · green = null median (uniform within footprint) with 16–84%
+        band. Multipoles above the null band with small p-value deserve a physical reading.
+      </p>
+    </div>
+  );
+}
 
 const EMPTY_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -27,27 +87,44 @@ function teffColor(teff: number | null): string {
 
 function ringGeoJSON(worlds: WorldAtlas): GeoJSON.FeatureCollection {
   const { scar_ring, axis_marker } = worlds;
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: { kind: "scar_ring" },
-        geometry: {
-          type: "LineString",
-          coordinates: scar_ring.lon.map((lon, i) => [lon, scar_ring.lat[i]]),
-        },
+  const features: GeoJSON.Feature[] = [
+    {
+      type: "Feature",
+      properties: { kind: "scar_ring" },
+      geometry: {
+        type: "LineString",
+        coordinates: scar_ring.lon.map((lon, i) => [lon, scar_ring.lat[i]]),
       },
-      {
-        type: "Feature",
-        properties: { kind: "preferred_axis" },
-        geometry: {
-          type: "Point",
-          coordinates: [axis_marker.lon, axis_marker.lat],
-        },
+    },
+    {
+      type: "Feature",
+      properties: { kind: "preferred_axis" },
+      geometry: {
+        type: "Point",
+        coordinates: [axis_marker.lon, axis_marker.lat],
       },
-    ],
-  };
+    },
+  ];
+
+  // World-dipole tip (only if CMB apex is beyond the 68% cone — otherwise the
+  // dipole is just the survey footprint, and plotting it misleads).
+  const dip = worlds.dipole;
+  if (dip && dip.vector && dip.bootstrap) {
+    const kepler = dip.references.kepler_field_center.separation_deg;
+    const cone = dip.bootstrap.sigma68_deg;
+    if (kepler > cone) {
+      const v = dip.vector;
+      const ra = Math.atan2(v[1], v[0]) * (180 / Math.PI);
+      const dec = Math.asin(Math.max(-1, Math.min(1, v[2]))) * (180 / Math.PI);
+      features.push({
+        type: "Feature",
+        properties: { kind: "world_dipole" },
+        geometry: { type: "Point", coordinates: [(ra + 360) % 360, dec] },
+      });
+    }
+  }
+
+  return { type: "FeatureCollection", features };
 }
 
 export default function WorldAtlas({ height = 520 }: { height?: number }) {
@@ -164,6 +241,19 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
           "circle-color": "#3fb950",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "world-dipole-marker",
+        type: "circle",
+        source: "rble-overlays",
+        filter: ["==", ["get", "kind"], "world_dipole"],
+        paint: {
+          "circle-radius": 7,
+          "circle-color": "#a371f7",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+          "circle-opacity": 0.9,
         },
       });
 
@@ -309,6 +399,9 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
             <span className="legend-item">
               <span className="legend-swatch axis" /> Preferred axis
             </span>
+            <span className="legend-item">
+              <span className="legend-swatch" style={{ background: "#a371f7" }} /> World dipole (if distinct)
+            </span>
           </div>
         </div>
 
@@ -345,6 +438,46 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
                   λ = [{worlds.alignment.eigenvalues.map((v) => v.toFixed(3)).join(", ")}]
                 </p>
               </>
+            )}
+          </div>
+
+          <div className="card cosmos-metrics">
+            <h3>World dipole — cosmic-rest-frame test</h3>
+            {worlds?.dipole && (
+              <>
+                <p>
+                  |⟨n⟩| = <strong>{worlds.dipole.magnitude.toFixed(3)}</strong>{" "}
+                  <span className="muted">(0 isotropic → 1 concentrated)</span>
+                </p>
+                <p>
+                  68% cone <strong>{worlds.dipole.bootstrap.sigma68_deg.toFixed(1)}°</strong>
+                </p>
+                {Object.entries(worlds.dipole.references).map(([name, ref]) => {
+                  const isKepler = name === "kepler_field_center";
+                  const close =
+                    ref.separation_deg < Math.max(worlds.dipole.bootstrap.sigma68_deg, 5);
+                  return (
+                    <p key={name} className={isKepler && close ? "warn" : undefined}>
+                      ↔ {name.replace(/_/g, " ")}{" "}
+                      <strong>{ref.separation_deg.toFixed(1)}°</strong>
+                      {isKepler && close && (
+                        <span className="muted"> — dipole is the survey footprint</span>
+                      )}
+                    </p>
+                  );
+                })}
+                <p className="muted">
+                  The CMB dipole apex is the Solar System's motion through the cosmic rest
+                  frame — the one direction a <em>physical</em> anisotropy must point at.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="card cosmos-metrics">
+            <h3>World-sky power spectrum C_ℓ</h3>
+            {worlds?.spectrum && (
+              <WorldSpectrumChart spectrum={worlds.spectrum} />
             )}
           </div>
 

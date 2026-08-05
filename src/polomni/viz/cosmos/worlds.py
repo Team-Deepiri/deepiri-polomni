@@ -27,13 +27,21 @@ from polomni.observatory.pipeline.downloader import fetch_product
 from polomni.observatory.pipeline.sources.exoplanets import (
     alignment_decomposition,
     angular_separation_deg,
+    dipole_bootstrap,
     exoplanet_density_map,
     footprint_permuted_density_map,
     galactic_pole_vector,
     load_exoplanet_catalog,
     method_alignment_scan,
+    method_dipole_scan,
     radec_to_lonlat,
+    reference_alignment_table,
+    reference_directions,
     sky_occupancy_counts,
+    spectrum_null_percentiles,
+    world_dipole,
+    world_power_spectrum,
+    world_vectors,
 )
 from polomni.observatory.scoring.rble_signature import compute_rble_signature
 from polomni.viz.cosmos.helpers import axis_lonlat, great_circle_ring
@@ -93,6 +101,7 @@ def exoplanet_world_payload(
     nside: int = 32,
     weight: WorldWeight = "count",
     n_ensemble: int = 40,
+    n_null: int = 100,
     max_points: int = 1500,
     seed: int = 11,
     min_worlds: int = 50,
@@ -138,6 +147,21 @@ def exoplanet_world_payload(
         }
         for method, info in methods.items()
     }
+
+    # Dipole test: does any world-sample dipole point at a physical rest frame
+    # (CMB dipole apex) rather than at a survey artifact (Kepler field)?
+    vecs, _good = world_vectors(catalog)
+    dipole, dipole_mag = world_dipole(vecs)
+    bootstrap = dipole_bootstrap(catalog, n_boot=200)
+    dipole_refs = reference_alignment_table(dipole)
+    method_dipoles = method_dipole_scan(catalog, min_worlds=min_worlds)
+
+    # World-sky angular power spectrum: only multipoles clearing the
+    # uniform-within-footprint null deserve a physical reading.
+    spectrum = world_power_spectrum(catalog, nside, weight=weight)
+    spectrum_null = spectrum_null_percentiles(
+        catalog, nside, weight=weight, n_null=n_null
+    )
 
     axis_lon, axis_lat = axis_lonlat(axis)
     ring_lon, ring_lat = great_circle_ring(axis)
@@ -187,6 +211,38 @@ def exoplanet_world_payload(
         "axis_marker": {"lon": axis_lon, "lat": axis_lat},
         "scar_ring": {"lon": ring_lon, "lat": ring_lat},
         "alignment": align,
+        "dipole": {
+            "vector": dipole.tolist(),
+            "magnitude": dipole_mag,
+            "references": dipole_refs,
+            "bootstrap": {
+                "n_boot": bootstrap["n_boot"],
+                "sigma68_deg": bootstrap["sigma68_deg"],
+                "median_deg": bootstrap["median_deg"],
+                "observed_dipole": bootstrap["observed_dipole"],
+                "observed_magnitude": bootstrap["observed_magnitude"],
+            },
+            "method_dipoles": method_dipoles,
+        },
+        "spectrum": {
+            "nside": spectrum["nside"],
+            "lmax": spectrum["lmax"],
+            "weight": spectrum["weight"],
+            "ell": spectrum["ell"],
+            "pseudo": spectrum["pseudo"],
+            "masked": spectrum["masked"],
+            "occupancy_fraction": spectrum["occupancy_fraction"],
+            "null": {
+                "n_null": spectrum_null["n_null"],
+                "n_worlds": spectrum_null["n_worlds"],
+                "p16": spectrum_null["p16"],
+                "p50": spectrum_null["p50"],
+                "p84": spectrum_null["p84"],
+                "observed": spectrum_null["observed"],
+                "z_score": spectrum_null["z_score"],
+                "p_value": spectrum_null["p_value"],
+            },
+        },
         "methods": methods,
         "points": points,
         "timestamp": datetime.now(timezone.utc).isoformat(),

@@ -196,6 +196,101 @@ def world_vectors(
     return np.column_stack([x, y, z]), good
 
 
+# J2000 reference directions (equatorial cartesians). The CMB dipole apex is
+# the direction of the Solar System's motion through the CMB rest frame — the
+# one direction a *physical* world-distribution anisotropy must point at if
+# worlds trace large-scale structure. Survey artifacts point elsewhere
+# (Kepler field, ecliptic pole, Galactic plane).
+_CMB_DIPOLE_RA = 167.942  # Planck 2018, equatorial
+_CMB_DIPOLE_DEC = -6.944
+_ECLIPTIC_NPOLE_RA = 270.0
+_ECLIPTIC_NPOLE_DEC = 66.56
+_KEPLER_FIELD_RA = 290.5
+_KEPLER_FIELD_DEC = 44.5
+
+
+def _unit_vec(ra: float, dec: float) -> np.ndarray:
+    phi = np.radians(ra)
+    theta = np.radians(90.0 - dec)
+    return np.array(
+        [np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)],
+        dtype=float,
+    )
+
+
+def reference_directions() -> dict[str, np.ndarray]:
+    """Named sky reference directions used for the world-dipole alignment test."""
+    refs = {
+        "CMB_dipole_apex": _unit_vec(_CMB_DIPOLE_RA, _CMB_DIPOLE_DEC),
+        "ecliptic_north_pole": _unit_vec(_ECLIPTIC_NPOLE_RA, _ECLIPTIC_NPOLE_DEC),
+        "kepler_field_center": _unit_vec(_KEPLER_FIELD_RA, _KEPLER_FIELD_DEC),
+    }
+    refs["galactic_north_pole"] = galactic_pole_vector()
+    return refs
+
+
+def world_dipole(vecs: np.ndarray) -> tuple[np.ndarray, float]:
+    """Dipole of a world-direction set: mean unit vector + |D| magnitude.
+
+    D̂ = ⟨n⟩/|⟨n⟩| is the first spherical-harmonic moment of the distribution
+    (the direction the distribution leans toward). |⟨n⟩| ∈ [0,1] is the
+    dipole strength: 0 for a perfectly isotropic sample, 1 for a fully
+    concentrated one.
+    """
+    n = np.asarray(vecs, dtype=float)
+    mean = n.mean(axis=0)
+    mag = float(np.linalg.norm(mean))
+    if mag < 1e-12:
+        return np.array([1.0, 0.0, 0.0]), 0.0
+    return mean / mag, mag
+
+
+def dipole_bootstrap(
+    catalog: ExoplanetCatalog,
+    *,
+    n_boot: int = 200,
+    seed: int = 7,
+) -> dict[str, object]:
+    """Bootstrap the world-dipole direction for the full sample.
+
+    Resamples worlds with replacement and recomputes the dipole each time;
+    returns the mean separation of bootstrap dipoles from the observed dipole
+    (68% confidence radius, degrees).
+    """
+    vecs, good = world_vectors(catalog)
+    observed, mag = world_dipole(vecs)
+    rng = np.random.default_rng(seed)
+    separations: list[float] = []
+    directions: list[list[float]] = []
+    n = vecs.shape[0]
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, size=n)
+        d, _ = world_dipole(vecs[idx])
+        directions.append(d.tolist())
+        separations.append(angular_separation_deg(observed, d))
+    separations = np.asarray(separations)
+    return {
+        "n_boot": n_boot,
+        "observed_dipole": observed.tolist(),
+        "observed_magnitude": mag,
+        "sigma68_deg": float(np.percentile(separations, 68)),
+        "median_deg": float(np.median(separations)),
+        "directions": directions,
+    }
+
+
+def reference_alignment_table(
+    dipole: np.ndarray,
+    refs: dict[str, np.ndarray] | None = None,
+) -> dict[str, dict[str, float]]:
+    """Angular separation of *dipole* from each named reference direction."""
+    refs = refs or reference_directions()
+    out: dict[str, dict[str, float]] = {}
+    for name, ref_vec in refs.items():
+        out[name] = {"separation_deg": float(angular_separation_deg(dipole, ref_vec))}
+    return out
+
+
 def alignment_tensor(world_vecs: np.ndarray) -> np.ndarray:
     """Nematic order tensor Q_ab = ⟨n_a n_b⟩ over world directions.
 
@@ -258,6 +353,52 @@ def method_alignment_scan(
             "order_parameter_s": float(0.5 * (3.0 * evals[0] - 1.0)),
             "preferred_axis": evecs[:, 0].tolist(),
             "eigenvalues": evals.tolist(),
+        }
+    return out
+
+
+def method_dipole_scan(
+    catalog: ExoplanetCatalog,
+    *,
+    min_worlds: int = 50,
+    n_boot: int = 100,
+    seed: int = 7,
+) -> dict[str, dict[str, object]]:
+    """Per-discovery-method dipole: direction, strength, and 68% bootstrap cone.
+
+    Complements method_alignment_scan with the error budget a publishable
+    claim needs: each method's dipole direction, its magnitude (0 = isotropic,
+    1 = fully concentrated), and sigma68 — the 68th percentile of bootstrap
+    dipole separations — plus the separation from each reference direction.
+    """
+    vecs, good = world_vectors(catalog)
+    refs = reference_directions()
+    rng = np.random.default_rng(seed)
+    out: dict[str, dict[str, object]] = {}
+    for method in np.unique(catalog.method):
+        mask = good & (catalog.method == method)
+        if mask.sum() < min_worlds:
+            continue
+        sub = vecs[mask]
+        observed, mag = world_dipole(sub)
+        n = sub.shape[0]
+        seps = []
+        for _ in range(n_boot):
+            idx = rng.integers(0, n, size=n)
+            d, _ = world_dipole(sub[idx])
+            seps.append(angular_separation_deg(observed, d))
+        seps = np.asarray(seps)
+        refs_out = {
+            name: float(angular_separation_deg(observed, ref))
+            for name, ref in refs.items()
+        }
+        out[str(method)] = {
+            "n_worlds": int(mask.sum()),
+            "dipole": observed.tolist(),
+            "magnitude": float(mag),
+            "sigma68_deg": float(np.percentile(seps, 68)),
+            "median_deg": float(np.median(seps)),
+            "references": refs_out,
         }
     return out
 
@@ -333,3 +474,142 @@ def footprint_permuted_density_map(
     if null_map.max() > 0:
         null_map /= null_map.max()
     return null_map
+
+
+def world_power_spectrum(
+    catalog: ExoplanetCatalog,
+    nside: int,
+    *,
+    weight: str = "count",
+    lmax: int | None = None,
+) -> dict[str, object]:
+    """Angular power spectrum C_l of the world sky, mask-corrected.
+
+    This is the novel observable of the research thread: no published C_l
+    exists for the *confirmed-planet* sky. We compute pseudo-C_l via HEALPix
+    ``anafast`` on the density map and correct for the survey footprint by
+    dividing by the window power spectrum (MASTER approximation, order-0:
+    C_l^est ≈ C_l^obs / W_l, W_l the power of the occupancy mask).
+
+    Caveats shipped with the result (honesty over hype):
+      - ``pseudo`` is the raw transform, ``masked`` the footprint-corrected one.
+      - Multipoles below the survey's angular resolution (l ≲ 8 for the
+        Kepler/TESS footprint) cannot be measured; the mask variance dominates.
+      - A non-white C_l is *not* evidence of a scar — it must clear the
+        footprint-permutation null band per-l (see spectrum_null_percentiles).
+    """
+    import healpy as hp
+
+    lmax = lmax or 3 * nside - 1
+    density, occupied_pix, _ = exoplanet_density_map(catalog, nside, weight=weight)
+    mask = np.zeros_like(density)
+    mask[occupied_pix] = 1.0
+
+    pseudo = hp.anafast(density, lmax=lmax)
+    w_pseudo = hp.anafast(mask, lmax=lmax)
+    ell = np.arange(len(pseudo))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        window = np.where(w_pseudo > 1e-12, w_pseudo, np.nan)
+        masked = np.where(w_pseudo > 1e-12, pseudo / window, np.nan)
+    return {
+        "nside": int(nside),
+        "lmax": int(lmax),
+        "weight": weight,
+        "ell": ell.tolist(),
+        "pseudo": pseudo.tolist(),
+        "window": w_pseudo.tolist(),
+        "masked": masked.tolist(),
+        "n_occupied_pixels": int(len(occupied_pix)),
+        "occupancy_fraction": float(len(occupied_pix) / hp.nside2npix(nside)),
+    }
+
+
+def spectrum_null_percentiles(
+    catalog: ExoplanetCatalog,
+    nside: int,
+    *,
+    weight: str = "count",
+    lmax: int | None = None,
+    n_null: int = 100,
+    seed: int = 11,
+) -> dict[str, object]:
+    """Uniform-within-footprint null band for the world power spectrum.
+
+    Each null map keeps the *observed occupancy mask fixed* but reassigns
+    every world to a uniformly random occupied pixel — destroying all spatial
+    structure while preserving (a) how many worlds exist and (b) where the
+    survey could see them. This is the honest null: an isotropic sky is
+    unreachable because the Kepler/TESS footprint already breaks isotropy, so
+    the question asked is *"given this footprint, is the world placement
+    clumped beyond random?"*.
+
+    Returns, per multipole: the 16/50/84 percentiles of the null pseudo-C_l,
+    the tail p-value (fraction of null maps with C_l >= observed), and the
+    z-score in units of the null standard deviation.
+
+    Interpretation guard: at low l the null variance is dominated by the fixed
+    mask, so small z there is a footprint statement, not a scar. Only
+    multipoles with small p-value and z beyond the null scatter deserve a
+    physical reading — and even then, compare against the per-method audit.
+    """
+    import healpy as hp
+
+    density, occupied_pix, _ = exoplanet_density_map(catalog, nside, weight=weight)
+    lmax = lmax or 3 * nside - 1
+    rng = np.random.default_rng(seed)
+    good = ~(np.isnan(catalog.ra) | np.isnan(catalog.dec))
+    n_worlds = int(good.sum())
+    occupied = np.asarray(occupied_pix)
+    n_occ = occupied.size
+
+    if weight == "teff":
+        vals = np.nan_to_num(catalog.st_teff[good], nan=0.0)
+        total = vals.sum()
+        if total <= 0:
+            vals = np.ones(n_worlds)
+    elif weight == "period":
+        vals = np.nan_to_num(np.log10(catalog.period_days[good]), nan=0.0)
+    else:
+        vals = np.ones(n_worlds)
+
+    x, y, z = radec_to_sky_coords(catalog.ra[good], catalog.dec[good])
+    observed_pix = hp.vec2pix(nside, x, y, z)
+    npix = hp.nside2npix(nside)
+    observed_counts = np.bincount(observed_pix, weights=vals, minlength=npix)
+
+    band = np.zeros((n_null, lmax + 1))
+    for i in range(n_null):
+        assigned = occupied[rng.integers(0, n_occ, size=n_worlds)]
+        null_map = np.zeros(npix)
+        if weight == "count":
+            np.add.at(null_map, assigned, 1.0)
+        else:
+            np.add.at(null_map, assigned, vals)
+        if null_map.max() > 0:
+            null_map /= null_map.max()
+        band[i] = hp.anafast(null_map, lmax=lmax)
+
+    obs = hp.anafast(density, lmax=lmax)
+    p16 = np.percentile(band, 16, axis=0)
+    p50 = np.percentile(band, 50, axis=0)
+    p84 = np.percentile(band, 84, axis=0)
+    mean = band.mean(axis=0)
+    std = band.std(axis=0)
+    z = np.where(std > 1e-15, (obs - mean) / std, 0.0)
+    p_val = np.asarray([(band[:, i] >= obs[i]).mean() for i in range(len(obs))])
+    return {
+        "nside": int(nside),
+        "lmax": int(lmax),
+        "weight": weight,
+        "n_null": int(n_null),
+        "n_worlds": int(n_worlds),
+        "ell": np.arange(lmax + 1).tolist(),
+        "p16": p16.tolist(),
+        "p50": p50.tolist(),
+        "p84": p84.tolist(),
+        "observed": obs.tolist(),
+        "mean": mean.tolist(),
+        "std": std.tolist(),
+        "z_score": z.tolist(),
+        "p_value": p_val.tolist(),
+    }

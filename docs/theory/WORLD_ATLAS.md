@@ -104,6 +104,63 @@ density is strongly ordered at the found axis even against random reshuffling in
 mask — but it does **not** by itself distinguish Galactic-plane crowding from true
 beyond-Milky-Way order. That job belongs to the method audit.
 
+## The dipole test — cosmic-rest-frame alignment
+
+A physical world anisotropy must point at a *cosmic rest frame*; a survey artifact
+points at the survey. The dipole of the world-direction set,
+
+$$\hat D = \frac{\langle n\rangle}{|\langle n\rangle|}, \quad |\langle n\rangle| = |\frac{1}{N}\sum_i n_i| \in [0,1],$$
+
+is the first spherical-harmonic moment of the distribution. We measure its angular
+separation from four named references:
+
+| Reference | Direction (J2000) | Meaning |
+|---|---|---|
+| **CMB dipole apex** | RA 167.942°, Dec −6.944° | Solar System's motion through the CMB rest frame (Planck 2018) — the one direction a *physical* anisotropy must point at |
+| Ecliptic north pole | RA 270°, Dec 66.56° | Solar-system plane reference |
+| Galactic north pole | RA 192.8595°, Dec 27.1283° | Milky Way disk normal |
+| Kepler field center | RA 290.5°, Dec 44.5° | The dominant transit survey footprint |
+
+**Current result (real 6,333 worlds):** dipole |⟨n⟩| = 0.422 with a 68% bootstrap cone of
+1.1°, sitting **4.8° from the Kepler field center** and ≥ 62° from the CMB dipole apex
+and Galactic pole for *every* discovery method. The cosmic-rest-frame test is therefore
+**negative**: the only significant world dipole is the survey footprint, and no sample
+leans toward the CMB rest frame.
+
+Per-method dipoles (bootstrap 68% cone):
+
+| Method | N | \|⟨n⟩\| | 68% cone | ↔ Kepler | ↔ CMB apex |
+|---|---|---|---|---|---|
+| Transit | 4,674 | 0.561 | 0.8° | **2.4°** | 63.4° |
+| Microlensing | 282 | 0.983 | 0.4° | 76.5° | 84.2° |
+| Radial Velocity | 1,196 | 0.042 | 30.6° | 18.3° | 62.7° |
+| Imaging | 98 | 0.242 | 19.9° | 52.0° | 77.8° |
+
+RV — the sky-complete method — has a dipole consistent with zero (|⟨n⟩|=0.042). The
+tight cones (Transit, Microlensing) are exactly the footprint-dominated samples.
+
+## The world-sky power spectrum — a novel observable
+
+No published angular power spectrum exists for the *confirmed-planet* sky, so this is a
+genuinely new measurement. We compute pseudo-C_ℓ via HEALPix `anafast` on the NSIDE-32
+density map, with a **uniform-within-footprint** null: each null map keeps the observed
+occupancy mask fixed but reassigns every world to a uniformly random occupied pixel,
+destroying all spatial structure while preserving the footprint. This is the correct
+null for the same reason as above — isotropic sky is unreachable.
+
+**Current result:** the observed C_ℓ is consistent with random placement within the
+footprint at every multipole **except ℓ=1**, which shows ~6.5σ excess (p < 0.001) — and
+ℓ=1 is exactly the dipole, i.e. the Kepler-field footprint. Multipoles ℓ=2..12 are
+within the 16–84% null band (no statistically significant excess), and high-ℓ is
+slightly *below* the null (smooth, not clumpy). Summary: **no world scar survives at any
+multipole beyond the survey footprint.**
+
+Caveats shipped with the result: (a) the low-ℓ band is dominated by the fixed mask, so
+small ℓ deviations are footprint statements by construction; (b) the `masked` field
+divides by the window power (order-0 MASTER), which is unstable below the footprint's
+angular resolution and is flagged as such; (c) the null is uniform-within-footprint, not
+a model of detector-level selection within the field.
+
 ## Adversarial validation (symmetry broken)
 
 - **Method split:** the full-sample axis does **not** persist across methods with different
@@ -118,11 +175,14 @@ beyond-Milky-Way order. That job belongs to the method audit.
 ## Proof strategy (what we assert vs what we conjecture)
 
 - **Asserted (verified numerically):** Tr(Q)=1 invariant; S ∈ [0,1]; null permutation
-  preserves the mask exactly; fixed-axis null scores are cheap.
+  preserves the mask exactly; fixed-axis null scores are cheap; the dipole bootstrap
+  cone is a finite-sample error budget; the world C_ℓ has a well-defined
+  uniform-within-footprint null.
 - **Conjecture (labeled as such):** the world distribution contains axis-aligned order
   *beyond* survey footprint and Milky Way structure. The current evidence *rejects* this
-  conjecture for the full sample (RV ≈ isotropic). The machinery is built so a future
-  dataset — e.g. a sky-complete transit survey — can re-run the exact same nulls.
+  conjecture for the full sample (RV ≈ isotropic; dipole = Kepler footprint; C_ℓ = null
+  except the footprint dipole at ℓ=1). The machinery is built so a future dataset — e.g.
+  a sky-complete transit survey — can re-run the exact same nulls.
 
 ## Domain of validity
 
@@ -135,6 +195,12 @@ beyond-Milky-Way order. That job belongs to the method audit.
 - The axis audit is per *discovery method*, not per *instrument*. A single instrument
   used by two methods would still share a footprint.
 - Small-N methods (Imaging N=98) have poorly constrained axes; treat their S as noise.
+- The dipole is a *directional* first moment; it is insensitive to bi- or quadrupolar
+  structure. The C_ℓ spectrum covers those, but only down to the footprint's angular
+  resolution (l ≲ 8 is mask-dominated).
+- The C_ℓ null is uniform-within-footprint, not a model of within-field detector
+  sensitivity; a radial sensitivity gradient inside the Kepler field would survive both
+  this null and the permutation null.
 
 ## Failed guesses and what they revealed
 
@@ -143,6 +209,11 @@ beyond-Milky-Way order. That job belongs to the method audit.
 - **Guess 2: "the preferred axis is the scar."** Rejected after the method split: the
   axis is dominated by Microlensing's bulge crowding. Revealed the per-method audit and
   the Galactic-pole reference as necessary guards.
+- **Guess 3: "permute pixel values for the C_ℓ null."** Rejected: permutation preserves
+  the exact value multiset, so C_ℓ has near-zero variance and every multipole "saturates"
+  against a 100-sample band — a degenerate test. Revealed that the honest null must
+  *reassign worlds to random occupied pixels* (destroy structure, keep footprint), which
+  gives the meaningful z-scores reported above.
 
 ## Generalization
 

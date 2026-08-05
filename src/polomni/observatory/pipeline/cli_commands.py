@@ -208,13 +208,20 @@ def worlds(
     ensemble: Annotated[
         int, typer.Option("--ensemble", help="Footprint-matched null ensemble size.")
     ] = 40,
+    n_null: Annotated[
+        int, typer.Option("--null", help="Power-spectrum null ensemble size.")
+    ] = 100,
 ) -> None:
     """Scan the real NASA exoplanet sky with RBLE + footprint-matched null."""
     from polomni.viz.cosmos.worlds import exoplanet_world_payload
 
-    payload = exoplanet_world_payload(nside=nside, weight=weight, n_ensemble=ensemble)
+    payload = exoplanet_world_payload(
+        nside=nside, weight=weight, n_ensemble=ensemble, n_null=n_null
+    )
     scan = payload["scan"]
     align = payload["alignment"]
+    dipole = payload["dipole"]
+    spectrum = payload["spectrum"]
     cat = payload["catalog"]
 
     table = Table(title=f"World Atlas — NASA Exoplanet Archive (NSIDE {nside}, {weight})")
@@ -241,6 +248,55 @@ def worlds(
     for name, value in rows:
         table.add_row(name, value)
     console.print(table)
+
+    d_table = Table(title="World dipole — cosmic-rest-frame test")
+    d_table.add_column("Quantity")
+    d_table.add_column("Value")
+    refs = dipole["references"]
+    d_rows = [
+        ("Dipole magnitude |⟨n⟩|", f"{dipole['magnitude']:.4f} (0 = isotropic)"),
+        ("Bootstrap 68% cone", f"{dipole['bootstrap']['sigma68_deg']:.1f}°"),
+        ("↔ Kepler field", f"{refs['kepler_field_center']['separation_deg']:.1f}°"),
+        ("↔ CMB dipole apex", f"{refs['CMB_dipole_apex']['separation_deg']:.1f}°"),
+        ("↔ Ecliptic pole", f"{refs['ecliptic_north_pole']['separation_deg']:.1f}°"),
+        ("↔ Galactic pole", f"{refs['galactic_north_pole']['separation_deg']:.1f}°"),
+    ]
+    for name, value in d_rows:
+        d_table.add_row(name, value)
+    console.print(d_table)
+
+    s_table = Table(title="World-sky power spectrum (uniform-within-footprint null)")
+    s_table.add_column("ℓ")
+    s_table.add_column("C_ℓ")
+    s_table.add_column("null p50")
+    s_table.add_column("null [16,84]")
+    s_table.add_column("z")
+    s_table.add_column("p-value")
+    ell = spectrum["ell"]
+    for l, c, p50, p16, p84, z, pv in zip(
+        ell,
+        spectrum["pseudo"],
+        spectrum["null"]["p50"],
+        spectrum["null"]["p16"],
+        spectrum["null"]["p84"],
+        spectrum["null"]["z_score"],
+        spectrum["null"]["p_value"],
+    ):
+        if l > 12:
+            continue
+        s_table.add_row(
+            str(l),
+            f"{c:.2e}",
+            f"{p50:.2e}",
+            f"[{p16:.1e},{p84:.1e}]",
+            f"{z:+.2f}",
+            f"{pv:.3f}",
+        )
+    console.print(s_table)
+    console.print(
+        "[dim]Only multipoles clearing the null (small p, |z| beyond scatter) deserve a "
+        "physical reading; the low-ℓ band is dominated by the fixed footprint.[/dim]"
+    )
 
     methods = payload["methods"]
     if methods:

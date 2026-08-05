@@ -96,12 +96,14 @@ def get_cosmos_worlds(
     nside: int = Query(default=32, ge=8, le=128),
     weight: str = Query(default="count", pattern="^(count|teff|period)$"),
     n_ensemble: int = Query(default=40, ge=5, le=120),
+    n_null: int = Query(default=100, ge=10, le=400),
     max_points: int = Query(default=1500, ge=200, le=6334),
 ) -> dict:
     """World Atlas — RBLE scan over real NASA exoplanet sky positions.
 
-    Includes the footprint-matched null significance and the per-method
-    preferred-axis audit, so the scar claim is not a survey-footprint artifact.
+    Includes the footprint-matched null significance, the per-method
+    preferred-axis audit, the world-dipole cosmic-rest-frame test, and the
+    world-sky angular power spectrum with its uniform-within-footprint null.
     """
     from polomni.viz.cosmos.worlds import exoplanet_world_payload
 
@@ -109,6 +111,7 @@ def get_cosmos_worlds(
         nside=nside,
         weight=weight,  # type: ignore[arg-type]
         n_ensemble=n_ensemble,
+        n_null=n_null,
         max_points=max_points,
     )
 

@@ -55,6 +55,44 @@ def test_world_payload_structure(tmp_path) -> None:
     assert "separation_from_galactic_pole_deg" in payload["scan"]
 
 
+def test_world_payload_dipole_and_spectrum(tmp_path) -> None:
+    cache = _cache_with_fixture(tmp_path)
+    payload = exoplanet_world_payload(
+        nside=16, n_ensemble=4, n_null=20, min_worlds=2, cache=cache
+    )
+    dipole = payload["dipole"]
+    assert len(dipole["vector"]) == 3
+    assert 0.0 <= dipole["magnitude"] <= 1.0
+    assert "kepler_field_center" in dipole["references"]
+    assert dipole["bootstrap"]["n_boot"] >= 1
+    assert "sigma68_deg" in dipole["bootstrap"]
+    assert "Transit" in dipole["method_dipoles"]
+
+    spectrum = payload["spectrum"]
+    assert spectrum["nside"] == 16
+    assert len(spectrum["ell"]) == 48
+    assert len(spectrum["pseudo"]) == 48
+    assert spectrum["null"]["n_null"] == 20
+    assert len(spectrum["null"]["z_score"]) == 48
+    assert len(spectrum["null"]["p_value"]) == 48
+
+
+def test_world_route_includes_dipole(tmp_path, monkeypatch) -> None:
+    from fastapi.testclient import TestClient
+
+    from polomni.api import create_app
+
+    _use_cache_root(monkeypatch, tmp_path)
+    client = TestClient(create_app())
+    r = client.get("/cosmos/worlds?nside=16&n_ensemble=5&n_null=20")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["dipole"]["vector"]) == 3
+    assert data["dipole"]["references"]["CMB_dipole_apex"]["separation_deg"] >= 0.0
+    assert len(data["spectrum"]["null"]["z_score"]) == 48
+    assert data["spectrum"]["null"]["n_null"] == 20
+
+
 def test_world_payload_weight_teff(tmp_path) -> None:
     cache = _cache_with_fixture(tmp_path)
     payload = exoplanet_world_payload(nside=16, n_ensemble=4, weight="teff", cache=cache)
