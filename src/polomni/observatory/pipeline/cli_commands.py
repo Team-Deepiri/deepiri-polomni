@@ -405,6 +405,62 @@ def cross_sky(
     )
 
 
+@app.command("bubble")
+def bubble(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 128,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+) -> None:
+    """Search a real CMB map for bubble collisions (circular temperature edges)."""
+    from polomni.observatory.pipeline.sources.bubble_collisions import bubble_collision_report
+
+    rep = bubble_collision_report(nside=nside, n_null=n_null)
+
+    header = Table(title="Bubble-collision search — eternal-inflation signature")
+    header.add_column("Field")
+    header.add_column("Value")
+    for key, val in [
+        ("Map", rep["map_product_id"]),
+        ("Circles scanned", str(rep["n_circles_scanned"])),
+        ("Mask (f_sky)", f"{rep['mask']['f_sky']:.3f} @ |b|≥{rep['mask']['b_cut_deg']}°"),
+        ("Observed max edge", f"{rep['null']['max_abs_edge_uk']['observed']:.1f} µK"),
+        ("Null median", f"{rep['null']['max_abs_edge_uk']['median']:.1f} µK"),
+        ("p-value", f"{rep['p_value']:.4f}"),
+        ("Verdict", rep["verdict"]),
+    ]:
+        header.add_row(key, val)
+    console.print(header)
+
+    if rep["top_candidates"]:
+        t = Table(title="Top candidate circles")
+        t.add_column("gal lon")
+        t.add_column("gal lat")
+        t.add_column("Radius")
+        t.add_column("Edge (µK)")
+        for c in rep["top_candidates"][:6]:
+            t.add_row(
+                f"{c['gal_lon']:.1f}°",
+                f"{c['gal_lat']:.1f}°",
+                f"{c['radius_deg']:.0f}°",
+                f"{c['edge_uk']:.2f}",
+            )
+        console.print(t)
+
+    sc = rep["strongest_circle"]
+    if sc.get("radial_profile"):
+        prof = Table(title=f"Radial profile of strongest circle @ ({sc['gal_lon']}°, {sc['gal_lat']}°)")
+        prof.add_column("Radius (°)")
+        prof.add_column("Mean T (µK)")
+        for row in sc["radial_profile"]:
+            if row["n_pixels"] == 0:
+                continue
+            prof.add_row(f"{row['radius_deg']:.1f}", f"{row['mean_t_uk']:.2f}")
+        console.print(prof)
+    console.print(
+        "[dim]A collision is a STEP: flat inside, flat outside, one sharp edge. "
+        "A smooth gradient is not a bubble.[/dim]"
+    )
+
+
 @app.command("correlate")
 def correlate(
     report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,

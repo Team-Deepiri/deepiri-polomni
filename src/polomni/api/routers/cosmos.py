@@ -137,6 +137,23 @@ def get_cross_sky(
     return cross_sky_report(min_objects=min_objects)
 
 
+@router.get("/bubble-search")
+def get_bubble_search(
+    nside: int = Query(default=128, ge=32, le=256),
+    n_null: int = Query(default=16, ge=4, le=64),
+) -> dict:
+    """Bubble-collision search — the falsifiable multiverse observable.
+
+    Scans a real CMB map for circular temperature edges, the signature of a
+    bubble colliding with ours in eternal inflation. Compares the strongest
+    edge against a C_ℓ-matched + mask-matched Gaussian null (look-elsewhere
+    corrected) and reports an honest verdict.
+    """
+    from polomni.observatory.pipeline.sources.bubble_collisions import bubble_collision_report
+
+    return bubble_collision_report(nside=nside, n_null=n_null)
+
+
 @router.get("/study")
 def get_study_status() -> dict:
     return cosmos_study_payload()

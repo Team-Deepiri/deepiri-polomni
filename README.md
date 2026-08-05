@@ -211,11 +211,19 @@ naive scan would fake:
    result: **exoplanets ↔ SDSS galaxies disagree by 71.9°** — each dipole points at its
    own survey footprint (exoplanets → Kepler 4.8°, SDSS → northern cap). GWTC
    `network_axis` is detector geometry and is rejected, not shipped as a sky direction.
+6. **Bubble-collision search** — the one multiverse signature with a concrete
+   observable: in eternal inflation a bubble colliding with ours leaves a **circular
+   temperature edge** in the CMB. Scans the real Planck SMICA map for such edges against
+   a C_ℓ- and mask-matched null (look-elsewhere corrected), validated by an injection
+   gate that recovers planted collisions exactly. Current result: **no significant edge
+   (p≈0.35)** — consistent with the published null (Feeney et al. 2011), and the
+   strongest circle's radial profile is a smooth gradient, not a step.
 
 ```bash
 poetry run polomni data fetch nasa_exoplanet_ps sdss_bao_ladder
 poetry run polomni data worlds --nside 32 --ensemble 40 --null 100
 poetry run polomni data cross-sky
+poetry run polomni data bubble --nside 128 --n-null 16
 ```
 
 The **World Atlas** panel in the frontend (`/app`) renders all worlds on a MapLibre

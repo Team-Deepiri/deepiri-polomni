@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { api, type CrossSkyReport, type WorldAtlas, type WorldDipoleRefs, type WorldMethodInfo, type WorldSpectrum } from "../api/client";
+import BubbleSearchCard from "./BubbleSearchCard";
 
 const SPECTRUM_W = 260;
 const SPECTRUM_H = 110;
@@ -611,6 +612,8 @@ export default function WorldAtlas({ height = 520 }: { height?: number }) {
             <h3>Cross-sky axis test</h3>
             {crossSky && <CrossSkyTable report={crossSky} />}
           </div>
+
+          <BubbleSearchCard />
 
           <div className="card cosmos-metrics">
             <h3>World-sky power spectrum C_ℓ</h3>

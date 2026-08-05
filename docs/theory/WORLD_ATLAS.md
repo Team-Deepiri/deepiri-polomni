@@ -219,6 +219,38 @@ signal.
 exoplanet dipole is the Kepler footprint; the SDSS dipole is the northern-cap footprint.
 No independent sky confirms the other's axis.
 
+## The bubble-collision search — the falsifiable multiverse observable
+
+The one multiverse signature with a concrete, observable prediction is a **bubble
+collision**: in eternal inflation our bubble can collide with another bubble of
+different vacuum energy, and the collision leaves a **circular temperature edge** in the
+CMB — a step in temperature across the boundary of the collided region (Kleban 2011;
+Aguirre, Johnson & Larfors; Feeney et al. 2011 "First observational tests of eternal
+inflation" searched for exactly these circles and found none in WMAP).
+
+`polomni data bubble` (`GET /cosmos/bubble-search`) is a search instrument for this
+signature:
+
+1. **Edge statistic** — for every candidate circle (grid of centers × radii), the edge
+   amplitude is `⟨T⟩ just outside − ⟨T⟩ just inside` the boundary, in µK.
+2. **Honest null** — C_ℓ-matched Gaussian realizations (true large-scale correlation
+   structure preserved) with the **same Galactic mask and same geometry**, and the
+   **look-elsewhere correction**: the p-value asks how often the *strongest circle in a
+   null realization* beats the observed strongest circle.
+3. **Injection gate** — a synthetic step (a planted collision) is recovered **exactly**
+   (same center, same radius) by the scan, proving the instrument can find a real
+   collision if one is there.
+4. **Step check** — a collision is a *step* (flat inside, flat outside, one sharp edge).
+   The radial profile of the strongest circle is shipped so a smooth large-scale
+   gradient cannot masquerade as a bubble.
+
+**Current result on real Planck SMICA:** strongest edge 35.9 µK vs null median 34.6 µK,
+**p = 0.35 — no statistically significant circular temperature edge**. The strongest
+circle's radial profile is a smooth gradient, not a step. This is consistent with the
+published null result (Feeney et al. 2011). The instrument is the deliverable: a
+falsifiable, injection-validated search for the one observable eternal inflation
+predicts, run on real sky data.
+
 ## Adversarial validation (symmetry broken)
 
 - **Method split:** the full-sample axis does **not** persist across methods with different
@@ -239,7 +271,9 @@ No independent sky confirms the other's axis.
   unchanged; Kepler excision collapses the dipole toward the isotropic expectation;
   the cross-sky test falsifies a common world axis (independent skies disagree by
   71.9°); GW `network_axis` is detector geometry and is rejected rather than shipped
-  as a sky direction.
+  as a sky direction; the bubble-collision search recovers planted collision steps
+  exactly (injection gate) and finds no significant circular edge in real Planck
+  SMICA (p≈0.35 vs the C_ℓ- and mask-matched null).
 - **Conjecture (labeled as such):** the world distribution contains axis-aligned order
   *beyond* survey footprint and Milky Way structure. The current evidence *rejects* this
   conjecture for the full sample (RV ≈ isotropic; dipole = Kepler footprint, collapsing

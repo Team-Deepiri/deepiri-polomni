@@ -171,6 +171,45 @@ export type CrossSkyReport = {
   n_skies: number;
 };
 
+export type BubbleCandidate = {
+  center_index: number;
+  gal_lon: number;
+  gal_lat: number;
+  radius_deg: number;
+  edge_uk: number;
+  abs_edge_uk: number;
+};
+
+export type BubbleProfileRow = {
+  radius_deg: number;
+  mean_t_uk: number;
+  n_pixels: number;
+};
+
+export type BubbleSearchReport = {
+  instrument: string;
+  map_product_id: string;
+  nside: number;
+  n_centers: number;
+  n_circles_scanned: number;
+  mask: { b_cut_deg: number; f_sky: number };
+  null: {
+    n_realizations: number;
+    max_abs_edge_uk: { observed: number; median: number; p84: number; sigma: number };
+  };
+  p_value: number;
+  strongest_circle: {
+    gal_lon: number | null;
+    gal_lat: number | null;
+    radius_deg: number | null;
+    edge_uk: number | null;
+    radial_profile: BubbleProfileRow[];
+  };
+  top_candidates: BubbleCandidate[];
+  verdict: string;
+  timestamp: string;
+};
+
 export type CosmosSnapshot = {
   timestamp: string;
   gates_passed: boolean;
@@ -312,6 +351,8 @@ export const api = {
   cosmosCompare: (nside = 64) => fetchJson(`/cosmos/compare?nside=${nside}`),
   cosmosCrossSky: (minObjects = 20) =>
     fetchJson<CrossSkyReport>(`/cosmos/cross-sky?min_objects=${minObjects}`),
+  cosmosBubbleSearch: (nside = 128, nNull = 16) =>
+    fetchJson<BubbleSearchReport>(`/cosmos/bubble-search?nside=${nside}&n_null=${nNull}`),
   cosmosHistogram: (product = "wmap_k_band", nside = 64) =>
     fetchJson(`/cosmos/null-histogram?nside=${nside}&map_product=${product}`),
   cosmosStudy: () => fetchJson("/cosmos/study"),
