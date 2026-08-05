@@ -19,8 +19,69 @@ export type CosmosSky = {
   scar_ring: { lon: number[]; lat: number[] };
 };
 
+export type WorldMethodInfo = {
+  n_worlds: number;
+  order_parameter_s: number;
+  preferred_axis: number[];
+  eigenvalues: number[];
+  separation_from_galactic_pole_deg: number;
+};
+
+export type WorldScan = {
+  rble_score: number;
+  preferred_axis: number[];
+  null_mu: number;
+  null_sigma: number;
+  null_sigma_significance: number;
+  n_ensemble: number;
+  weight: string;
+  separation_from_galactic_pole_deg: number;
+  metadata: Record<string, unknown>;
+};
+
+export type WorldAtlas = {
+  ready: boolean;
+  source: string;
+  nside: number;
+  weight: string;
+  catalog: {
+    n_worlds: number;
+    n_hosts: number;
+    n_planets_sky: number;
+    occupied_pixels: number;
+    occupancy_fraction: number;
+    years_range: number[];
+    methods: string[];
+  };
+  scan: WorldScan;
+  axis_marker: { lon: number; lat: number };
+  scar_ring: { lon: number[]; lat: number[] };
+  alignment: {
+    n_worlds: number;
+    trace: number;
+    eigenvalues: number[];
+    preferred_axis: number[];
+    order_parameter_s: number;
+    lam1_minus_isotropic: number;
+  };
+  methods: Record<string, WorldMethodInfo>;
+  points: {
+    lon: number[];
+    lat: number[];
+    name: string[];
+    host: string[];
+    period_days: (number | null)[];
+    st_teff: (number | null)[];
+    radius_earth: (number | null)[];
+    disc_year: (number | null)[];
+    method: string[];
+    eq_temp: (number | null)[];
+    n_worlds: number;
+  };
+  timestamp: string;
+};
+
 export type CosmosSnapshot = {
-  kind: string;
   timestamp: string;
   gates_passed: boolean;
   gates: {
@@ -178,4 +239,11 @@ export const api = {
     fetchJson(`/cosmos/sky/overlays?nside=${nside}&map_product=${product}`),
   cosmosSkyRasterUrl: (nside = 64, product = "wmap_k_band", width = 1536, height = 768) =>
     `/cosmos/sky/raster?nside=${nside}&map_product=${product}&width=${width}&height=${height}`,
+  cosmosWorlds: (opts?: { nside?: number; weight?: string; nEnsemble?: number }) => {
+    const q = new URLSearchParams();
+    q.set("nside", String(opts?.nside ?? 32));
+    q.set("weight", opts?.weight ?? "count");
+    q.set("n_ensemble", String(opts?.nEnsemble ?? 40));
+    return fetchJson<WorldAtlas>(`/cosmos/worlds?${q}`);
+  },
 };

@@ -416,3 +416,24 @@ button {
   font-size: 0.8rem;
   color: var(--muted);
 }
+
+.world-method-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.world-method-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 3px 6px;
+  border-bottom: 1px solid #30363d;
+}
+.world-method-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #21262d;
+}
+.world-popup {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
