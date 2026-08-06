@@ -1,5 +1,4 @@
 """RBLE scar signature S_RBLE(n̂) on HEALPix maps (Eq. 6)."""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -21,10 +20,24 @@ class DetectionReport(BaseModel):
     rble_score: float = Field(description="Peak S_RBLE signature strength.")
     preferred_axis: list[float] = Field(description="Unit vector n̂ of preferred scar axis.")
     n_hat: list[float] = Field(description="View axis used for scoring.")
+    fnl_proxy: float = Field(default=0.0, description="Local non-Gaussianity proxy (f_NL).")
     null_sigma: float = Field(default=0.0, description="Significance vs null ensemble (σ).")
     falsification_flags: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def compute_fnl_proxy(map_data: np.ndarray) -> float:
+    """Estimate a proxy for local non-Gaussianity f_NL via temperature field skewness."""
+    if map_data.size == 0:
+        return 0.0
+    mean = np.mean(map_data)
+    std = np.std(map_data)
+    if std == 0:
+        return 0.0
+    
+    skewness = np.mean(((map_data - mean) / std) ** 3)
+    return float(skewness)
 
 
 def _axis_from_angles(theta: float, phi: float) -> np.ndarray:
@@ -88,14 +101,11 @@ def compute_rble_signature(
     search_n_eta: int = 32,
     report_n_eta: int = 128,
 ) -> DetectionReport:
-    """Compute RBLE scar signature via geodesic Radon tomography (Eq. 6).
-
-    Uses the string-filtered geodesic line integral
-    S_RBLE(n̂) = ∫ |R_{S²}[T ⊗ W_string](n̂, η)| dη
-    from ``radon_tomography.py``, not a pixel anisotropy proxy.
-    """
+    """Compute RBLE scar signature via geodesic Radon tomography (Eq. 6)."""
     healpix_map = np.asarray(healpix_map, dtype=float).ravel()
     map_rms = float(np.std(healpix_map))
+    
+    fnl_val = compute_fnl_proxy(healpix_map)
 
     if n_hat is not None:
         axis = np.asarray(n_hat, dtype=float)
@@ -153,6 +163,7 @@ def compute_rble_signature(
         rble_score=float(score),
         preferred_axis=preferred.tolist(),
         n_hat=preferred.tolist(),
+        fnl_proxy=fnl_val,
         falsification_flags=flags,
         metadata=meta,
     )
