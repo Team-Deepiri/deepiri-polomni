@@ -26,6 +26,7 @@ from polomni.viz.cosmos.verification import (
     progress_events,
     run_full_verification,
 )
+from polomni.viz.cosmos.worlds import exoplanet_world_payload
 
 router = APIRouter(tags=["cosmos"])
 
@@ -90,9 +91,71 @@ def get_cosmos_sky_world(
     )
 
 
+@router.get("/worlds")
+def get_cosmos_worlds(
+    nside: int = Query(default=32, ge=8, le=128),
+    weight: str = Query(default="count", pattern="^(count|teff|period)$"),
+    n_ensemble: int = Query(default=40, ge=5, le=120),
+    n_null: int = Query(default=100, ge=10, le=400),
+    max_points: int = Query(default=1500, ge=200, le=6334),
+) -> dict:
+    """World Atlas — RBLE scan over real NASA exoplanet sky positions.
+
+    Includes the footprint-matched null significance, the per-method
+    preferred-axis audit, the world-dipole cosmic-rest-frame test, and the
+    world-sky angular power spectrum with its uniform-within-footprint null.
+    """
+    from polomni.viz.cosmos.worlds import exoplanet_world_payload
+
+    return exoplanet_world_payload(
+        nside=nside,
+        weight=weight,  # type: ignore[arg-type]
+        n_ensemble=n_ensemble,
+        n_null=n_null,
+        max_points=max_points,
+    )
+
+
 @router.get("/power-spectrum")
 def get_power_spectrum() -> dict:
     return cosmos_power_spectrum_payload()
+
+
+@router.get("/cross-sky")
+def get_cross_sky(
+    min_objects: int = Query(default=20, ge=1, le=100000),
+) -> dict:
+    """Cross-sky axis comparison across independent sky datasets.
+
+    A scar locked to a single preferred axis must appear in every sky. This
+    compares dipoles across the cached independent skies (exoplanets, SDSS
+    galaxies, GW events) — GW events whose ``network_axis`` is instrument
+    geometry rather than sky direction are excluded with a note.
+    """
+    from polomni.observatory.pipeline.sources.cross_sky import cross_sky_report
+
+    return cross_sky_report(min_objects=min_objects)
+
+
+@router.get("/bubble-search")
+def get_bubble_search(
+    nside: int = Query(default=128, ge=32, le=256),
+    n_null: int = Query(default=16, ge=4, le=64),
+    n_null_rank1: int = Query(default=16, ge=4, le=64),
+) -> dict:
+    """Bubble-collision search — the falsifiable multiverse observable.
+
+    Scans a real CMB map for circular temperature edges, the signature of a
+    bubble colliding with ours in eternal inflation. Compares the strongest
+    edge against a C_ℓ-matched + mask-matched Gaussian null (look-elsewhere
+    corrected) and reports an honest verdict. Also runs the rank-1 harmonic
+    axis search: a collision about n̂_c has ``a_lm = C_l·Y_lm(n̂_c)`` at every
+    l, so the m=0 power fraction at the collision axis is 1 at every multipole
+    (vs the isotropic 1/(2l+1)).
+    """
+    from polomni.observatory.pipeline.sources.bubble_collisions import bubble_collision_report
+
+    return bubble_collision_report(nside=nside, n_null=n_null, n_null_rank1=n_null_rank1)
 
 
 @router.get("/study")

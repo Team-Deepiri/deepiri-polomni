@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-ProductKind = Literal["fits", "txt", "json"]
+ProductKind = Literal["fits", "txt", "json", "csv"]
 ProductTier = Literal["lite", "standard", "heavy"]
 
 
@@ -30,7 +30,7 @@ class DataProduct:
     def cache_filename(self) -> str:
         if self.filename:
             return self.filename
-        suffix = {"fits": ".fits", "txt": ".txt", "json": ".json"}[self.kind]
+        suffix = {"fits": ".fits", "txt": ".txt", "json": ".json", "csv": ".csv"}[self.kind]
         return f"{self.id}{suffix}"
 
 
@@ -147,6 +147,21 @@ CATALOG: dict[str, DataProduct] = {
         mission="SDSS",
         refresh_hours=24.0 * 7,
         filename="sdss_bao_ladder.json",
+    ),
+    "nasa_exoplanet_ps": DataProduct(
+        id="nasa_exoplanet_ps",
+        name="NASA Exoplanet Archive confirmed planets (planetary systems table)",
+        url=(
+            "https://exoplanetarchive.ipac.caltech.edu/TAP/sync?query=select+pl_name,hostname,"
+            "ra,dec,pl_orbper,pl_rade,pl_bmassj,st_teff,pl_eqt,pl_insol,disc_year,discoverymethod"
+            "+from+ps+where+default_flag%3D1&format=csv"
+        ),
+        kind="csv",
+        tier="lite",
+        description="Real sky positions (RA/Dec) of all confirmed exoplanets — world-atlas scan target.",
+        mission="NASA",
+        refresh_hours=24.0 * 7,
+        filename="nasa_exoplanet_ps.csv",
     ),
 }
 

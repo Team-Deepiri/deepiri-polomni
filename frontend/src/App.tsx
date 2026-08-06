@@ -8,6 +8,7 @@ import PhysicsLoopLab from "./components/PhysicsLoopLab";
 import RadonTomography from "./components/RadonTomography";
 import SkyMapLibre from "./components/SkyMapLibre";
 import AladinSkyViewer from "./components/AladinSkyViewer";
+import WorldAtlas from "./components/WorldAtlas";
 
 type PanelProps = { title: string; children: React.ReactNode };
 
@@ -105,6 +106,7 @@ export default function App() {
 
       <MultiverseProofPanel />
       <CosmosLab />
+      <WorldAtlas />
       <ClosedLoopLab onGraphUpdate={setDistrict} />
       <PhysicsLoopLab />
       <RadonTomography />

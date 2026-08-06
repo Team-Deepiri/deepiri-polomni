@@ -19,8 +19,213 @@ export type CosmosSky = {
   scar_ring: { lon: number[]; lat: number[] };
 };
 
+export type WorldMethodInfo = {
+  n_worlds: number;
+  order_parameter_s: number;
+  preferred_axis: number[];
+  eigenvalues: number[];
+  separation_from_galactic_pole_deg: number;
+};
+
+export type WorldDipoleRefs = {
+  CMB_dipole_apex: { separation_deg: number };
+  ecliptic_north_pole: { separation_deg: number };
+  kepler_field_center: { separation_deg: number };
+  galactic_north_pole: { separation_deg: number };
+};
+
+export type WorldMethodDipole = {
+  n_worlds: number;
+  dipole: number[];
+  magnitude: number;
+  sigma68_deg: number;
+  median_deg: number;
+  references: WorldDipoleRefs;
+};
+
+export type WorldSpectrumNull = {
+  n_null: number;
+  n_worlds: number;
+  p16: number[];
+  p50: number[];
+  p84: number[];
+  observed: number[];
+  z_score: number[];
+  p_value: number[];
+};
+
+export type WorldSpectrum = {
+  nside: number;
+  lmax: number;
+  weight: string;
+  ell: number[];
+  pseudo: number[];
+  masked: number[];
+  occupancy_fraction: number;
+  null: WorldSpectrumNull;
+};
+
+export type WorldScan = {
+  rble_score: number;
+  preferred_axis: number[];
+  null_mu: number;
+  null_sigma: number;
+  null_sigma_significance: number;
+  n_ensemble: number;
+  weight: string;
+  separation_from_galactic_pole_deg: number;
+  metadata: Record<string, unknown>;
+};
+
+export type WorldAtlas = {
+  ready: boolean;
+  source: string;
+  nside: number;
+  weight: string;
+  catalog: {
+    n_worlds: number;
+    n_hosts: number;
+    n_planets_sky: number;
+    occupied_pixels: number;
+    occupancy_fraction: number;
+    years_range: number[];
+    methods: string[];
+  };
+  scan: WorldScan;
+  axis_marker: { lon: number; lat: number };
+  scar_ring: { lon: number[]; lat: number[] };
+  alignment: {
+    n_worlds: number;
+    trace: number;
+    eigenvalues: number[];
+    preferred_axis: number[];
+    order_parameter_s: number;
+    lam1_minus_isotropic: number;
+  };
+  methods: Record<string, WorldMethodInfo>;
+  dipole: {
+    vector: number[];
+    magnitude: number;
+    references: WorldDipoleRefs;
+    bootstrap: {
+      n_boot: number;
+      n_units: number;
+      per_host: boolean;
+      sigma68_deg: number;
+      median_deg: number;
+      observed_dipole: number[];
+      observed_magnitude: number;
+    };
+    bootstrap_per_host: {
+      n_boot: number;
+      n_units: number;
+      per_host: boolean;
+      sigma68_deg: number;
+      median_deg: number;
+    };
+    method_dipoles: Record<string, WorldMethodDipole>;
+    kepler_excision: {
+      reference: string;
+      n_worlds_full: number;
+      full_magnitude: number;
+      full_isotropic_expectation: number;
+      rows: {
+        radius_deg: number;
+        n_worlds: number;
+        magnitude: number;
+        isotropic_expectation: number;
+        references: WorldDipoleRefs;
+      }[];
+    };
+  };
+  spectrum: WorldSpectrum;
+  points: {
+    lon: number[];
+    lat: number[];
+    name: string[];
+    host: string[];
+    period_days: (number | null)[];
+    st_teff: (number | null)[];
+    radius_earth: (number | null)[];
+    disc_year: (number | null)[];
+    method: string[];
+    eq_temp: (number | null)[];
+    n_worlds: number;
+  };
+  timestamp: string;
+};
+
+export type CrossSkySky = {
+  sky: string;
+  n_objects: number;
+  note?: string;
+  dipole: number[];
+  magnitude: number | null;
+  isotropic_expectation: number | null;
+  references: WorldDipoleRefs;
+};
+
+export type CrossSkyReport = {
+  skies: CrossSkySky[];
+  pairwise: { sky_a: string; sky_b: string; separation_deg: number }[];
+  n_skies: number;
+};
+
+export type BubbleCandidate = {
+  center_index: number;
+  gal_lon: number;
+  gal_lat: number;
+  radius_deg: number;
+  edge_uk: number;
+  abs_edge_uk: number;
+};
+
+export type BubbleProfileRow = {
+  radius_deg: number;
+  mean_t_uk: number;
+  n_pixels: number;
+};
+
+export type BubbleSearchReport = {
+  instrument: string;
+  map_product_id: string;
+  nside: number;
+  n_centers: number;
+  n_circles_scanned: number;
+  mask: { b_cut_deg: number; f_sky: number };
+  null: {
+    n_realizations: number;
+    max_abs_edge_uk: { observed: number; median: number; p84: number; sigma: number };
+  };
+  p_value: number;
+  strongest_circle: {
+    gal_lon: number | null;
+    gal_lat: number | null;
+    radius_deg: number | null;
+    edge_uk: number | null;
+    radial_profile: BubbleProfileRow[];
+  };
+  top_candidates: BubbleCandidate[];
+  harmonic_axis: {
+    axis: { gal_lon: number; gal_lat: number };
+    score: number;
+    lmax: number;
+    n_dir: number;
+    null: {
+      n_realizations: number;
+      max_score_observed: number;
+      max_score_median: number;
+      max_score_p84: number;
+    };
+    p_value: number;
+    verdict: string;
+  };
+  verdict: string;
+  equations?: { edge?: string; rank1?: string };
+  timestamp: string;
+};
+
 export type CosmosSnapshot = {
-  kind: string;
   timestamp: string;
   gates_passed: boolean;
   gates: {
@@ -159,6 +364,12 @@ export const api = {
   cosmosNullTiers: (nside = 64, product = "wmap_k_band") =>
     fetchJson(`/cosmos/null-tiers?nside=${nside}&map_product=${product}`),
   cosmosCompare: (nside = 64) => fetchJson(`/cosmos/compare?nside=${nside}`),
+  cosmosCrossSky: (minObjects = 20) =>
+    fetchJson<CrossSkyReport>(`/cosmos/cross-sky?min_objects=${minObjects}`),
+  cosmosBubbleSearch: (nside = 128, nNull = 16, nNullRank1 = 16) =>
+    fetchJson<BubbleSearchReport>(
+      `/cosmos/bubble-search?nside=${nside}&n_null=${nNull}&n_null_rank1=${nNullRank1}`,
+    ),
   cosmosHistogram: (product = "wmap_k_band", nside = 64) =>
     fetchJson(`/cosmos/null-histogram?nside=${nside}&map_product=${product}`),
   cosmosStudy: () => fetchJson("/cosmos/study"),
@@ -178,4 +389,16 @@ export const api = {
     fetchJson(`/cosmos/sky/overlays?nside=${nside}&map_product=${product}`),
   cosmosSkyRasterUrl: (nside = 64, product = "wmap_k_band", width = 1536, height = 768) =>
     `/cosmos/sky/raster?nside=${nside}&map_product=${product}&width=${width}&height=${height}`,
-};
+  cosmosWorlds: (opts?: {
+    nside?: number;
+    weight?: string;
+    nEnsemble?: number;
+    nNull?: number;
+  }) => {
+    const q = new URLSearchParams();
+    q.set("nside", String(opts?.nside ?? 32));
+    q.set("weight", opts?.weight ?? "count");
+    q.set("n_ensemble", String(opts?.nEnsemble ?? 40));
+    q.set("n_null", String(opts?.nNull ?? 100));
+    return fetchJson<WorldAtlas>(`/cosmos/worlds?${q}`);
+  },};

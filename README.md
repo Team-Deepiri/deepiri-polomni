@@ -157,10 +157,11 @@ Fetch public CMB and GW catalogs, cache locally, and run the full RBLE observato
 
 | Command | Description |
 |---------|-------------|
-| `polomni data list` | Show the online data catalog (Planck, WMAP, GWOSC) |
+| `polomni data list` | Show the online data catalog (Planck, WMAP, GWOSC, NASA exoplanets) |
 | `polomni data status` | List cached files and sizes under `data/cache/` |
 | `polomni data fetch` | Download lite products + GWTC (use `--wmap`, `--planck` for maps) |
 | `polomni data pipeline` | Ingest cached data and run RBLE scan (default WMAP K-band, NSIDE 128) |
+| `polomni data worlds` | Scan the real NASA exoplanet sky with RBLE + footprint null + dipole + C_ℓ |
 | `polomni data watch` | Poll GWOSC on an interval; optional `--scan-on-gw` re-scan |
 | `polomni data plot power` | Plot cached CMB power spectrum PNG |
 | `polomni data plot gw` | Plot GW event timeline from cache |
@@ -178,6 +179,64 @@ poetry run polomni data watch --interval 60 --iterations 3
 ```
 
 Cache directory: `data/cache/` (override with `POLOMNI_DATA_CACHE`). See [docs/guides/real_time_data.md](docs/guides/real_time_data.md).
+
+---
+
+## World Atlas — NASA Exoplanet Archive
+
+Maps the **real sky positions of every confirmed exoplanet** (NASA Exoplanet Archive,
+`nasa_exoplanet_ps`) onto a HEALPix density map, runs the RBLE geodesic-Radon scar
+scan over the distribution of worlds, and reports **four checks** that a
+naive scan would fake:
+
+1. **Footprint-matched null** — world counts are reshuffled *within* the observed
+   survey mask (Kepler field, TESS bands), so the reported σ is against an honest null,
+   not an unreachable isotropic sky.
+2. **Per-method axis audit** — the preferred axis is recomputed per discovery method
+   and referenced to the Galactic pole. Sky-complete Radial Velocity worlds are nearly
+   isotropic (S≈0.06); Microlensing worlds are ordered *in the Galactic plane*
+   (S≈0.98, 88° from pole). A genuine world scar must survive both checks.
+3. **World-dipole cosmic-rest-frame test** — the dipole of the world directions is
+   measured against the CMB dipole apex (the Solar System's motion through the cosmic
+   rest frame), the ecliptic pole, the Galactic pole, and the Kepler field. Current
+   result: the dipole sits **4.8° from the Kepler field** and ≥62° from every cosmic
+   reference — a physical anisotropy would point at the CMB rest frame; this points at
+   the survey footprint.
+4. **World-sky power spectrum C_ℓ** — a novel observable (no published spectrum exists
+   for the confirmed-planet sky) with a uniform-within-footprint null. Only ℓ=1 (the
+   Kepler dipole) exceeds the null at ~6.5σ; all ℓ≥2 are consistent with random
+   placement within the footprint.
+5. **Cross-sky axis test** — independent skies must agree on a preferred axis, or there
+   is no axis. Compares the world dipole across every cached independent sky. Current
+   result: **exoplanets ↔ SDSS galaxies disagree by 71.9°** — each dipole points at its
+   own survey footprint (exoplanets → Kepler 4.8°, SDSS → northern cap). GWTC
+   `network_axis` is detector geometry and is rejected, not shipped as a sky direction.
+6. **Bubble-collision search** — the one multiverse signature with a concrete
+   observable: in eternal inflation a bubble colliding with ours leaves a **circular
+   temperature edge** in the CMB. Two complementary statistics on the real Planck SMICA
+   map, each vs a C_ℓ- and mask-matched null (look-elsewhere corrected): (a) the
+   **circle-edge** scan, validated by an injection gate that recovers planted
+   collisions exactly; (b) the **rank-1 harmonic-axis** search — by the addition
+   theorem a collision about n̂_c has `a_lm = C_l·Y_lm(n̂_c)` at every l, so its m=0
+   power fraction at the axis is 1 per multipole (isotropic: 1/(2l+1)); this separates
+   a collision from the CMB's own "axis of evil" by absorbing that alignment into the
+   null. Current result: **no significant edge (p≈0.35)** and **no axisymmetric
+   structure above the null** — consistent with the published null (Feeney et al.
+   2011), and the strongest circle's radial profile is a smooth gradient, not a step.
+
+```bash
+poetry run polomni data fetch nasa_exoplanet_ps sdss_bao_ladder
+poetry run polomni data worlds --nside 32 --ensemble 40 --null 100
+poetry run polomni data cross-sky
+poetry run polomni data bubble --nside 128 --n-null 16
+```
+
+The **World Atlas** panel in the frontend (`/app`) renders all worlds on a MapLibre
+globe colored by host temperature (or discovery method), with the RBLE scar ring +
+preferred axis overlaid, the world-dipole marker, the C_ℓ spectrum chart, and the full
+selection-bias audit table.
+
+Theory, invariants (Tr(Q)≡1), and domain of validity: [docs/theory/WORLD_ATLAS.md](docs/theory/WORLD_ATLAS.md).
 
 ---
 
@@ -202,6 +261,7 @@ poetry run polomni serve
 | `/observatory/pipeline` | POST | Full ingest → score → report pipeline |
 | `/observatory/reports` | GET | List JSON detection reports |
 | `/observatory/compare` | POST | Compare two detection reports |
+| `/cosmos/worlds` | GET | World Atlas — RBLE scan of real exoplanet sky positions + footprint null |
 | `/metrics` | GET | Lab operational metrics |
 | `/dashboard` | GET | Browser dashboard UI |
 | `/stream/gw/poll` | GET | SSE stream of GW catalog poll events |
@@ -317,6 +377,10 @@ poetry run polomni serve --port 8091
 cd frontend && npm install && npm run dev   # http://localhost:5173
 cd frontend && npm run build                # production → http://localhost:8091/app
 ```
+
+Panels include the **World Atlas** (real NASA exoplanets + RBLE scan), Cosmos Lab
+(WMAP/Planck dual-map calibration), 3D multiverse DAG, Kähler landscape, and the proof
+suite.
 
 Proof notebooks: `experiments/09_variational_principle.ipynb` through `13_real_data_theory_bridge.ipynb`.
 
