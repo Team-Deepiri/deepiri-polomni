@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from polomni.observatory.filters.radon_bifurcation import inverse_radon_bifurcation_filter
+from polomni.observatory.filters.string_filter import string_landscape_filter
 
 import numpy as np
 
@@ -188,8 +190,11 @@ def run_rble_pipeline(
     report_dir: Path | None = None,
     fetch_gw: bool = True,
     event_log: EventLog | None = None,
+    enable_p1_pipeline: bool = True,
+    string_w_params: dict[str, Any] | None = None,
+    radon_angles: np.ndarray | list[tuple[float, float, float]] | None = None,
 ) -> PipelineResult:
-    """Fetch real data, load CMB map, downsample, score RBLE signature."""
+    """Fetch real data, load CMB map, downsample, run P1 filters, and score RBLE signature."""
     cache = cache or DataCache()
     log = event_log or EventLog(cache.root / "events.jsonl")
     log.append(pipeline_event("pipeline_start", map_product_id=map_product_id))
@@ -202,6 +207,36 @@ def run_rble_pipeline(
         event_log=log,
     )
 
+    pid = _resolve_map_product(map_product_id, include_heavy)
+    product = get_product(pid)
+    fetch = fetch_product(product, cache, force=force_fetch)
+    ingest.fetches.append(fetch)
+
+    raw_map = load_healpix_map(fetch.path, field="T")
+    cmb_map = downsample_map(raw_map, target_nside)
+
+    if enable_p1_pipeline or pid == "planck_smica_cmb":
+        w_params = string_w_params or {
+            "W0": 0.0,
+            "beta": 1.0,
+            "modes": [{"amplitude": 1.0, "m": 1, "n": 0, "phase": 0.0}],
+        }
+        cmb_map = string_landscape_filter(cmb_map, w_params)
+
+        default_angles = [(0.0, 0.0, 0.0), (np.pi / 4, np.pi / 4, 0.0)]
+        angles_to_use = radon_angles if radon_angles is not None else default_angles
+        cmb_map = inverse_radon_bifurcation_filter(cmb_map, angles_to_use)
+
+    log.append(
+        pipeline_event(
+            "score_start",
+            map_product_id=pid,
+            nside=target_nside,
+            npix=int(cmb_map.size),
+        )
+    )
+
+    detection = compute_rble_signature(cmb_map)
     pid = _resolve_map_product(map_product_id, include_heavy)
     product = get_product(pid)
     fetch = fetch_product(product, cache, force=force_fetch)
