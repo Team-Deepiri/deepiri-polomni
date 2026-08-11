@@ -123,10 +123,10 @@ def fetch_gwtc_events(
     dest_dir = cache.root / GWOSC_EVENTS_PRODUCT_ID
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / "gwtc_events.json"
-    dest.write_text(snapshot.model_dump_json(indent=2))
-    cache.record(
+    cache.store_text(
         GWOSC_EVENTS_PRODUCT_ID,
         dest,
+        snapshot.model_dump_json(indent=2),
         GWOSC_CATALOG_URL,
         extra={"results_count": snapshot.results_count},
     )
