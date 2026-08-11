@@ -41,7 +41,7 @@ class CacheManifest(BaseModel):
 
 def _fsync_directory(path: Path) -> None:
     """Persist directory-entry changes after an atomic replacement."""
-    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    fd = os.open(str(path), os.O_RDONLY | os.O_DIRECTORY)
     try:
         os.fsync(fd)
     finally:
