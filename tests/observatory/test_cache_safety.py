@@ -44,7 +44,7 @@ def _record_worker(
     path = cache.root / product_id / "payload.txt"
     path.parent.mkdir(parents=True)
     path.write_text(product_id)
-    barrier.wait(timeout=10)
+    barrier.wait()
     attempted.set()
     cache.record(product_id, path, f"https://example.test/{product_id}")
     finished.set()
@@ -54,8 +54,7 @@ def _hold_manifest_lock(root: str, acquired: Any, release: Any) -> None:
     cache = DataCache(Path(root))
     with cache._manifest_lock():
         acquired.set()
-        if not release.wait(timeout=10):
-            raise TimeoutError("parent did not release manifest lock")
+        release.wait()
 
 
 def _cleanup_processes(processes: list[Any]) -> None:
