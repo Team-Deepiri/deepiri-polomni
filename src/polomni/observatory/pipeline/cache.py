@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
@@ -13,9 +12,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from filelock import FileLock
 from pydantic import BaseModel, Field
 
 from polomni.observatory.pipeline.config import get_settings
+from polomni.observatory.pipeline.filesystem import (
+    atomic_replace,
+    create_rollback_backup,
+    restore_rollback_backup,
+    sync_directory,
+)
 
 
 def default_cache_dir() -> Path:
@@ -39,15 +45,6 @@ class CacheManifest(BaseModel):
     entries: dict[str, CacheEntry] = Field(default_factory=dict)
 
 
-def _fsync_directory(path: Path) -> None:
-    """Persist directory-entry changes after an atomic replacement."""
-    fd = os.open(str(path), os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
 def _atomic_write_text(path: Path, text: str) -> None:
     """Durably replace *path* with fully written UTF-8 text."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,9 +62,9 @@ def _atomic_write_text(path: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        atomic_replace(temporary, path)
         temporary = None
-        _fsync_directory(path.parent)
+        sync_directory(path.parent)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
@@ -93,12 +90,13 @@ class DataCache:
     @contextmanager
     def _manifest_lock(self) -> Iterator[None]:
         """Exclusively lock shared cache metadata for a short transaction."""
-        with self._manifest_lock_path.open("a+b") as handle:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        lock = FileLock(
+            self._manifest_lock_path,
+            timeout=-1,
+            preserve_lock_file=True,
+        )
+        with lock:
+            yield
 
     def _save_manifest_unlocked(self, manifest: CacheManifest) -> None:
         _atomic_write_text(self._manifest_path, manifest.model_dump_json(indent=2))
@@ -191,12 +189,12 @@ class DataCache:
                     candidate = destination.with_name(
                         f".{destination.name}.{secrets.token_hex(8)}.bak"
                     )
-                    os.link(destination, candidate)
+                    create_rollback_backup(destination, candidate)
                     backup = candidate
                     backup_created = True
-                os.replace(temporary, destination)
+                atomic_replace(temporary, destination)
                 installed = True
-                _fsync_directory(destination.parent)
+                sync_directory(destination.parent)
                 entry = CacheEntry(
                     product_id=product_id,
                     path=str(destination),
@@ -216,14 +214,13 @@ class DataCache:
                     temporary.unlink(missing_ok=True)
                 if installed and backup_created and backup is not None:
                     try:
-                        os.replace(backup, destination)
+                        restore_rollback_backup(backup, destination)
                     except Exception as restore_error:
                         raise restore_error from install_error
                     rollback_restored = True
-                    _fsync_directory(destination.parent)
                 elif installed and not destination_existed:
                     destination.unlink(missing_ok=True)
-                    _fsync_directory(destination.parent)
+                    sync_directory(destination.parent)
                 raise
             finally:
                 cleanup_backup = (

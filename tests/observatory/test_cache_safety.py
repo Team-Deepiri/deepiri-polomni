@@ -17,6 +17,7 @@ from pydantic import ValidationError
 
 from polomni.observatory.pipeline import cache as cache_module
 from polomni.observatory.pipeline import downloader
+from polomni.observatory.pipeline import filesystem
 from polomni.observatory.pipeline.cache import CacheManifest, DataCache
 from polomni.observatory.pipeline.catalog import (
     GWOSC_CATALOG_URL,
@@ -169,7 +170,7 @@ def _seed_gw(cache: DataCache, name: str) -> None:
 
 
 def test_concurrent_records_preserve_every_entry(tmp_path: Path) -> None:
-    ctx = multiprocessing.get_context("fork")
+    ctx = multiprocessing.get_context("spawn")
     ids = [f"product_{index}" for index in range(4)]
     barrier = ctx.Barrier(len(ids))
     acquired = ctx.Event()
@@ -191,23 +192,32 @@ def test_concurrent_records_preserve_every_entry(tmp_path: Path) -> None:
     try:
         holder.start()
         started.append(holder)
-        assert acquired.wait(timeout=5)
+        assert acquired.wait(timeout=15)
 
         for process in workers:
             process.start()
             started.append(process)
-        assert all(event.wait(timeout=5) for event in attempted)
+        assert all(event.wait(timeout=15) for event in attempted)
         assert not any(event.is_set() for event in finished)
 
         release.set()
         for process in started:
-            process.join(timeout=10)
+            process.join(timeout=20)
         assert all(process.exitcode == 0 for process in started)
     finally:
         release.set()
         _cleanup_processes(started)
 
     assert set(DataCache(tmp_path).load_manifest().entries) == set(ids)
+
+
+def test_manifest_lock_path_remains_stable(tmp_path: Path) -> None:
+    cache = DataCache(tmp_path)
+
+    with cache._manifest_lock():
+        assert cache._manifest_lock_path.exists()
+
+    assert cache._manifest_lock_path.exists()
 
 
 def test_manifest_replace_failure_keeps_previous_json(
@@ -223,8 +233,8 @@ def test_manifest_replace_failure_keeps_previous_json(
     previous = manifest_path.read_text()
 
     monkeypatch.setattr(
-        cache_module.os,
-        "replace",
+        cache_module,
+        "atomic_replace",
         lambda source, destination: (_ for _ in ()).throw(OSError("replace failed")),
     )
     with pytest.raises(OSError, match="replace failed"):
@@ -235,7 +245,7 @@ def test_manifest_replace_failure_keeps_previous_json(
     assert list(tmp_path.glob(".manifest.json.*.tmp")) == []
 
 
-def test_backup_link_failure_preserves_existing_artifact(
+def test_backup_link_failure_uses_durable_copy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -249,12 +259,51 @@ def test_backup_link_failure_preserves_existing_artifact(
     incoming.write_bytes(b"replacement")
 
     monkeypatch.setattr(
-        cache_module.os,
+        filesystem.os,
         "link",
         lambda source, target: (_ for _ in ()).throw(OSError("link failed")),
     )
 
-    with pytest.raises(OSError, match="link failed"):
+    cache.install_temp_file(
+        "product", incoming, destination, "https://example.test/replacement"
+    )
+
+    assert destination.read_bytes() == b"replacement"
+    assert not incoming.exists()
+    assert cache.load_manifest() != previous_manifest
+    entry = cache.get_entry("product")
+    assert entry is not None
+    assert entry.url == "https://example.test/replacement"
+    assert list(destination.parent.glob(".*.part")) == []
+    assert list(destination.parent.glob(".*.bak")) == []
+    assert list(destination.parent.glob(".*.tmp")) == []
+
+
+def test_backup_copy_failure_leaves_original_untouched(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cache = DataCache(tmp_path)
+    destination = cache.root / "product" / "payload.bin"
+    destination.parent.mkdir(parents=True)
+    destination.write_bytes(b"original")
+    cache.record("product", destination, "https://example.test/original")
+    previous_manifest = cache.load_manifest()
+    incoming = destination.parent / ".incoming.part"
+    incoming.write_bytes(b"replacement")
+
+    monkeypatch.setattr(
+        filesystem.os,
+        "link",
+        lambda source, target: (_ for _ in ()).throw(OSError("link failed")),
+    )
+    monkeypatch.setattr(
+        filesystem.shutil,
+        "copyfileobj",
+        lambda source, target: (_ for _ in ()).throw(OSError("copy failed")),
+    )
+
+    with pytest.raises(OSError, match="copy failed"):
         cache.install_temp_file(
             "product", incoming, destination, "https://example.test/replacement"
         )
@@ -264,6 +313,7 @@ def test_backup_link_failure_preserves_existing_artifact(
     assert cache.load_manifest() == previous_manifest
     assert list(destination.parent.glob(".*.part")) == []
     assert list(destination.parent.glob(".*.bak")) == []
+    assert list(destination.parent.glob(".*.tmp")) == []
 
 
 def test_restore_failure_preserves_backup(
@@ -276,14 +326,11 @@ def test_restore_failure_preserves_backup(
     destination.write_bytes(b"original")
     cache.record("product", destination, "https://example.test/original")
     previous_manifest = cache.load_manifest()
-    real_replace = cache_module.os.replace
-
-    def fail_backup_restore(source: Path, target: Path) -> None:
-        if Path(source).suffix == ".bak":
-            raise OSError("restore failed")
-        real_replace(source, target)
-
-    monkeypatch.setattr(cache_module.os, "replace", fail_backup_restore)
+    monkeypatch.setattr(
+        cache_module,
+        "restore_rollback_backup",
+        lambda source, target: (_ for _ in ()).throw(OSError("restore failed")),
+    )
     monkeypatch.setattr(
         cache,
         "_save_manifest_unlocked",
@@ -306,6 +353,32 @@ def test_restore_failure_preserves_backup(
     assert destination.read_bytes() == b"replacement"
     assert cache.load_manifest() == previous_manifest
     assert list(destination.parent.glob(".*.part")) == []
+
+
+def test_filesystem_restore_failure_preserves_backup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "payload.bin"
+    destination.write_bytes(b"replacement")
+    backup = tmp_path / ".payload.bin.recovery.bak"
+    backup.write_bytes(b"original")
+    real_replace = filesystem.atomic_replace
+
+    def fail_destination_replace(source: Path, target: Path) -> None:
+        if Path(target) == destination:
+            raise OSError("restore failed")
+        real_replace(source, target)
+
+    monkeypatch.setattr(filesystem, "atomic_replace", fail_destination_replace)
+
+    with pytest.raises(OSError, match="restore failed"):
+        filesystem.restore_rollback_backup(backup, destination)
+
+    assert destination.read_bytes() == b"replacement"
+    assert backup.read_bytes() == b"original"
+    assert list(tmp_path.glob(".*.restore")) == []
+    assert list(tmp_path.glob(".*.tmp")) == []
 
 
 def test_malformed_manifest_is_not_destroyed(tmp_path: Path) -> None:
@@ -357,6 +430,8 @@ def test_concurrent_downloads_use_unique_temps(
     assert entry.content_sha256 == hashlib.sha256(data).hexdigest()
     assert list(destination.parent.glob(".*.part")) == []
     assert list(destination.parent.glob(".*.bak")) == []
+    assert list(destination.parent.glob(".*.tmp")) == []
+    assert list(destination.parent.glob(".*.restore")) == []
 
 
 def test_interrupted_download_keeps_existing_file(
@@ -459,3 +534,5 @@ def test_gw_snapshot_replace_and_failure_rollback(
     directory = cache.root / GWOSC_EVENTS_PRODUCT_ID
     assert list(directory.glob(".*.part")) == []
     assert list(directory.glob(".*.bak")) == []
+    assert list(directory.glob(".*.tmp")) == []
+    assert list(directory.glob(".*.restore")) == []
