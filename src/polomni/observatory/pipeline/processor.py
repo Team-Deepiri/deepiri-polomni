@@ -237,24 +237,6 @@ def run_rble_pipeline(
     )
 
     detection = compute_rble_signature(cmb_map)
-    pid = _resolve_map_product(map_product_id, include_heavy)
-    product = get_product(pid)
-    fetch = fetch_product(product, cache, force=force_fetch)
-    ingest.fetches.append(fetch)
-
-    raw_map = load_healpix_map(fetch.path, field="T")
-    cmb_map = downsample_map(raw_map, target_nside)
-
-    log.append(
-        pipeline_event(
-            "score_start",
-            map_product_id=pid,
-            nside=target_nside,
-            npix=int(cmb_map.size),
-        )
-    )
-
-    detection = compute_rble_signature(cmb_map)
     null_maps = generate_null_ensemble(null_ensemble, target_nside, seed=7)
     null_scores = [compute_rble_signature(m).rble_score for m in null_maps]
     mu = float(np.mean(null_scores))

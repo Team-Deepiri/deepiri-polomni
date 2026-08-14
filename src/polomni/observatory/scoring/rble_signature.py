@@ -35,7 +35,7 @@ def compute_fnl_proxy(map_data: np.ndarray) -> float:
     std = np.std(map_data)
     if std == 0:
         return 0.0
-    
+
     skewness = np.mean(((map_data - mean) / std) ** 3)
     return float(skewness)
 
@@ -104,7 +104,7 @@ def compute_rble_signature(
     """Compute RBLE scar signature via geodesic Radon tomography (Eq. 6)."""
     healpix_map = np.asarray(healpix_map, dtype=float).ravel()
     map_rms = float(np.std(healpix_map))
-    
+
     fnl_val = compute_fnl_proxy(healpix_map)
 
     if n_hat is not None:
