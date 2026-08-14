@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import numpy as np
-
+import healpy as hp
 from polomni.observatory.ingest.healpix_loader import map_nside
 from polomni.observatory.scoring.axis_search import PreparedCmbMap, search_best_axis
-from polomni.observatory.scoring.multiple_testing import count_sky_search_tests, bonferroni_alpha
+from polomni.observatory.scoring.multiple_testing import (
+    count_sky_search_tests,
+    passes_bonferroni,
+)
 from polomni.observatory.scoring.radon_tomography import build_radon_tomogram
 from polomni.observatory.scoring.rble_signature import DetectionReport
 
@@ -61,18 +64,17 @@ def hierarchical_sky_search(
         final_score = refine_score
         tomogram_meta = {"tomogram_integral": refine_score, "tomogram_bifurcation": 0.0}
 
-    import healpy as hp
-
-    from polomni.observatory.scoring.multiple_testing import bonferroni_alpha
-
     n_coarse = hp.nside2npix(dir_nside)
     n_tests = count_sky_search_tests(
         scan_angles=n_coarse,
         hierarchical_refine_samples=refine_samples,
     )
-    bonf_pass = True
-    bonf_sigma = 0.0
-    bonf_alpha = bonferroni_alpha(0.05, n_tests)
+
+    bonf_pass, bonf_sigma, bonf_alpha = passes_bonferroni(
+        raw_sigma=final_score,
+        n_tests=n_tests,
+        alpha=0.05,
+    )
 
     meta = {
         "search": "hierarchical",
