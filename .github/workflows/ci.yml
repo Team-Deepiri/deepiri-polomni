@@ -6,12 +6,33 @@ on:
   pull_request:
     branches: [main, dev]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  ci:
-    name: Lint, Test & Smoke
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: pip install ruff==0.3.7
+
+      - name: Ruff
+        run: ruff check src/polomni tests
+
+  tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -24,14 +45,26 @@ jobs:
       - name: Install Poetry
         run: pip install poetry
 
+      - name: Cache Poetry environment
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
       - name: Install dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev --no-interaction --no-ansi
 
-      - name: Ruff
-        run: poetry run ruff check src/polomni tests
+      - name: Unit tests (parallel)
+        run: poetry run pytest tests/ -m "not integration" -n auto -q
 
-      - name: Unit tests
-        run: poetry run pytest tests/ -m "not integration" -q
+  docker:
+    name: Docker Build Smoke
+    runs-on: ubuntu-latest
 
-      - name: Docker build smoke
-        run: docker build -f docker/Dockerfile -t deepiri-polomni:ci-smoke .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image (layer-cached)
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker build --cache-from=type=gha --cache-to=type=gha,mode=max -f docker/Dockerfile -t deepiri-polomni:ci-smoke .
