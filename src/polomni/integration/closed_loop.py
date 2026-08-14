@@ -8,7 +8,11 @@ from typing import Any, Literal
 import numpy as np
 
 from polomni.core.superspace.district_graph import ChoicePolicy, DistrictGraph
-from polomni.core.geometry import axis_separation_deg, coordinate_to_axis
+from polomni.core.geometry import (
+    align_axis_to_reference,
+    axis_separation_deg,
+    coordinate_to_axis,
+)
 from polomni.integration.cmb_imprint import imprint_cmb_from_packets
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
 from polomni.observatory.scoring.rble_signature import DetectionReport
@@ -59,6 +63,10 @@ def apply_scan_feedback(
 
     Shifts parent district coordinate toward the recovered axis (or *target_axis*
     when set, e.g. real-sky bridge) and adjusts ``gravity_mutation_strength``.
+
+    Axes are undirected: if the scan returns the antipode of the parent
+    coordinate, feedback flips it into the same hemisphere before the
+    coordinate blend (otherwise the update shrinks/rotates away from the scar).
     """
     if parent_id not in graph.graph:
         raise KeyError(f"parent {parent_id} not in graph")
@@ -73,8 +81,14 @@ def apply_scan_feedback(
         coord = np.pad(coord, (0, 3 - coord.size))
 
     current_axis = coordinate_to_axis(coord)
+    recovered, flipped = align_axis_to_reference(recovered, current_axis)
     error_deg = axis_separation_deg(current_axis, recovered)
-    applied: dict[str, Any] = {"axis_error_deg_before": error_deg, "mode": mode}
+    applied: dict[str, Any] = {
+        "axis_error_deg_before": error_deg,
+        "mode": mode,
+        "antipode_aligned": flipped,
+        "feedback_axis": recovered.tolist(),
+    }
 
     if mode in ("coordinate_shift", "both"):
         new_coord = (1.0 - learning_rate) * coord + learning_rate * recovered
