@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
-import numpy as np
 import healpy as hp
+import numpy as np
+
 from polomni.observatory.ingest.healpix_loader import map_nside
 from polomni.observatory.scoring.axis_search import PreparedCmbMap, search_best_axis
 from polomni.observatory.scoring.multiple_testing import (
+    bonferroni_alpha,
     count_sky_search_tests,
-    passes_bonferroni,
 )
-from polomni.observatory.scoring.radon_tomography import build_radon_tomogram
+from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
+from polomni.observatory.scoring.radon_tomography import build_radon_tomogram, rble_score_at_axis
 from polomni.observatory.scoring.rble_signature import DetectionReport
+from polomni.observatory.scoring.snr import attach_null_significance
 
 
 def _axis_separation_deg(a: np.ndarray, b: np.ndarray) -> float:
@@ -32,8 +35,16 @@ def hierarchical_sky_search(
     search_n_eta: int = 16,
     report_n_eta: int = 48,
     full_tomogram: bool = True,
+    n_null: int = 0,
+    null_seed: int | None = None,
+    family_alpha: float = 0.05,
 ) -> DetectionReport:
-    """Search for preferred RBLE axis — one filter pass, pixel Radon throughout."""
+    """Search for preferred RBLE axis — one filter pass, pixel Radon throughout.
+
+    Bonferroni uses formula SNR = (S − μ_null) / σ_null when ``n_null > 0``.
+    Passing the raw S_RBLE score as Gaussian σ is incorrect and is no longer done.
+    Without nulls, Bonferroni is reported as inconclusive (not a free pass).
+    """
     full_map = np.asarray(healpix_map, dtype=float).ravel()
     current_nside = map_nside(full_map)
     prepared = PreparedCmbMap.from_map(full_map)
@@ -70,11 +81,57 @@ def hierarchical_sky_search(
         hierarchical_refine_samples=refine_samples,
     )
 
-    bonf_pass, bonf_sigma, bonf_alpha = passes_bonferroni(
-        raw_sigma=final_score,
-        n_tests=n_tests,
-        alpha=0.05,
-    )
+    null_sigma = 0.0
+    bonf_pass = False
+    bonf_sigma = 0.0
+    bonf_alpha = bonferroni_alpha(family_alpha, n_tests)
+    bonf_status = "inconclusive_no_nulls"
+    snr_meta: dict[str, float | int | bool] = {}
+
+    if n_null > 0:
+        nseed = seed + 17 if null_seed is None else int(null_seed)
+        null_maps = generate_null_ensemble(n_null, current_nside, seed=nseed)
+        null_scores = np.asarray(
+            [
+                rble_score_at_axis(
+                    m,
+                    refine_axis,
+                    n_eta=max(search_n_eta, 24),
+                    apply_string_filter=True,
+                    method="pixel",
+                )
+                for m in null_maps
+            ],
+            dtype=float,
+        )
+        s_at_axis = float(
+            rble_score_at_axis(
+                prepared.filtered,
+                refine_axis,
+                n_eta=max(search_n_eta, 24),
+                apply_string_filter=False,
+                method="pixel",
+            )
+        )
+        sig = attach_null_significance(
+            s_at_axis,
+            null_scores,
+            n_tests=n_tests,
+            family_alpha=family_alpha,
+        )
+        null_sigma = float(sig["null_sigma"])
+        bonf_pass = bool(sig["bonferroni_pass"])
+        bonf_sigma = float(sig["bonferroni_corrected_sigma"])
+        bonf_alpha = float(sig["bonferroni_alpha"])
+        bonf_status = "computed_known_axis_null"
+        snr_meta = {
+            "snr": float(sig["snr"]),
+            "mu_null": float(sig["mu_null"]),
+            "sigma_null_std": float(sig["sigma_null"]),
+            "p_value": float(sig["p_value"]),
+            "s_at_preferred_axis": s_at_axis,
+            "n_null": int(n_null),
+        }
 
     meta = {
         "search": "hierarchical",
@@ -88,6 +145,8 @@ def hierarchical_sky_search(
         "bonferroni_corrected_sigma": bonf_sigma,
         "bonferroni_alpha": bonf_alpha,
         "bonferroni_pass": bonf_pass,
+        "bonferroni_status": bonf_status,
+        **snr_meta,
         **search_meta,
     }
     if "coarse_axis" in search_meta:
@@ -100,12 +159,14 @@ def hierarchical_sky_search(
         "radon_anisotropic": final_score > 0.25,
         "geodesic_radon": True,
         "bonferroni": bonf_pass,
+        "null_significance_computed": n_null > 0,
     }
 
     return DetectionReport(
         rble_score=float(final_score),
         preferred_axis=refine_axis.tolist(),
         n_hat=refine_axis.tolist(),
+        null_sigma=float(null_sigma),
         falsification_flags=flags,
         metadata=meta,
     )

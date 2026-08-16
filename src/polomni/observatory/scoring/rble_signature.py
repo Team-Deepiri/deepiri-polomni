@@ -1,5 +1,4 @@
 """RBLE scar signature S_RBLE(n̂) on HEALPix maps (Eq. 6)."""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -21,10 +20,24 @@ class DetectionReport(BaseModel):
     rble_score: float = Field(description="Peak S_RBLE signature strength.")
     preferred_axis: list[float] = Field(description="Unit vector n̂ of preferred scar axis.")
     n_hat: list[float] = Field(description="View axis used for scoring.")
+    fnl_proxy: float = Field(default=0.0, description="Local non-Gaussianity proxy (f_NL).")
     null_sigma: float = Field(default=0.0, description="Significance vs null ensemble (σ).")
     falsification_flags: dict[str, bool] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def compute_fnl_proxy(map_data: np.ndarray) -> float:
+    """Estimate a proxy for local non-Gaussianity f_NL via temperature field skewness."""
+    if map_data.size == 0:
+        return 0.0
+    mean = np.mean(map_data)
+    std = np.std(map_data)
+    if std == 0:
+        return 0.0
+
+    skewness = np.mean(((map_data - mean) / std) ** 3)
+    return float(skewness)
 
 
 def _axis_from_angles(theta: float, phi: float) -> np.ndarray:
@@ -87,15 +100,25 @@ def compute_rble_signature(
     score_weight: Literal["integral", "bifurcation", "contrast"] = "integral",
     search_n_eta: int = 32,
     report_n_eta: int = 128,
+    n_null: int = 0,
+    null_seed: int | None = None,
+    family_alpha: float = 0.05,
 ) -> DetectionReport:
     """Compute RBLE scar signature via geodesic Radon tomography (Eq. 6).
 
-    Uses the string-filtered geodesic line integral
-    S_RBLE(n̂) = ∫ |R_{S²}[T ⊗ W_string](n̂, η)| dη
-    from ``radon_tomography.py``, not a pixel anisotropy proxy.
+    When ``n_null > 0``, fills ``null_sigma`` and Bonferroni metadata from
+    ``SNR = (S − μ_null) / σ_null`` at the preferred axis. Without nulls,
+    Bonferroni is left unset (score alone is not Gaussian σ).
     """
+    from polomni.observatory.ingest.healpix_loader import map_nside
+    from polomni.observatory.scoring.multiple_testing import count_sky_search_tests
+    from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
+    from polomni.observatory.scoring.snr import attach_null_significance
+
     healpix_map = np.asarray(healpix_map, dtype=float).ravel()
     map_rms = float(np.std(healpix_map))
+
+    fnl_val = compute_fnl_proxy(healpix_map)
 
     if n_hat is not None:
         axis = np.asarray(n_hat, dtype=float)
@@ -108,6 +131,7 @@ def compute_rble_signature(
             n_eta=report_n_eta,
             method="transform",
         )
+        n_tests = 1
     else:
         best_score = -1.0
         preferred = np.array([0.0, 0.0, 1.0])
@@ -132,12 +156,14 @@ def compute_rble_signature(
             n_eta=report_n_eta,
             method="transform",
         )
+        n_tests = count_sky_search_tests(scan_angles=scan_angles * scan_angles)
 
     flags = {
         "radon_anisotropic": score > 0.25,
         "te_coupling_stub": map_rms > 0.0,
         "null_rejected_stub": score > 0.5,
         "geodesic_radon": True,
+        "null_significance_computed": False,
     }
     meta = {
         "map_rms": map_rms,
@@ -149,10 +175,45 @@ def compute_rble_signature(
         "tomogram_contrast": tomogram.score_contrast,
     }
 
+    null_sigma = 0.0
+    if n_null > 0:
+        nside = map_nside(healpix_map)
+        seed = 0 if null_seed is None else int(null_seed)
+        null_maps = generate_null_ensemble(n_null, nside, seed=seed)
+        null_scores = [
+            _score_at_axis(m, preferred, n_eta=max(search_n_eta, 24), score_weight=score_weight)
+            for m in null_maps
+        ]
+        sig = attach_null_significance(
+            float(score),
+            null_scores,
+            n_tests=n_tests,
+            family_alpha=family_alpha,
+        )
+        null_sigma = float(sig["null_sigma"])
+        flags["null_significance_computed"] = True
+        flags["bonferroni"] = bool(sig["bonferroni_pass"])
+        meta.update(
+            {
+                "bonferroni_pass": bool(sig["bonferroni_pass"]),
+                "bonferroni_corrected_sigma": float(sig["bonferroni_corrected_sigma"]),
+                "bonferroni_alpha": float(sig["bonferroni_alpha"]),
+                "bonferroni_n_tests": int(n_tests),
+                "bonferroni_status": "computed_known_axis_null",
+                "snr": float(sig["snr"]),
+                "mu_null": float(sig["mu_null"]),
+                "sigma_null_std": float(sig["sigma_null"]),
+                "p_value": float(sig["p_value"]),
+                "n_null": int(n_null),
+            }
+        )
+
     return DetectionReport(
         rble_score=float(score),
         preferred_axis=preferred.tolist(),
         n_hat=preferred.tolist(),
+        null_sigma=null_sigma,
+        fnl_proxy=fnl_val,
         falsification_flags=flags,
         metadata=meta,
     )
