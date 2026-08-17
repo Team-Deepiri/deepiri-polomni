@@ -10,6 +10,13 @@ import numpy as np
 
 from polomni.observatory.pipeline.cache import DataCache
 from polomni.observatory.studies.p1_runner import run_p1_study
+from polomni.observatory.studies.results import (
+    CANONICAL_BLIND_RESULT,
+    InvalidResultPathError,
+    REPLICATION_RESULT,
+    is_canonical_blind_path,
+    load_canonical_blind_result,
+)
 
 _GOLDEN_PATH = Path("data/studies/p1_holdout/golden_holdout_v1.json")
 _REPLICATION_REPORT = Path("data/studies/p1_holdout/replication/VERIFY.json")
@@ -114,27 +121,46 @@ def run_independent_replication(
     cache: DataCache | None = None,
 ) -> dict[str, Any]:
     """Gate 5: verify cache pins and holdout metrics match golden reference."""
+    replication_path = output_path or REPLICATION_RESULT
+    if is_canonical_blind_path(replication_path):
+        raise InvalidResultPathError("Replication reruns cannot target the canonical blind result")
+
     golden = load_golden_reference(golden_path)
     cache = cache or DataCache()
     cache_ok, cache_errors = verify_cache_checksums(golden, cache=cache)
 
     if rerun:
-        result = run_p1_study(blind=True, cache=cache, output_path=output_path)
+        result = run_p1_study(
+            blind=True,
+            cache=cache,
+            output_path=replication_path,
+            artifact_role="replication_rerun",
+        )
+        rerun_performed = True
+        source_result_path = result["result_path"]
     else:
-        from polomni.observatory.studies.gates import load_latest_result
-
-        loaded = load_latest_result()
-        if loaded is None or not loaded.get("blind"):
-            result = run_p1_study(blind=True, cache=cache, output_path=output_path)
+        loaded = load_canonical_blind_result()
+        if loaded is None:
+            result = run_p1_study(
+                blind=True,
+                cache=cache,
+                output_path=replication_path,
+                artifact_role="replication_rerun",
+            )
+            rerun_performed = True
+            source_result_path = result["result_path"]
         else:
             result = loaded
-
+            rerun_performed = False
+            source_result_path = str(CANONICAL_BLIND_RESULT.resolve())
     result_ok, result_errors = compare_holdout_to_golden(result, golden)
     passed = cache_ok and result_ok
 
     report: dict[str, Any] = {
         "gate": "G5",
         "version": golden.get("version"),
+        "rerun": rerun_performed,
+        "source_result_path": source_result_path,
         "passed": passed,
         "cache_checksums_ok": cache_ok,
         "holdout_match_ok": result_ok,

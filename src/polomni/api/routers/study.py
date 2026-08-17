@@ -8,6 +8,10 @@ from fastapi import APIRouter, HTTPException
 
 from polomni.observatory.studies.gates import load_latest_result, run_p1_gates
 from polomni.observatory.studies.p1_runner import run_p1_study
+from polomni.observatory.studies.results import (
+    AmbiguousCanonicalResultError,
+    ResultConflictError,
+)
 
 router = APIRouter(tags=["study"])
 
@@ -19,7 +23,12 @@ def p1_gates() -> dict:
 
 @router.get("/p1/result")
 def p1_result() -> dict:
-    data = load_latest_result()
+    try:
+        data = load_latest_result()
+    except AmbiguousCanonicalResultError as exc:
+        raise HTTPException(
+            409, "Canonical blind result is ambiguous; operator action is required"
+        ) from exc
     if data is None:
         raise HTTPException(404, "No RESULT.json — run POST /study/p1/run first")
     return data
@@ -31,5 +40,9 @@ def p1_run(calibration: bool = True, blind: bool = False) -> dict:
         calibration = False
     try:
         return run_p1_study(blind=blind, calibration=calibration or not blind)
+    except (ResultConflictError, AmbiguousCanonicalResultError) as exc:
+        raise HTTPException(
+            409, "Canonical blind result conflict; operator action is required"
+        ) from exc
     except FileNotFoundError as exc:
         raise HTTPException(404, str(exc)) from exc

@@ -14,6 +14,13 @@ from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_sea
 from polomni.observatory.scoring.rble_signature import compute_rble_signature, inject_synthetic_scar
 from polomni.observatory.studies.config import P1StudyConfig, load_p1_config
 from polomni.observatory.studies.replication import run_independent_replication
+from polomni.observatory.studies.results import (
+    AmbiguousCanonicalResultError,
+    CALIBRATION_RESULT,
+    EXPLORATORY_RESULT,
+    load_canonical_blind_result,
+    load_result,
+)
 
 
 @dataclass
@@ -156,17 +163,28 @@ def run_p1_gates(
 
 
 def load_latest_result(path: Path | None = None) -> dict[str, Any] | None:
-    path = path or Path("data/studies/p1_holdout/RESULT.json")
-    if not path.is_file():
-        return None
-    import json
+    if path is not None:
+        return load_result(path)
+    blind = load_canonical_blind_result()
+    if blind is not None:
+        return blind
+    calibration = load_result(CALIBRATION_RESULT)
+    if calibration is not None:
+        return calibration
+    return load_result(EXPLORATORY_RESULT)
 
-    return json.loads(path.read_text(encoding="utf-8"))
 
-
-def check_gate4_blind_holdout(path: Path | None = None) -> GateCheck:
+def check_gate4_blind_holdout() -> GateCheck:
     """Gate 4: pre-registered blind holdout executed with sealed config."""
-    result = load_latest_result(path)
+    try:
+        result = load_canonical_blind_result()
+    except AmbiguousCanonicalResultError as exc:
+        return GateCheck(
+            gate="G4",
+            name="Blind holdout executed",
+            passed=False,
+            message=str(exc),
+        )
     if result is None:
         return GateCheck(
             gate="G4",
