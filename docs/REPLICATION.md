@@ -29,6 +29,10 @@ This runs:
 5. **Gate 4** — blind Planck SMICA holdout (`study run p1 --blind`)
 6. SHA256 manifest in `data/studies/p1_holdout/replication/`
 
+The canonical blind artifact is `data/studies/p1_holdout/RESULT.json` and is
+sealed after its first publication. Calibration uses `CALIBRATION_RESULT.json`;
+replication reruns use `replication/RERUN_RESULT.json`.
+
 ## Step-by-step
 
 ```bash
@@ -47,7 +51,8 @@ poetry run polomni study gates --full
 |------|------|
 | `docs/studies/P1_CMB_RADON_SCAR_PREREG.md` | Pre-registration (before holdout) |
 | `data/studies/p1_holdout/study_config.json` | Sealed analysis parameters |
-| `data/studies/p1_holdout/RESULT.json` | Calibration or holdout output |
+| `data/studies/p1_holdout/RESULT.json` | Sealed canonical blind-holdout output |
+| `data/studies/p1_holdout/CALIBRATION_RESULT.json` | Replaceable WMAP calibration output |
 | `data/cache/manifest.json` | SHA256 of downloaded mission files |
 
 ## Docker

@@ -12,6 +12,10 @@ poetry run polomni study replicate         # Gate 5 verify vs golden
 poetry run polomni study gates --full --replicate
 ```
 
+`RESULT.json` is sealed after the canonical blind run. Use
+`polomni study replicate --rerun` for an intentional rerun; it writes
+`data/studies/p1_holdout/replication/RERUN_RESULT.json`.
+
 ## Full replication from scratch
 
 ```bash
