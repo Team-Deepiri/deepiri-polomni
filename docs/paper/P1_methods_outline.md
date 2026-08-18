@@ -57,7 +57,7 @@ Bonferroni over declared search trials (`count_sky_search_tests`, \(\alpha=0.01\
 
 Run: `polomni study run p1 --calibration`
 
-Pipeline validates on independent WMAP map; scores recorded in `RESULT.json` (mode=`calibration`).
+Pipeline validates on independent WMAP map; scores are recorded in `CALIBRATION_RESULT.json`.
 
 ### 6.2 Blind holdout (Planck SMICA, NSIDE 128)
 

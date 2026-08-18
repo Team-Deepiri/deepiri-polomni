@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,8 +21,13 @@ from polomni.observatory.scoring.multiple_testing import (
 from polomni.observatory.scoring.null_models import NullTier, run_null_tier_comparison, te_correlation_along_axis
 from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
 from polomni.observatory.studies.config import P1StudyConfig, load_p1_config
-
-_RESULT_PATH = Path("data/studies/p1_holdout/RESULT.json")
+from polomni.observatory.studies.results import (
+    StudyMode,
+    check_canonical_blind_available,
+    is_canonical_blind_path,
+    publish_result,
+    resolve_result_path,
+)
 
 
 def _git_sha() -> str:
@@ -50,21 +54,26 @@ def run_p1_study(
     blind: bool = False,
     calibration: bool = False,
     output_path: Path | None = None,
+    artifact_role: str | None = None,
 ) -> dict[str, Any]:
-    """Execute P1 study per frozen config; write RESULT.json."""
+    """Execute P1 study per frozen config and publish its mode-specific result."""
     config = load_p1_config(config_path)
     cache = cache or DataCache()
     maps = config.maps
 
     if blind:
         product_id = str(maps.get("holdout_product_id", "planck_smica_cmb"))
-        mode = "holdout_blind"
+        mode: StudyMode = "holdout_blind"
     elif calibration:
         product_id = str(maps.get("calibration_product_id", "wmap_k_band"))
         mode = "calibration"
     else:
         product_id = str(maps.get("calibration_product_id", "wmap_k_band"))
         mode = "exploratory"
+
+    result_path = resolve_result_path(mode, output_path)
+    if is_canonical_blind_path(result_path):
+        check_canonical_blind_available(result_path)
 
     path = cache.resolved_path(product_id)
     if path is None:
@@ -155,8 +164,9 @@ def run_p1_study(
         "p1_falsified": not p1_supported and blind,
     }
 
-    out = output_path or _RESULT_PATH
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    result["result_path"] = str(out.resolve())
-    return result
+    return publish_result(
+        result,
+        mode=mode,
+        output_path=result_path,
+        artifact_role=artifact_role,
+    )

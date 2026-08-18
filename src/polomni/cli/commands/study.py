@@ -13,6 +13,7 @@ from rich.table import Table
 from polomni.observatory.studies.gates import load_latest_result, run_p1_gates, run_p1_gates_full
 from polomni.observatory.studies.p1_runner import run_p1_study
 from polomni.observatory.studies.replication import run_independent_replication
+from polomni.observatory.studies.results import ResultStoreError
 
 app = typer.Typer(help="Run pre-registered RBLE observatory studies.")
 console = Console()
@@ -56,15 +57,19 @@ def study_gates(
 
 @app.command("status")
 def study_status() -> None:
-    """Show latest P1 RESULT.json summary if present."""
-    result = load_latest_result()
+    """Show the preferred available P1 result summary."""
+    try:
+        result = load_latest_result()
+    except ResultStoreError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
     if result is None:
-        console.print("[yellow]No RESULT.json yet[/yellow] — run: polomni study run p1 --calibration")
+        console.print("[yellow]No P1 result yet[/yellow] — run: polomni study run p1 --calibration")
         raise typer.Exit(1)
     console.print(f"[bold]P1 study[/bold] mode={result.get('mode')} blind={result.get('blind')}")
     console.print(f"  map: {result.get('map_product_id')}  S={result['detection']['rble_score']:.4f}")
     console.print(f"  P1 supported: {result.get('p1_supported')}")
-    console.print(f"  path: {result.get('result_path', 'data/studies/p1_holdout/RESULT.json')}")
+    console.print(f"  path: {result.get('result_path', 'unknown')}")
 
 
 @app.command("run")
@@ -75,6 +80,10 @@ def study_run(
     calibration: Annotated[
         bool, typer.Option("--calibration", help="Calibration map (WMAP) only.")
     ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", help="Alternate result path for an intentional rerun."),
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Print JSON only.")] = False,
 ) -> None:
     """Run a frozen pre-registered study."""
@@ -83,7 +92,16 @@ def study_run(
         raise typer.Exit(1)
 
     try:
-        result = run_p1_study(config, blind=blind, calibration=calibration or (not blind))
+        result = run_p1_study(
+            config,
+            blind=blind,
+            calibration=calibration or (not blind),
+            output_path=output,
+        )
+    except ResultStoreError as exc:
+        console.print(f"[red]{exc}[/red]")
+        console.print("[dim]For a rerun, select an alternate path with --output.[/dim]")
+        raise typer.Exit(1) from exc
     except FileNotFoundError as exc:
         console.print(f"[red]{exc}[/red]")
         console.print("[dim]Hint: polomni data fetch wmap_k_band --no-lite[/dim]")
@@ -104,12 +122,16 @@ def study_run(
 @app.command("replicate")
 def study_replicate(
     rerun: Annotated[
-        bool, typer.Option("--rerun", help="Re-execute blind holdout before verify.")
+        bool, typer.Option("--rerun", help="Write a replication rerun before verify.")
     ] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Print JSON only.")] = False,
 ) -> None:
     """Gate 5: verify independent replication against golden holdout reference."""
-    report = run_independent_replication(rerun=rerun)
+    try:
+        report = run_independent_replication(rerun=rerun)
+    except ResultStoreError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
     if as_json:
         console.print(json.dumps(report, indent=2))
     else:
