@@ -53,3 +53,21 @@ def test_detection_report_json_roundtrip(tmp_path) -> None:
     out = save_json(report, tmp_path / "report.json")
     assert out.exists()
     assert "rble_score" in out.read_text(encoding="utf-8")
+
+
+@pytest.mark.observatory
+def test_compute_rble_signature_optional_null_significance() -> None:
+    """n_null fills formula SNR / Bonferroni; default leaves null_sigma unset."""
+    nside = 16
+    n_hat = np.array([0.0, 0.0, 1.0])
+    scarred = inject_synthetic_scar(synthetic_cmb_map(nside, seed=2), n_hat, amplitude=8.0)
+
+    bare = compute_rble_signature(scarred, n_hat=n_hat)
+    assert bare.null_sigma == 0.0
+    assert bare.falsification_flags.get("null_significance_computed") is False
+
+    with_null = compute_rble_signature(scarred, n_hat=n_hat, n_null=12, null_seed=3)
+    assert with_null.falsification_flags["null_significance_computed"] is True
+    assert "snr" in with_null.metadata
+    assert with_null.metadata["bonferroni_status"] == "computed_known_axis_null"
+    assert with_null.null_sigma == with_null.metadata["snr"]
