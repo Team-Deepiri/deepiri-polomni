@@ -111,8 +111,14 @@ def measure_preferred_axis(
     full_tomogram: bool = False,
     neural_prescreen: bool = False,
     seed: int = 0,
+    apply_mask: bool = False,
+    b_cut_deg: float = 20.0,
 ) -> PreferredAxisMeasurement:
-    """Measure the preferred axis on a cached WMAP/Planck product (not synthetic)."""
+    """Measure the preferred axis on a cached WMAP/Planck product (not synthetic).
+
+    When ``apply_mask`` is True, zero Galactic-plane / Planck-intensity-masked
+    pixels before the hierarchical search (clean-sky / foreground-hardened axis).
+    """
     cmb, product_id, path = load_real_sky_map(
         map_product_id=map_product_id,
         nside=nside,
@@ -121,6 +127,13 @@ def measure_preferred_axis(
     if path is None:
         raise FileNotFoundError(
             f"No cached real map for {map_product_id} — run: poetry run polomni data fetch"
+        )
+    mask_meta: dict[str, Any] = {}
+    if apply_mask:
+        from polomni.observatory.pipeline.sources.cmb_mask import apply_clean_sky_mask
+
+        cmb, mask_meta = apply_clean_sky_mask(
+            cmb, nside=nside, cache=cache, b_cut_deg=b_cut_deg
         )
     detection = hierarchical_sky_search(
         cmb,
@@ -135,6 +148,8 @@ def measure_preferred_axis(
     lon, lat = axis_lonlat(axis)
     meta = dict(detection.metadata or {})
     meta["falsification_flags"] = detection.falsification_flags
+    if mask_meta:
+        meta["clean_sky_mask"] = mask_meta
     return PreferredAxisMeasurement(
         map_product_id=product_id,
         nside=nside,

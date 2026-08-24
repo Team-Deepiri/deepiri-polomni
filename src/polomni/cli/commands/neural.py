@@ -256,24 +256,32 @@ def neural_rewrite_history(
 def neural_measure_axis(
     map_product: Annotated[str, typer.Option("--map-product")] = "wmap_k_band",
     nside: Annotated[int, typer.Option("--nside")] = 32,
+    mask: Annotated[
+        bool,
+        typer.Option("--mask/--no-mask", help="Apply Planck+|b| clean-sky mask."),
+    ] = True,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Freeze and print the *real* hierarchical preferred axis on a cached CMB map."""
     from polomni.integration.real_sky_bridge import measure_preferred_axis
     from polomni.observatory.pipeline.cache import DataCache
 
-    m = measure_preferred_axis(DataCache(), map_product, nside)
+    m = measure_preferred_axis(DataCache(), map_product, nside, apply_mask=mask)
     payload = m.to_dict()
     if as_json:
         console.print(json.dumps(payload, indent=2))
         return
+    mask_note = ""
+    if m.metadata.get("clean_sky_mask"):
+        cs = m.metadata["clean_sky_mask"]
+        mask_note = f"\n  clean_sky f_sky={cs.get('f_sky'):.3f} b_cut={cs.get('b_cut_deg')}°"
     console.print(
         f"[bold]Real preferred axis[/bold] ({m.map_product_id}, nside={m.nside})\n"
-        f"  provenance={payload['provenance']}  method={m.method}\n"
+        f"  provenance={payload['provenance']}  method={m.method}  mask={mask}\n"
         f"  source={m.source_path}\n"
         f"  axis={m.axis}\n"
         f"  lon={m.lon_deg:.3f}°  lat={m.lat_deg:.3f}°\n"
-        f"  S_RBLE={m.rble_score:.4g}"
+        f"  S_RBLE={m.rble_score:.4g}{mask_note}"
     )
 
 
