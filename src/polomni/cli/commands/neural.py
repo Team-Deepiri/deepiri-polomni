@@ -214,6 +214,44 @@ def neural_evaluate(
         )
 
 
+@app.command("rewrite-history")
+def neural_rewrite_history(
+    count: Annotated[int, typer.Option("--count")] = 40,
+    steps: Annotated[int, typer.Option("--steps")] = 3,
+    nside: Annotated[int, typer.Option("--nside")] = 32,
+    map_product: Annotated[str, typer.Option("--map-product")] = "wmap_k_band",
+    epochs: Annotated[int, typer.Option("--epochs")] = 100,
+    seed: Annotated[int, typer.Option("--seed")] = 0,
+    no_legacy: Annotated[
+        bool, typer.Option("--no-legacy", help="Train only on rewritten real-axis history.")
+    ] = False,
+) -> None:
+    """Rewrite training history to the frozen real preferred axis and retrain."""
+    from polomni.neural.rewrite_history import rewrite_and_retrain
+
+    console.print(
+        f"[dim]Rewriting history on {map_product} (nside={nside}, count={count})…[/dim]"
+    )
+    reports = rewrite_and_retrain(
+        count=count,
+        steps=steps,
+        nside=nside,
+        map_product_id=map_product,
+        epochs=epochs,
+        seed=seed,
+        merge_legacy=not no_legacy,
+    )
+    pa = reports["history"]["preferred_axis"]
+    console.print(
+        f"[green]History rewritten[/green] — {reports['n_samples']} samples\n"
+        f"  real axis lon={pa['lon_deg']:.2f}° lat={pa['lat_deg']:.2f}° "
+        f"S_RBLE={pa['rble_score']:.4g}\n"
+        f"  axis_err={reports['axis'].get('mean_axis_error_deg')} "
+        f"scar_err={reports['scar'].get('mean_axis_error_deg')}"
+    )
+    console.print("[dim]Next: poetry run polomni neural probe[/dim]")
+
+
 @app.command("measure-axis")
 def neural_measure_axis(
     map_product: Annotated[str, typer.Option("--map-product")] = "wmap_k_band",

@@ -86,7 +86,8 @@ class NeuralGuidance:
     ) -> dict[str, Any]:
         """Return policy / bias_axis / branch_weights for one choice event."""
         parent_axis = coordinate_to_axis(graph.graph.nodes[parent_id]["coordinate"])
-        bias = _unit(last_recovered_axis) if last_recovered_axis is not None else parent_axis
+        cold_start = last_recovered_axis is None
+        bias = _unit(last_recovered_axis) if not cold_start else parent_axis
 
         if not self.ready:
             return {
@@ -102,7 +103,12 @@ class NeuralGuidance:
             pred = self.axis_engine.forward(feats, adjacency=adj)
             idx = min(pidx, pred.shape[0] - 1)
             neural_axis = _unit(pred[idx])
-            bias = _unit(0.6 * neural_axis + 0.4 * bias)
+            # Cold-start: trust rewritten history (sky-axis labels) — do not
+            # dilute with the parent pole or uniform never leaves the pole.
+            if cold_start:
+                bias = neural_axis
+            else:
+                bias = _unit(0.7 * neural_axis + 0.3 * bias)
         if self.branch_engine is not None:
             pred = self.branch_engine.forward(feats, adjacency=adj)
             idx = min(pidx, pred.shape[0] - 1)
@@ -116,5 +122,5 @@ class NeuralGuidance:
             "policy": ChoicePolicy.NEURAL,
             "bias_axis": bias.tolist(),
             "branch_weights": weights,
-            "source": "graph_node",
+            "source": "graph_node_cold" if cold_start else "graph_node",
         }
