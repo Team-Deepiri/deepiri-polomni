@@ -454,24 +454,31 @@ def _metric_p5_rdf_tomography(
     rble_gate = bool(rble.get("gate_pass"))
     obs = phase_a.get("observed") or data.get("observed") or {}
     sep = float(obs.get("axis_separation_deg", 180.0))
-    passed = gate_b and rble_gate  # visibility bar: template + RBLE channel
+    phase_d = data.get("phase_d") or {}
+    p_cai = float((phase_d.get("null_shuffle") or {}).get("p_value", 1.0))
+    p_cai_sim = float((phase_d.get("null_lcdm_sim") or {}).get("p_value", 1.0))
+    gate_d = bool(phase_d.get("gate_pass"))
+    physics = data.get("multiverse_physics_gate") or {}
+    passed = bool(physics.get("pass")) or (gate_d and rble_gate)
+    q_sep = float((phase_d.get("quadratic_fields") or {}).get("axis_separation_deg", 180.0))
     return ProofMetric(
         id="M12_p5_rdf_tomography",
         name="P5-RDF bubble template (Planck×PSCz)",
         passed=passed,
-        value=min(p_coh, p_template),
+        value=min(p_coh, p_template, p_cai, p_cai_sim),
         threshold=0.01,
         unit="p_min",
         message=(
-            f"phase_a_sep={sep:.1f}° p_coh={p_coh:.4f} p_template={p_template:.4f} "
-            f"rble_gate={rble_gate} (Phase B+C visibility bar)"
+            f"phase_d_q_sep={q_sep:.1f}° p_cai={p_cai:.4f} p_cai_sim={p_cai_sim:.4f} "
+            f"gate_d={gate_d} rble_gate={rble_gate}"
         ),
         details={
             "phase": data.get("phase"),
             "phase_a": phase_a,
             "phase_b": phase_b,
+            "phase_d": phase_d,
             "rble_scar_axis_test": rble,
-            "multiverse_physics_gate": data.get("multiverse_physics_gate"),
+            "multiverse_physics_gate": physics,
             "verdict": data.get("verdict"),
         },
     )

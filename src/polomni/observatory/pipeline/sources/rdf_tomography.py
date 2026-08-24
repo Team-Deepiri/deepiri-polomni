@@ -35,7 +35,14 @@ from polomni.observatory.pipeline.sources.bubble_collision_template import (
     bubble_template_score,
     bubble_template_scores_batch,
 )
+from polomni.observatory.pipeline.sources.cai_bubble_template import (
+    match_cai_bubble_template,
+    search_cai_template_axis,
+)
 from polomni.observatory.pipeline.sources.iras_pscz import load_pscz_vectors
+from polomni.observatory.pipeline.sources.quadratic_remote_field import (
+    quadratic_remote_fields,
+)
 from polomni.observatory.pipeline.sources.sky_frames import equatorial_to_galactic
 
 
@@ -557,10 +564,52 @@ def rdf_tomography_report(
     rble_gate = bool(rble_test and rble_test.get("gate_pass"))
     combined_gate = bool(phase_b_gate and scar_sep_deg is not None and scar_sep_deg < 25.0)
 
+    # Phase D: full MV quadratic estimator + Cai template match
+    q_fields = quadratic_remote_fields(cmb_hp, delta_g, mask, f_sky=f_sky)
+    cai_at_dipole = match_cai_bubble_template(q_fields, mask)
+    cai_axis, cai_best, _ = search_cai_template_axis(q_fields, mask, nside_dir=nside_dir)
+    null_cai: list[float] = []
+    null_q_sep: list[float] = []
+    for _ in range(n_null):
+        shuf = shuffle_galaxy_positions(vecs_gal, nside, mask, rng)
+        d_null = galaxy_overdensity_map(shuf, nside, mask)
+        q_null = quadratic_remote_fields(cmb_hp, d_null, mask, f_sky=f_sky)
+        cai_null = match_cai_bubble_template(q_null, mask, axis=q_null.dipole_axis)
+        null_cai.append(cai_null["combined_correlation"])
+        null_q_sep.append(q_null.axis_separation_deg)
+    null_cai_arr = np.asarray(null_cai, dtype=float)
+    null_q_sep_arr = np.asarray(null_q_sep, dtype=float)
+    p_cai = float((1 + np.sum(null_cai_arr >= cai_best["combined_correlation"])) / (n_null + 1))
+
+    null_cai_sim: list[float] = []
+    for cmb_null in lcdm_cmb_null_realizations(
+        n_sim_null, nside, lmin=lmin, mask=mask, seed=seed + 3
+    ):
+        q_sim = quadratic_remote_fields(cmb_null, delta_g, mask, f_sky=f_sky)
+        cai_sim = match_cai_bubble_template(q_sim, mask, axis=q_sim.dipole_axis)
+        null_cai_sim.append(cai_sim["combined_correlation"])
+    null_cai_sim_arr = np.asarray(null_cai_sim, dtype=float)
+    p_cai_sim = float((1 + np.sum(null_cai_sim_arr >= cai_best["combined_correlation"])) / (n_sim_null + 1))
+
+    q_scar_match: dict[str, Any] | None = None
+    q_scar_sep: float | None = None
+    if scar_axis is not None:
+        q_scar_match = match_cai_bubble_template(q_fields, mask, axis=scar_axis)
+        q_scar_sep = axis_separation_deg(cai_axis, scar_axis)
+
+    phase_d_gate = bool(
+        p_cai < 0.01
+        and p_cai_sim < 0.01
+        and q_fields.axis_separation_deg < 25.0
+    )
+    physics_gate_v2 = bool(
+        phase_d_gate and q_scar_sep is not None and q_scar_sep < 25.0 and rble_gate
+    )
+
     return {
-        "instrument": "P5-RDF tomography (Phase A+B+C + RBLE scar axis)",
+        "instrument": "P5-RDF tomography (Phase A–D: MV quadratic + Cai template)",
         "study_id": "P5-RDF",
-        "phase": "B_template",
+        "phase": "D_quadratic",
         "map_product_id": pid,
         "galaxy_tracer": "iras_pscz",
         "nside": nside,
@@ -613,20 +662,42 @@ def rdf_tomography_report(
             "gate_pass": rble_gate,
         },
         "multiverse_physics_gate": {
-            "requires": "Phase B p<0.01 (shuffle+sim) AND template axis within 25° of RBLE scar",
-            "pass": combined_gate,
+            "requires": "Phase D quadratic Cai p<0.01 + RDF/RQF aligned + RBLE scar",
+            "pass": physics_gate_v2,
+            "legacy_phase_b": combined_gate,
+        },
+        "phase_d": {
+            "quadratic_fields": q_fields.to_dict(),
+            "cai_at_dipole": cai_at_dipole,
+            "cai_best_axis": cai_best,
+            "null_shuffle": {
+                "median_correlation": round(float(np.median(null_cai_arr)), 4),
+                "p_value": round(p_cai, 4),
+            },
+            "null_lcdm_sim": {
+                "n_realizations": n_sim_null,
+                "median_correlation": round(float(np.median(null_cai_sim_arr)), 4),
+                "p_value": round(p_cai_sim, 4),
+            },
+            "rble_scar_cai_match": q_scar_match,
+            "scar_sep_from_cai_axis_deg": round(q_scar_sep, 2) if q_scar_sep else None,
+            "gate_pass": phase_d_gate,
         },
         "verdict": _build_verdict(
             p_coherence=p_coherence,
             p_template_shuffle=p_template_shuffle,
             p_template_sim=p_template_sim,
+            p_cai=p_cai,
+            p_cai_sim=p_cai_sim,
             rble_gate=rble_gate,
-            combined_gate=combined_gate,
+            combined_gate=physics_gate_v2,
+            phase_d=phase_d_gate,
         ),
         "honesty": (
-            "Phase B uses a simplified Cai-class template, not full RemoteField reconstruction. "
-            "RBLE scar-axis enhancement is a model-specific prediction distinct from free axis search. "
-            "Tier 4 physics_established still requires a blind holdout observable surviving adversarial null."
+            "Phase D implements Deutsch et al. MV quadratic RDF/RQF (single-z bin) "
+            "with Cai et al. bubble template matching. RemoteField/SZ_cosmo multi-z "
+            "tomography is not yet integrated. No claim that multiverse is detected until "
+            "Phase D gate passes on blind holdout — current Planck×PSCz sensitivity is forecast-limited."
         ),
         "references": [
             "Deutsch et al. PRD 98, 063502 (2018) — RDF reconstruction",
@@ -642,9 +713,27 @@ def _build_verdict(
     p_coherence: float,
     p_template_shuffle: float,
     p_template_sim: float,
+    p_cai: float = 1.0,
+    p_cai_sim: float = 1.0,
     rble_gate: bool,
     combined_gate: bool,
+    phase_d: bool = False,
 ) -> str:
+    if combined_gate and phase_d:
+        return (
+            "Quadratic RDF/RQF + Cai bubble template + RBLE scar axis show coordinated signal — "
+            "requires independent Planck holdout and multi-z RemoteField validation before "
+            "physics_established / multiverse visibility claim."
+        )
+    if phase_d and not combined_gate:
+        return (
+            "Quadratic estimator shows template excess but RBLE scar channel or axis alignment "
+            "does not close — investigate before any multiverse claim."
+        )
+    if p_cai < 0.05 or p_cai_sim < 0.05:
+        return (
+            "Marginal quadratic Cai template excess — not sufficient for multiverse detection."
+        )
     if combined_gate:
         return (
             "RBLE scar axis + bubble template show coordinated enhancement — "

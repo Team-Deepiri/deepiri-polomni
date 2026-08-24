@@ -635,18 +635,19 @@ def rdf_tomography(
     header.add_column("Value")
     pa = rep.get("phase_a") or {}
     pb = rep.get("phase_b") or {}
+    pd = rep.get("phase_d") or {}
     obs = pa.get("observed") or {}
     null_a = pa.get("null") or {}
     rble = rep.get("rble_scar_axis_test") or {}
+    qf = pd.get("quadratic_fields") or {}
     for key, val in [
         ("Map", rep["map_product_id"]),
         ("Phase", rep.get("phase", "?")),
-        ("RDF axis (gal)", f"({obs.get('rdf_gal_lon')}°, {obs.get('rdf_gal_lat')}°)"),
-        ("Template axis (gal)", f"({pb.get('template_gal_lon')}°, {pb.get('template_gal_lat')}°)"),
-        ("Phase B template p", f"{(pb.get('null_shuffle') or {}).get('p_value', '?')}"),
-        ("ΛCDM sim null p", f"{(pb.get('null_lcdm_sim') or {}).get('p_value', '?')}"),
-        ("RBLE scar axis p", f"{(rble.get('null') or {}).get('p_value', '?')}"),
-        ("Scar↔template sep", f"{rble.get('template_axis_sep_from_scar_deg')}°"),
+        ("Quadratic RDF/RQF sep", f"{qf.get('axis_separation_deg')}°"),
+        ("Cai template corr", (pd.get("cai_best_axis") or {}).get("combined_correlation")),
+        ("Quadratic null p", (pd.get("null_shuffle") or {}).get("p_value")),
+        ("ΛCDM sim p (quad)", (pd.get("null_lcdm_sim") or {}).get("p_value")),
+        ("RBLE scar axis p", (rble.get("null") or {}).get("p_value", "?")),
         ("Physics gate", str((rep.get("multiverse_physics_gate") or {}).get("pass"))),
         ("Verdict", rep["verdict"]),
     ]:

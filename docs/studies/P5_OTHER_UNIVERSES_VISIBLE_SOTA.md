@@ -208,6 +208,21 @@ That is exactly Cai–Zhang–Guan (2025). It is the **only active SOTA line** t
 
 **Interpretation:** Consistent with ΛCDM + simplified proxy — **not** evidence of visible bubble collisions. Next: Phase B Cai et al. multipole template projection.
 
+## 8c. Phase D — MV quadratic estimator (Aug 2026)
+
+**Modules:** `quadratic_remote_field.py`, `cai_bubble_template.py`  
+**Method:** Deutsch et al. (2018) minimum-variance quadratic RDF/RQF from `T_small × δ_g` harmonic cross-alms; Cai et al. bubble template correlation.
+
+| Quantity | Real-sky value |
+|----------|----------------|
+| Quadratic RDF/RQF axis sep | 26.0° |
+| Cai template correlation (best axis) | 0.82 |
+| Shuffle null p | 0.23 |
+| ΛCDM sim null p | 0.18 |
+| Physics gate | **FAIL** |
+
+High template correlation alone is **not** detection — nulls show similar correlation structure. Multi-z RemoteField + ACT×DESI-class tracers needed for forecast sensitivity.
+
 ---
 
 ## 9. Recommended reading list (priority order)
