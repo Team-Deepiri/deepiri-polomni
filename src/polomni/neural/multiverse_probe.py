@@ -124,7 +124,6 @@ def run_open_loop_toward_sky(
     use_real_as_feedback: bool = False,
 ) -> ArmProbe:
     """Closed-loop from a *neutral* start — does policy alone approach real axis?"""
-    from polomni.core.geometry import coordinate_to_axis
     from polomni.integration.closed_loop import run_closed_loop_step
     from polomni.neural.guidance import NeuralGuidance
     from polomni.core.superspace.district_graph import DistrictGraph
@@ -158,6 +157,13 @@ def run_open_loop_toward_sky(
             step_policy = prop["policy"]
             bias = prop["bias_axis"]
             weights = prop["branch_weights"]
+            # Locksmith: imprint lives at parent coordinate — move the scar
+            # site toward the neural axis *before* the choice/imprint step.
+            neural_u = np.asarray(bias, dtype=float)
+            neural_u = neural_u / (np.linalg.norm(neural_u) + 1e-15)
+            coord = np.asarray(graph.graph.nodes[parent]["coordinate"], dtype=float)
+            lr = 0.85 if last_recovered is None else 0.45
+            graph.graph.nodes[parent]["coordinate"] = (1.0 - lr) * coord + lr * neural_u
 
         result = run_closed_loop_step(
             graph,
@@ -171,7 +177,7 @@ def run_open_loop_toward_sky(
             branch_weights=weights,
             apply_feedback=True,
             feedback_target_axis=real_axis if use_real_as_feedback else None,
-            feedback_learning_rate=0.35 if use_real_as_feedback else 0.2,
+            feedback_learning_rate=0.35 if use_real_as_feedback else 0.25,
         )
         last_recovered = result.recovered_axis
         al = align_sim_to_real(result.recovered_axis, real_axis)
