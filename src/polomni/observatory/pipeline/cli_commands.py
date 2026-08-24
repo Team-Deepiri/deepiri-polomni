@@ -455,17 +455,20 @@ def scar_consensus(
         f"agree={cmb.get('intra_cmb_agree')} (≤{cmb.get('threshold_deg')}°)"
     )
 
-    c_table = Table(title="Gates 2–3 — Catalogs vs CMB consensus axis")
+    c_table = Table(title="Gates 2–3 — Catalogs vs CMB consensus axis (Galactic)")
     c_table.add_column("Sky")
     c_table.add_column("N")
-    c_table.add_column("σ vs footprint null")
+    c_table.add_column("RBLE σ")
+    c_table.add_column("Ring σ")
     c_table.add_column("residual↔CMB °")
     for c in report.get("catalogs") or []:
         sc = c["cmb_axis_score"]
+        ring = c.get("ring_at_cmb") or {}
         c_table.add_row(
             c["sky"],
             str(c["n_objects"]),
-            f"{sc['null_sigma']:.2f}σ (S={sc['s_rble']:.3g})",
+            f"{sc['null_sigma']:.2f}σ",
+            f"{ring.get('null_sigma', float('nan')):.2f}σ",
             f"{c['residual_sep_from_cmb_deg']:.1f}",
         )
     console.print(c_table)
@@ -476,6 +479,12 @@ def scar_consensus(
             f"[dim]Planck holdout sep from WMAP consensus: "
             f"{hold['sep_from_consensus_deg']:.1f}°[/dim]"
         )
+    eq = report.get("cmb_consensus_equatorial_radec") or {}
+    if eq:
+        console.print(
+            f"[dim]CMB consensus equatorial RA/Dec ≈ "
+            f"{eq.get('ra_deg'):.2f}°, {eq.get('dec_deg'):.2f}°[/dim]"
+        )
 
     gates = report.get("gates") or {}
     style = "green" if report.get("scar_detected") else "yellow"
@@ -485,11 +494,13 @@ def scar_consensus(
         console.print(
             f"[dim]joint ring: min_z={joint.get('min_null_sigma'):.2f} "
             f"sep_cmb={joint.get('sep_from_cmb_consensus_deg'):.1f}° "
-            f"scar_joint={joint.get('scar_joint')}[/dim]"
+            f"scar_joint={joint.get('scar_joint')} "
+            f"method={joint.get('method', 'grid')}[/dim]"
         )
     console.print(
         f"[dim]gates: intra_cmb={gates.get('intra_cmb')} "
         f"cross_rble={gates.get('cross_rble')} "
+        f"cross_ring={gates.get('cross_ring')} "
         f"residual_nematic={gates.get('residual_nematic')} "
         f"joint_ring={gates.get('joint_ring')}[/dim]"
     )
