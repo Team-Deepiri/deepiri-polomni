@@ -64,7 +64,9 @@ def scan_run(
     if hierarchical:
         from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
 
-        detection = hierarchical_sky_search(cmb, coarse_nside=min(16, nside), seed=seed)
+        detection = hierarchical_sky_search(
+            cmb, coarse_nside=min(16, nside), seed=seed, neural_prescreen=neural
+        )
     else:
         detection = compute_rble_signature(cmb)
 

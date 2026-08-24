@@ -150,3 +150,5 @@ tmp/
 temp/
 scratch/
 .ruff_cache/
+data/loop_runs/
+data/neural/checkpoints/

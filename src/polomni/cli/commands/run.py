@@ -271,6 +271,14 @@ def physics_loop_run(
     map_product: Annotated[
         str, typer.Option("--map-product", help="Cached CMB product id (e.g. wmap_k_band).")
     ] = "wmap_k_band",
+    policy: Annotated[
+        str,
+        typer.Option("--policy", help="uniform|axis_biased|entropy_max|neural"),
+    ] = "axis_biased",
+    neural_prescreen: Annotated[
+        bool,
+        typer.Option("--neural-prescreen", help="Seed real-sky search with scar classifier."),
+    ] = False,
     output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
 ) -> None:
     """Run closed loop biased toward real-sky preferred axis from cached map."""
@@ -279,6 +287,8 @@ def physics_loop_run(
         nside=nside,
         map_product_id=map_product,
         cache=DataCache(),
+        policy=ChoicePolicy(policy),
+        neural_prescreen_real=neural_prescreen or policy == "neural",
     )
     table = Table(title="Physics Loop (Real Sky Bridge)")
     table.add_column("Step")
