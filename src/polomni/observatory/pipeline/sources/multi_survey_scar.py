@@ -6,18 +6,20 @@ universe-locked scar must instead:
 
 1. Agree across independent *CMB frequency bands* (same physics, different
    systematics) — the intra-mission gate.
-2. Light up as S_RBLE(n̂) on *catalog density maps* at that CMB consensus
-   axis *above* each catalog's footprint-permutation null — the cross-survey
-   gate.
+2. Light up as S_RBLE(n̂) / ring / polar occupancy on *catalog density maps*
+   at that CMB consensus axis *above* each catalog's null — the cross-survey
+   gate (polar nulls are latitude-matched when |b_axis| is high).
 3. Survive after projecting out each catalog's footprint dipole from the
-   nematic alignment tensor (residual axis still near the CMB consensus).
+   nematic alignment tensor (residual axis still near the CMB consensus),
+   including a joint residual-consensus test vs isotropic size-matched mocks.
 
 Critical: WMAP/Planck maps are **Galactic**; exoplanet/SDSS positions are
 **equatorial**. All cross-survey scores rotate catalogs into Galactic before
 comparing to the CMB axis (see ``sky_frames``).
 
-This module implements that three-gate instrument. A claimed detection requires
-all gates; anything less is logged as an honest null with the failing gate named.
+This module implements that instrument. A claimed detection requires a named
+scar_path with all its gates; anything less is logged as an honest null with
+the failing gate named.
 """
 
 from __future__ import annotations
@@ -60,6 +62,12 @@ JOINT_MIN_NULL_SIGMA = 2.0
 JOINT_MAX_SEP_FROM_CMB_DEG = 40.0
 # Alternate cross gate: ring excess at CMB axis (better for sparse catalogs than RBLE).
 CROSS_RING_MIN_NULL_SIGMA = 2.0
+# Polar occupancy (axis alignment) — lat-matched null when |b_axis| is high.
+POLAR_COS_THRESH = 0.70
+CROSS_POLAR_MIN_NULL_SIGMA = 2.0
+# Multi-catalog residual consensus vs isotropic size-matched null.
+RESIDUAL_CONSENSUS_MAX_P = 0.05
+RESIDUAL_CONSENSUS_N_NULL = 200
 
 
 def ring_occupancy_fraction(
@@ -233,6 +241,211 @@ def ring_sigma_at_axis(
         "null_std": sigma,
         "null_sigma": float(z),
         "n_null": float(n_null),
+    }
+
+
+def polar_occupancy_fraction(
+    vecs: np.ndarray, axis: np.ndarray, *, cos_thresh: float = POLAR_COS_THRESH
+) -> float:
+    """Fraction of unit vectors in the polar caps of *axis* (|n·â| ≥ cos_thresh)."""
+    a = _unit(axis)
+    return float(np.mean(np.abs(np.asarray(vecs, dtype=float) @ a) >= cos_thresh))
+
+
+def _axis_galactic_lat_deg(axis: np.ndarray) -> float:
+    import healpy as hp
+
+    _, lat = hp.vec2ang(_unit(axis), lonlat=True)
+    return float(np.asarray(lat, dtype=float).ravel()[0])
+
+
+def _lat_matched_random_axis(
+    rng: np.random.Generator, target_lat_deg: float, *, tol_deg: float = 12.0
+) -> np.ndarray:
+    """Draw a random unit axis with galactic latitude near *target_lat_deg*.
+
+    Free-sky polar nulls are invalid when the CMB axis sits near the Galactic
+    poles after a |b| cut — every high-|b| axis then looks polar-rich. Matching
+    |b_axis| removes that confound.
+    """
+    for _ in range(8000):
+        u = _unit(rng.normal(size=3))
+        if abs(_axis_galactic_lat_deg(u) - target_lat_deg) <= tol_deg:
+            return u
+    return _unit(rng.normal(size=3))
+
+
+def polar_sigma_at_axis(
+    vecs: np.ndarray,
+    axis: np.ndarray,
+    *,
+    n_null: int,
+    rng: np.random.Generator,
+    cos_thresh: float = POLAR_COS_THRESH,
+    lat_matched: bool | None = None,
+    lat_tol_deg: float = 12.0,
+) -> dict[str, float]:
+    """Polar occupancy at fixed *axis* vs random-axis null (same catalog).
+
+    When ``lat_matched`` is True (default if |b_axis| ≥ 60°), null axes are
+    drawn at similar galactic latitude so a near-polar CMB axis is not awarded
+    a free pass from the |b| selection itself.
+    """
+    axis_lat = _axis_galactic_lat_deg(axis)
+    if lat_matched is None:
+        lat_matched = abs(axis_lat) >= 60.0
+    obs = polar_occupancy_fraction(vecs, axis, cos_thresh=cos_thresh)
+    if lat_matched:
+        null_vals = [
+            polar_occupancy_fraction(
+                vecs,
+                _lat_matched_random_axis(rng, axis_lat, tol_deg=lat_tol_deg),
+                cos_thresh=cos_thresh,
+            )
+            for _ in range(n_null)
+        ]
+    else:
+        null_vals = [
+            polar_occupancy_fraction(vecs, _unit(rng.normal(size=3)), cos_thresh=cos_thresh)
+            for _ in range(n_null)
+        ]
+    mu = float(np.mean(null_vals))
+    sigma = float(np.std(null_vals))
+    z = (obs - mu) / sigma if sigma > 1e-12 else 0.0
+    return {
+        "polar_fraction": obs,
+        "null_mean": mu,
+        "null_std": sigma,
+        "null_sigma": float(z),
+        "n_null": float(n_null),
+        "cos_thresh": float(cos_thresh),
+        "lat_matched": float(1.0 if lat_matched else 0.0),
+        "axis_lat_deg": float(axis_lat),
+    }
+
+
+def _isotropic_unit_vectors(
+    n: int, rng: np.random.Generator, *, b_cut_deg: float | None = None
+) -> np.ndarray:
+    """Draw ~*n* isotropic unit vectors, optionally applying a |b| cut."""
+    if b_cut_deg is None:
+        v = rng.normal(size=(n, 3))
+        return v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-15)
+    # Oversample so the cut still leaves ~n rows.
+    from polomni.observatory.pipeline.sources.cmb_mask import galactic_latitude_cut
+
+    raw_n = max(n + 50, int(n * 2.2))
+    v = rng.normal(size=(raw_n, 3))
+    v = v / (np.linalg.norm(v, axis=1, keepdims=True) + 1e-15)
+    v = v[galactic_latitude_cut(v, b_cut_deg)]
+    if v.shape[0] >= n:
+        return v[:n]
+    return v
+
+
+def catalog_residual_consensus_null(
+    catalog_vecs: dict[str, np.ndarray],
+    cmb_axis: np.ndarray,
+    *,
+    b_cut_by_sky: dict[str, float | None] | None = None,
+    n_null: int = RESIDUAL_CONSENSUS_N_NULL,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Score multi-catalog residual-nematic consensus vs isotropic size-matched null.
+
+    Observed statistics (smaller better for angles; larger better for counts):
+    - consensus separation from the CMB axis
+    - max pairwise residual separation (mutual agreement)
+    - count of catalogs with residual within ``CROSS_SURVEY_MAX_SEP_DEG`` of CMB
+
+    The joint gate requires consensus_sep and max_pairwise both ≤ observed —
+    i.e. catalogs agree with each other *and* land near the CMB axis more than
+    isotropic mocks of the same sizes (and optional |b| cuts).
+    """
+    cmb = _unit(cmb_axis)
+    names = [k for k, v in catalog_vecs.items() if v is not None and len(v) >= 50]
+    if len(names) < 2:
+        return {
+            "n_catalogs": len(names),
+            "gate_pass": False,
+            "reason": "need ≥2 catalogs with ≥50 objects",
+        }
+
+    axes: list[np.ndarray] = []
+    seps: dict[str, float] = {}
+    for name in names:
+        dip, _ = world_dipole(catalog_vecs[name])
+        resid = residual_nematic_axis(catalog_vecs[name], dip)
+        if float(np.dot(resid, cmb)) < 0:
+            resid = -resid
+        axes.append(resid)
+        seps[name] = float(angular_separation_deg(resid, cmb))
+
+    cons = consensus_axis(axes)
+    if float(np.dot(cons, cmb)) < 0:
+        cons = -cons
+    obs_cons = float(angular_separation_deg(cons, cmb))
+    obs_pair = float(pairwise_max_sep_deg(axes))
+    obs_n35 = int(sum(1 for s in seps.values() if s <= CROSS_SURVEY_MAX_SEP_DEG))
+
+    b_cut_by_sky = b_cut_by_sky or {}
+    sizes = {name: int(catalog_vecs[name].shape[0]) for name in names}
+    rng = np.random.default_rng(seed)
+    null_cons: list[float] = []
+    null_pair: list[float] = []
+    null_n35: list[int] = []
+    for _ in range(n_null):
+        n_axes: list[np.ndarray] = []
+        n_seps: list[float] = []
+        for name in names:
+            v = _isotropic_unit_vectors(
+                sizes[name], rng, b_cut_deg=b_cut_by_sky.get(name)
+            )
+            if v.shape[0] < 50:
+                continue
+            dip, _ = world_dipole(v)
+            resid = residual_nematic_axis(v, dip)
+            if float(np.dot(resid, cmb)) < 0:
+                resid = -resid
+            n_axes.append(resid)
+            n_seps.append(float(angular_separation_deg(resid, cmb)))
+        if len(n_axes) < 2:
+            continue
+        n_cons = consensus_axis(n_axes)
+        if float(np.dot(n_cons, cmb)) < 0:
+            n_cons = -n_cons
+        null_cons.append(float(angular_separation_deg(n_cons, cmb)))
+        null_pair.append(float(pairwise_max_sep_deg(n_axes)))
+        null_n35.append(int(sum(1 for s in n_seps if s <= CROSS_SURVEY_MAX_SEP_DEG)))
+
+    nc = np.asarray(null_cons, dtype=float)
+    npair = np.asarray(null_pair, dtype=float)
+    nn35 = np.asarray(null_n35, dtype=float)
+    p_cons = float(np.mean(nc <= obs_cons)) if nc.size else 1.0
+    p_pair = float(np.mean(npair <= obs_pair)) if npair.size else 1.0
+    p_n35 = float(np.mean(nn35 >= obs_n35)) if nn35.size else 1.0
+    p_joint = (
+        float(np.mean((nc <= obs_cons) & (npair <= obs_pair))) if nc.size else 1.0
+    )
+
+    return {
+        "n_catalogs": len(names),
+        "catalogs": names,
+        "residual_sep_from_cmb_deg": seps,
+        "consensus_axis": cons.tolist(),
+        "consensus_sep_from_cmb_deg": obs_cons,
+        "max_pairwise_sep_deg": obs_pair,
+        "n_within_residual_threshold": obs_n35,
+        "residual_threshold_deg": CROSS_SURVEY_MAX_SEP_DEG,
+        "n_null": int(nc.size),
+        "null_median_consensus_sep_deg": float(np.median(nc)) if nc.size else None,
+        "null_median_max_pairwise_deg": float(np.median(npair)) if npair.size else None,
+        "p_consensus_sep": p_cons,
+        "p_max_pairwise": p_pair,
+        "p_n_within_threshold": p_n35,
+        "p_joint_consensus_and_pairwise": p_joint,
+        "gate_pass": bool(p_joint <= RESIDUAL_CONSENSUS_MAX_P and len(names) >= 2),
+        "threshold_p": RESIDUAL_CONSENSUS_MAX_P,
     }
 
 
@@ -625,6 +838,10 @@ def multi_survey_scar_report(
                     vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
                 ),
                 "ring_fraction_at_cmb": ring_occupancy_fraction(vecs, cons_axis),
+                "polar_at_cmb": polar_sigma_at_axis(
+                    vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
+                ),
+                "polar_fraction_at_cmb": polar_occupancy_fraction(vecs, cons_axis),
             }
         )
 
@@ -730,8 +947,14 @@ def multi_survey_scar_report(
         for c in catalogs
         if (c.get("ring_at_cmb") or {}).get("null_sigma", -1e9) >= CROSS_RING_MIN_NULL_SIGMA
     ]
+    polar_ok = [
+        c
+        for c in catalogs
+        if (c.get("polar_at_cmb") or {}).get("null_sigma", -1e9) >= CROSS_POLAR_MIN_NULL_SIGMA
+    ]
     gate_cross = len(cross_ok) >= 2
     gate_cross_ring = len(ring_ok) >= 2
+    gate_cross_polar = len(polar_ok) >= 2
 
     resid_ok = [
         c
@@ -739,6 +962,41 @@ def multi_survey_scar_report(
         if c["residual_sep_from_cmb_deg"] <= CROSS_SURVEY_MAX_SEP_DEG
     ]
     gate_resid = len(resid_ok) >= 2
+
+    # Prefer footprint-light tracers for residual-consensus null (PSCz full sky
+    # without a forced |b| cut — the cut itself polarizes residuals toward GNP).
+    resid_consensus_inputs: dict[str, np.ndarray] = {}
+    resid_bcuts: dict[str, float | None] = {}
+    for c in catalogs:
+        name = c["sky"]
+        vecs = catalog_vecs.get(name)
+        if vecs is None or vecs.shape[0] < 50:
+            continue
+        if name == "iras_pscz":
+            # Re-load full PSCz without |b| cut for the consensus null.
+            try:
+                resid_consensus_inputs[name] = equatorial_to_galactic(load_pscz_vectors())
+                resid_bcuts[name] = None
+            except Exception:
+                resid_consensus_inputs[name] = vecs
+                resid_bcuts[name] = b_cut_deg if c.get("high_b_cut") else None
+        elif name in ("exoplanets", "exoplanets_rv", "sdss_galaxies", "sdss_qso"):
+            resid_consensus_inputs[name] = vecs
+            resid_bcuts[name] = b_cut_deg if c.get("high_b_cut") else None
+    if len(resid_consensus_inputs) < 2:
+        resid_consensus_inputs = {
+            k: v for k, v in catalog_vecs.items() if v.shape[0] >= 50
+        }
+        resid_bcuts = {k: b_cut_deg for k in resid_consensus_inputs}
+
+    residual_consensus = catalog_residual_consensus_null(
+        resid_consensus_inputs,
+        cons_axis,
+        b_cut_by_sky=resid_bcuts,
+        n_null=max(RESIDUAL_CONSENSUS_N_NULL, n_null * 8),
+        seed=seed,
+    )
+    gate_resid_consensus = bool(residual_consensus.get("gate_pass"))
 
     gate_joint = bool(joint.get("scar_joint"))
 
@@ -754,15 +1012,26 @@ def multi_survey_scar_report(
     # Detection paths:
     #   classic: intra + RBLE cross + residual
     #   ring:    intra + ring-at-CMB cross + residual
+    #   polar:   intra + polar-at-CMB (lat-matched null) + residual
     #   joint:   intra + joint ring near CMB
     #   cmb_missions: masked WMAP bands + Planck holdout (multi-mission CMB)
     #   cmb_residual: cmb_missions + residual nematic (≥2 catalogs)
+    #   residual_consensus: cmb_missions + isotropic-null residual consensus
     scar_classic = bool(gate_intra and gate_cross and gate_resid)
     scar_ring = bool(gate_intra and gate_cross_ring and gate_resid)
+    scar_polar = bool(gate_intra and gate_cross_polar and gate_resid)
     scar_joint = bool(gate_intra and gate_joint)
     scar_cmb_missions = bool(gate_intra and gate_planck)
     scar_cmb_residual = bool(scar_cmb_missions and gate_resid)
-    scar = scar_classic or scar_ring or scar_joint or scar_cmb_residual
+    scar_resid_consensus = bool(scar_cmb_missions and gate_resid_consensus)
+    scar = (
+        scar_classic
+        or scar_ring
+        or scar_polar
+        or scar_joint
+        or scar_cmb_residual
+        or scar_resid_consensus
+    )
 
     failing = [
         name
@@ -771,7 +1040,9 @@ def multi_survey_scar_report(
             ("planck_holdout", gate_planck),
             ("cross_rble", gate_cross),
             ("cross_ring", gate_cross_ring),
+            ("cross_polar", gate_cross_polar),
             ("residual_nematic", gate_resid),
+            ("residual_consensus", gate_resid_consensus),
             ("joint_ring", gate_joint),
         )
         if not ok
@@ -784,6 +1055,14 @@ def multi_survey_scar_report(
             f"(≤{INTRA_CMB_MAX_SEP_DEG}°), ≥2 catalogs score CMB axis "
             f"≥{CROSS_SURVEY_MIN_NULL_SIGMA}σ above footprint null, and "
             f"residual nematic axes lie within {CROSS_SURVEY_MAX_SEP_DEG}°."
+        )
+    elif scar_polar:
+        scar_path = "cross_polar"
+        claim = (
+            f"Multi-survey scar CONSENSUS (polar@CMB): WMAP bands agree, ≥2 catalogs "
+            f"show polar occupancy ≥{CROSS_POLAR_MIN_NULL_SIGMA}σ at the CMB axis "
+            f"(lat-matched null when |b| high), and residual nematic axes lie within "
+            f"{CROSS_SURVEY_MAX_SEP_DEG}° (Galactic frame)."
         )
     elif scar_ring:
         scar_path = "cross_ring"
@@ -801,6 +1080,18 @@ def multi_survey_scar_report(
             f"within {JOINT_MAX_SEP_FROM_CMB_DEG}° of the CMB consensus "
             f"(sep={joint.get('sep_from_cmb_consensus_deg'):.1f}°, "
             f"min_z={joint.get('min_null_sigma'):.2f})."
+        )
+    elif scar_resid_consensus:
+        scar_path = "residual_consensus"
+        claim = (
+            f"CLEAN-SKY multi-mission + residual-CONSENSUS: masked WMAP K/Q/V agree, "
+            f"Planck holdout within {PLANCK_HOLDOUT_MAX_SEP_DEG}° "
+            f"(sep={planck_sep:.1f}°), and catalog residual nematic axes jointly "
+            f"agree near that CMB axis vs isotropic size-matched null "
+            f"(p_joint={residual_consensus.get('p_joint_consensus_and_pairwise'):.4f}, "
+            f"cons_sep={residual_consensus.get('consensus_sep_from_cmb_deg'):.1f}°, "
+            f"max_pair={residual_consensus.get('max_pairwise_sep_deg'):.1f}°). "
+            f"Not ring/RBLE excess proof — computational multi-survey alignment."
         )
     elif scar_cmb_residual:
         scar_path = "cmb_missions_residual"
@@ -836,7 +1127,9 @@ def multi_survey_scar_report(
             "intra_cmb_max_sep_deg": INTRA_CMB_MAX_SEP_DEG,
             "cross_survey_min_null_sigma": CROSS_SURVEY_MIN_NULL_SIGMA,
             "cross_ring_min_null_sigma": CROSS_RING_MIN_NULL_SIGMA,
+            "cross_polar_min_null_sigma": CROSS_POLAR_MIN_NULL_SIGMA,
             "residual_max_sep_deg": CROSS_SURVEY_MAX_SEP_DEG,
+            "residual_consensus_max_p": RESIDUAL_CONSENSUS_MAX_P,
             "joint_min_null_sigma": JOINT_MIN_NULL_SIGMA,
             "joint_max_sep_from_cmb_deg": JOINT_MAX_SEP_FROM_CMB_DEG,
         },
@@ -844,12 +1137,15 @@ def multi_survey_scar_report(
         "planck_holdout": holdout,
         "catalogs": catalogs,
         "joint_ring_search": joint,
+        "residual_consensus": residual_consensus,
         "gates": {
             "intra_cmb": gate_intra,
             "planck_holdout": gate_planck,
             "cross_rble": gate_cross,
             "cross_ring": gate_cross_ring,
+            "cross_polar": gate_cross_polar,
             "residual_nematic": gate_resid,
+            "residual_consensus": gate_resid_consensus,
             "joint_ring": gate_joint,
         },
         "scar_detected": scar,
@@ -862,6 +1158,9 @@ def multi_survey_scar_report(
             "CMB axes default to clean-sky mask (Planck intensity + |b| cut) — unmasked WMAP hugged the plane.",
             "Catalog gates use |b|≥b_cut subsample (footprint-light) in Galactic frame.",
             "IRAS PSCz is the preferred all-sky tracer vs SDSS northern-cap / Kepler exoplanets.",
+            "Polar free-sky nulls are invalid near GNP after |b| cuts — polar_at_cmb uses lat-matched nulls.",
+            "Footprint-permute RBLE σ can falsely pass when raw S_RBLE at the CMB is below the sky median — require lat-matched checks for claims.",
+            "residual_consensus is isotropic size-matched null on joint residual agreement — not ring/RBLE excess proof.",
             "cmb_missions_residual is multi-mission CMB + residual alignment — not ring/RBLE excess proof.",
             "Dipole agreement is NOT a detection gate. Computational consensus ≠ peer-reviewed proof.",
         ],

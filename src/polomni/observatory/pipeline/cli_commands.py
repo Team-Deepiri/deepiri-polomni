@@ -421,7 +421,7 @@ def scar_consensus(
         typer.Option("--out", help="JSON report path."),
     ] = Path("data/reports/multi_survey_scar_consensus.json"),
 ) -> None:
-    """Three-gate multi-survey scar: CMB band agreement + catalog RBLE at CMB axis."""
+    """Multi-survey scar: CMB band agreement + catalog gates at CMB axis."""
     from polomni.observatory.pipeline.sources.multi_survey_scar import (
         multi_survey_scar_report,
         write_scar_report,
@@ -433,6 +433,7 @@ def scar_consensus(
         n_null=n_null,
         seed=seed,
         refresh_sdss=not no_refresh_sdss,
+        refresh_pscz=not no_refresh_sdss,
         apply_mask=not no_mask,
     )
     path = write_scar_report(report, out)
@@ -464,15 +465,18 @@ def scar_consensus(
     c_table.add_column("N")
     c_table.add_column("RBLE σ")
     c_table.add_column("Ring σ")
+    c_table.add_column("Polar σ")
     c_table.add_column("residual↔CMB °")
     for c in report.get("catalogs") or []:
         sc = c["cmb_axis_score"]
         ring = c.get("ring_at_cmb") or {}
+        polar = c.get("polar_at_cmb") or {}
         c_table.add_row(
             c["sky"],
             str(c["n_objects"]),
             f"{sc['null_sigma']:.2f}σ",
             f"{ring.get('null_sigma', float('nan')):.2f}σ",
+            f"{polar.get('null_sigma', float('nan')):.2f}σ",
             f"{c['residual_sep_from_cmb_deg']:.1f}",
         )
     console.print(c_table)
@@ -489,10 +493,20 @@ def scar_consensus(
             f"[dim]CMB consensus equatorial RA/Dec ≈ "
             f"{eq.get('ra_deg'):.2f}°, {eq.get('dec_deg'):.2f}°[/dim]"
         )
+    rc = report.get("residual_consensus") or {}
+    if rc.get("n_catalogs"):
+        console.print(
+            f"[dim]residual consensus: cons_sep={rc.get('consensus_sep_from_cmb_deg'):.1f}° "
+            f"max_pair={rc.get('max_pairwise_sep_deg'):.1f}° "
+            f"p_joint={rc.get('p_joint_consensus_and_pairwise'):.4f} "
+            f"pass={rc.get('gate_pass')}[/dim]"
+        )
 
     gates = report.get("gates") or {}
     style = "green" if report.get("scar_detected") else "yellow"
     console.print(f"[{style}]{report.get('claim')}[/{style}]")
+    if report.get("scar_path"):
+        console.print(f"[dim]scar_path={report.get('scar_path')}[/dim]")
     joint = report.get("joint_ring_search") or {}
     if joint.get("found"):
         console.print(
@@ -506,7 +520,9 @@ def scar_consensus(
         f"planck_holdout={gates.get('planck_holdout')} "
         f"cross_rble={gates.get('cross_rble')} "
         f"cross_ring={gates.get('cross_ring')} "
+        f"cross_polar={gates.get('cross_polar')} "
         f"residual_nematic={gates.get('residual_nematic')} "
+        f"residual_consensus={gates.get('residual_consensus')} "
         f"joint_ring={gates.get('joint_ring')}[/dim]"
     )
     console.print(f"[dim]Wrote {path}[/dim]")
