@@ -729,12 +729,17 @@ def multi_survey_scar_report(
     include_planck_holdout: bool = True,
     apply_mask: bool = True,
     b_cut_deg: float = 20.0,
+    wmap_k_only_freeze: bool = False,
 ) -> dict[str, Any]:
-    """Run the three-gate multi-survey scar consensus instrument.
+    """Run the multi-survey scar consensus instrument.
 
     Defaults harden against Galactic foregrounds: CMB axes are measured with
     Planck intensity + |b| mask; catalog gates use the |b|≥*b_cut_deg*
     footprint-light subsample. IRAS PSCz is the preferred all-sky tracer.
+
+    When ``wmap_k_only_freeze=True``, the catalog scoring axis is frozen from
+    WMAP K band alone (look-elsewhere safer); Q/V bands and Planck are holdout
+    checks only.
     """
     from polomni.observatory.pipeline.sources.cmb_mask import galactic_latitude_cut
     from polomni.observatory.pipeline.sources.iras_pscz import (
@@ -765,7 +770,22 @@ def multi_survey_scar_report(
     cmb = measure_cmb_axes(
         cache, nside=nside, seed=seed, apply_mask=apply_mask, b_cut_deg=b_cut_deg
     )
-    cons = cmb.get("consensus_axis")
+    freeze_products: tuple[str, ...] = (
+        ("wmap_k_band",) if wmap_k_only_freeze else CMB_CONSENSUS_PRODUCTS
+    )
+    cmb_freeze = (
+        measure_cmb_axes(
+            cache,
+            products=freeze_products,
+            nside=nside,
+            seed=seed,
+            apply_mask=apply_mask,
+            b_cut_deg=b_cut_deg,
+        )
+        if wmap_k_only_freeze
+        else cmb
+    )
+    cons = cmb_freeze.get("consensus_axis")
     if cons is None:
         return {
             "study_id": "multi_survey_scar_consensus",
@@ -773,12 +793,15 @@ def multi_survey_scar_report(
             "scar_detected": False,
             "claim": "No CMB axes available — fetch WMAP K/Q/V first.",
             "cmb": cmb,
+            "cmb_freeze": cmb_freeze,
+            "wmap_k_only_freeze": wmap_k_only_freeze,
             "sdss_fetch_error": sdss_fetch_error,
             "pscz_fetch_error": pscz_fetch_error,
         }
     cons_axis = _unit(np.asarray(cons, dtype=float))
 
     holdout: dict[str, Any] | None = None
+    wmap_qv_holdout: dict[str, Any] | None = None
     if include_planck_holdout:
         hold = measure_cmb_axes(
             cache,
@@ -802,6 +825,19 @@ def multi_survey_scar_report(
                 "apply_mask": apply_mask,
                 "lon_deg": hold["products"][0].get("lon_deg"),
                 "lat_deg": hold["products"][0].get("lat_deg"),
+            }
+    if wmap_k_only_freeze and cmb.get("n_ok", 0) >= 2:
+        qv_axes = [
+            _unit(np.asarray(p["axis"], dtype=float))
+            for p in cmb.get("products") or []
+            if "axis" in p and p.get("map_product_id") != "wmap_k_band"
+        ]
+        if qv_axes:
+            worst = max(float(angular_separation_deg(a, cons_axis)) for a in qv_axes)
+            wmap_qv_holdout = {
+                "products": [p.get("map_product_id") for p in cmb.get("products") or [] if p.get("map_product_id") != "wmap_k_band"],
+                "max_sep_from_k_freeze_deg": worst,
+                "agree_within_20": bool(worst <= INTRA_CMB_MAX_SEP_DEG),
             }
 
     def _append_catalog(name: str, vecs_gal: np.ndarray, *, note: str = "") -> None:
@@ -1008,6 +1044,14 @@ def multi_survey_scar_report(
     gate_planck = bool(
         planck_sep is not None and planck_sep <= PLANCK_HOLDOUT_MAX_SEP_DEG
     )
+    gate_wmap_qv = bool(
+        not wmap_k_only_freeze
+        or (
+            wmap_qv_holdout is not None
+            and wmap_qv_holdout.get("agree_within_20", False)
+        )
+    )
+    gate_cmb_missions = bool(gate_intra and gate_planck and gate_wmap_qv)
 
     # Detection paths:
     #   classic: intra + RBLE cross + residual
@@ -1021,7 +1065,7 @@ def multi_survey_scar_report(
     scar_ring = bool(gate_intra and gate_cross_ring and gate_resid)
     scar_polar = bool(gate_intra and gate_cross_polar and gate_resid)
     scar_joint = bool(gate_intra and gate_joint)
-    scar_cmb_missions = bool(gate_intra and gate_planck)
+    scar_cmb_missions = gate_cmb_missions
     scar_cmb_residual = bool(scar_cmb_missions and gate_resid)
     scar_resid_consensus = bool(scar_cmb_missions and gate_resid_consensus)
     scar = (
@@ -1038,6 +1082,7 @@ def multi_survey_scar_report(
         for name, ok in (
             ("intra_cmb", gate_intra),
             ("planck_holdout", gate_planck),
+            ("wmap_qv_holdout", gate_wmap_qv),
             ("cross_rble", gate_cross),
             ("cross_ring", gate_cross_ring),
             ("cross_polar", gate_cross_polar),
@@ -1134,13 +1179,18 @@ def multi_survey_scar_report(
             "joint_max_sep_from_cmb_deg": JOINT_MAX_SEP_FROM_CMB_DEG,
         },
         "cmb": cmb,
+        "cmb_freeze": cmb_freeze if wmap_k_only_freeze else None,
+        "wmap_k_only_freeze": wmap_k_only_freeze,
+        "freeze_products": list(freeze_products),
         "planck_holdout": holdout,
+        "wmap_qv_holdout": wmap_qv_holdout,
         "catalogs": catalogs,
         "joint_ring_search": joint,
         "residual_consensus": residual_consensus,
         "gates": {
             "intra_cmb": gate_intra,
             "planck_holdout": gate_planck,
+            "wmap_qv_holdout": gate_wmap_qv,
             "cross_rble": gate_cross,
             "cross_ring": gate_cross_ring,
             "cross_polar": gate_cross_polar,

@@ -416,6 +416,13 @@ def scar_consensus(
     no_mask: Annotated[
         bool, typer.Option("--no-mask", help="Skip clean-sky CMB mask (not recommended).")
     ] = False,
+    wmap_k_only_freeze: Annotated[
+        bool,
+        typer.Option(
+            "--wmap-k-only-freeze",
+            help="Freeze catalog scoring axis from WMAP K only; Q/V + Planck are holdouts.",
+        ),
+    ] = False,
     out: Annotated[
         Path,
         typer.Option("--out", help="JSON report path."),
@@ -435,6 +442,7 @@ def scar_consensus(
         refresh_sdss=not no_refresh_sdss,
         refresh_pscz=not no_refresh_sdss,
         apply_mask=not no_mask,
+        wmap_k_only_freeze=wmap_k_only_freeze,
     )
     path = write_scar_report(report, out)
 
