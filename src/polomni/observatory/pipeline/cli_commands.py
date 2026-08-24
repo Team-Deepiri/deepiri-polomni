@@ -413,6 +413,9 @@ def scar_consensus(
     no_refresh_sdss: Annotated[
         bool, typer.Option("--no-refresh-sdss", help="Skip RA-strip SDSS re-fetch.")
     ] = False,
+    no_mask: Annotated[
+        bool, typer.Option("--no-mask", help="Skip clean-sky CMB mask (not recommended).")
+    ] = False,
     out: Annotated[
         Path,
         typer.Option("--out", help="JSON report path."),
@@ -424,12 +427,13 @@ def scar_consensus(
         write_scar_report,
     )
 
-    console.print("[dim]Running multi-survey scar consensus (CMB-anchored)…[/dim]")
+    console.print("[dim]Running multi-survey scar consensus (CMB-anchored, clean-sky)…[/dim]")
     report = multi_survey_scar_report(
         nside=nside,
         n_null=n_null,
         seed=seed,
         refresh_sdss=not no_refresh_sdss,
+        apply_mask=not no_mask,
     )
     path = write_scar_report(report, out)
 
@@ -499,6 +503,7 @@ def scar_consensus(
         )
     console.print(
         f"[dim]gates: intra_cmb={gates.get('intra_cmb')} "
+        f"planck_holdout={gates.get('planck_holdout')} "
         f"cross_rble={gates.get('cross_rble')} "
         f"cross_ring={gates.get('cross_ring')} "
         f"residual_nematic={gates.get('residual_nematic')} "

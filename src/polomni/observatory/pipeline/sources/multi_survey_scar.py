@@ -275,8 +275,15 @@ def measure_cmb_axes(
     products: tuple[str, ...] = CMB_CONSENSUS_PRODUCTS,
     nside: int = 32,
     seed: int = 0,
+    apply_mask: bool = True,
+    b_cut_deg: float = 20.0,
 ) -> dict[str, Any]:
-    """Hierarchical preferred axes on cached CMB products."""
+    """Hierarchical preferred axes on cached CMB products.
+
+    Default ``apply_mask=True`` — unmasked WMAP axes hug the Galactic plane
+    (b≈0°) and are foreground-suspect; clean-sky mask is required for a
+    cosmology-grade consensus.
+    """
     from polomni.integration.real_sky_bridge import measure_preferred_axis
 
     cache = cache or DataCache()
@@ -284,22 +291,31 @@ def measure_cmb_axes(
     axes: list[np.ndarray] = []
     for pid in products:
         try:
-            m = measure_preferred_axis(cache, pid, nside, seed=seed)
+            m = measure_preferred_axis(
+                cache,
+                pid,
+                nside,
+                seed=seed,
+                apply_mask=apply_mask,
+                b_cut_deg=b_cut_deg,
+            )
         except Exception as exc:
             rows.append({"map_product_id": pid, "error": str(exc)})
             continue
         axis = _unit(np.asarray(m.axis, dtype=float))
         axes.append(axis)
-        rows.append(
-            {
-                "map_product_id": pid,
-                "lon_deg": m.lon_deg,
-                "lat_deg": m.lat_deg,
-                "rble_score": m.rble_score,
-                "axis": axis.tolist(),
-                "source_path": m.source_path,
-            }
-        )
+        row = {
+            "map_product_id": pid,
+            "lon_deg": m.lon_deg,
+            "lat_deg": m.lat_deg,
+            "rble_score": m.rble_score,
+            "axis": axis.tolist(),
+            "source_path": m.source_path,
+            "apply_mask": apply_mask,
+        }
+        if m.metadata.get("clean_sky_mask"):
+            row["clean_sky_mask"] = m.metadata["clean_sky_mask"]
+        rows.append(row)
     if not axes:
         return {
             "products": rows,
@@ -307,6 +323,7 @@ def measure_cmb_axes(
             "consensus_axis": None,
             "max_pairwise_sep_deg": None,
             "intra_cmb_agree": False,
+            "apply_mask": apply_mask,
         }
     cons = consensus_axis(axes)
     max_sep = pairwise_max_sep_deg(axes)
@@ -317,6 +334,8 @@ def measure_cmb_axes(
         "max_pairwise_sep_deg": max_sep,
         "intra_cmb_agree": bool(max_sep <= INTRA_CMB_MAX_SEP_DEG and len(axes) >= 2),
         "threshold_deg": INTRA_CMB_MAX_SEP_DEG,
+        "apply_mask": apply_mask,
+        "b_cut_deg": b_cut_deg,
     }
 
 
@@ -493,9 +512,23 @@ def multi_survey_scar_report(
     n_null: int = 24,
     seed: int = 0,
     refresh_sdss: bool = True,
+    refresh_pscz: bool = True,
     include_planck_holdout: bool = True,
+    apply_mask: bool = True,
+    b_cut_deg: float = 20.0,
 ) -> dict[str, Any]:
-    """Run the three-gate multi-survey scar consensus instrument."""
+    """Run the three-gate multi-survey scar consensus instrument.
+
+    Defaults harden against Galactic foregrounds: CMB axes are measured with
+    Planck intensity + |b| mask; catalog gates use the |b|≥*b_cut_deg*
+    footprint-light subsample. IRAS PSCz is the preferred all-sky tracer.
+    """
+    from polomni.observatory.pipeline.sources.cmb_mask import galactic_latitude_cut
+    from polomni.observatory.pipeline.sources.iras_pscz import (
+        fetch_iras_pscz,
+        load_pscz_vectors,
+    )
+
     cache = cache or DataCache()
     rng = np.random.default_rng(seed)
 
@@ -503,14 +536,22 @@ def multi_survey_scar_report(
         try:
             fetch_sdss_allsky_sample(cache=cache)
         except Exception as exc:
-            # Keep going with whatever is cached.
             sdss_fetch_error = str(exc)
         else:
             sdss_fetch_error = None
     else:
         sdss_fetch_error = None
 
-    cmb = measure_cmb_axes(cache, nside=nside, seed=seed)
+    pscz_fetch_error: str | None = None
+    if refresh_pscz:
+        try:
+            fetch_iras_pscz(cache=cache)
+        except Exception as exc:
+            pscz_fetch_error = str(exc)
+
+    cmb = measure_cmb_axes(
+        cache, nside=nside, seed=seed, apply_mask=apply_mask, b_cut_deg=b_cut_deg
+    )
     cons = cmb.get("consensus_axis")
     if cons is None:
         return {
@@ -520,13 +561,19 @@ def multi_survey_scar_report(
             "claim": "No CMB axes available — fetch WMAP K/Q/V first.",
             "cmb": cmb,
             "sdss_fetch_error": sdss_fetch_error,
+            "pscz_fetch_error": pscz_fetch_error,
         }
     cons_axis = _unit(np.asarray(cons, dtype=float))
 
     holdout: dict[str, Any] | None = None
     if include_planck_holdout:
         hold = measure_cmb_axes(
-            cache, products=(CMB_HOLD_OUT_PRODUCT,), nside=nside, seed=seed
+            cache,
+            products=(CMB_HOLD_OUT_PRODUCT,),
+            nside=nside,
+            seed=seed,
+            apply_mask=apply_mask,
+            b_cut_deg=b_cut_deg,
         )
         if hold["n_ok"]:
             h_axis = _unit(np.asarray(hold["products"][0]["axis"], dtype=float))
@@ -539,20 +586,15 @@ def multi_survey_scar_report(
                     angular_separation_deg(h_axis, cons_axis)
                 ),
                 "rble_score": hold["products"][0].get("rble_score"),
+                "apply_mask": apply_mask,
+                "lon_deg": hold["products"][0].get("lon_deg"),
+                "lat_deg": hold["products"][0].get("lat_deg"),
             }
 
-    # --- Catalog skies in *Galactic* frame (CMB-native) ---
-    catalogs: list[dict[str, Any]] = []
-    catalog_vecs: dict[str, np.ndarray] = {}
-    cons_eq = galactic_to_equatorial(cons_axis)
-    cons_gal_lon, cons_gal_lat, _ = axis_lonlat_in_frame(cons_axis, frame="galactic")
-    cons_eq_lon, cons_eq_lat, _ = axis_lonlat_in_frame(cons_eq, frame="equatorial")
-
-    exo_path = cache.resolved_path("nasa_exoplanet_ps")
-    if exo_path is not None and exo_path.exists():
-        cat = load_exoplanet_catalog(exo_path)
-        vecs_eq, _ = world_vectors(cat)
-        vecs = equatorial_to_galactic(vecs_eq)
+    def _append_catalog(name: str, vecs_gal: np.ndarray, *, note: str = "") -> None:
+        keep = galactic_latitude_cut(vecs_gal, b_cut_deg)
+        vecs = vecs_gal[keep] if int(keep.sum()) >= 50 else vecs_gal
+        used_hb = int(keep.sum()) >= 50
         density = density_map_from_vectors(vecs, nside)
         dipole, mag = world_dipole(vecs)
         null_maps = [
@@ -562,62 +604,16 @@ def multi_survey_scar_report(
         resid = residual_nematic_axis(vecs, dipole)
         if float(np.dot(resid, cons_axis)) < 0:
             resid = -resid
-        ring = ring_occupancy_fraction(vecs, cons_axis)
-        all_good = ~(np.isnan(cat.ra) | np.isnan(cat.dec))
-        rv_idx = all_good & np.array(
-            [str(m).lower().find("radial") >= 0 for m in cat.method]
-        )
-        if int(rv_idx.sum()) >= 50:
-            x, y, z = radec_to_sky_coords(cat.ra[rv_idx], cat.dec[rv_idx])
-            catalog_vecs["exoplanets_rv"] = equatorial_to_galactic(
-                np.column_stack([x, y, z])
-            )
-        catalog_vecs["exoplanets"] = vecs
+        catalog_vecs[name] = vecs
         catalogs.append(
             {
-                "sky": "exoplanets",
+                "sky": name,
                 "frame": "galactic",
+                "note": note,
                 "n_objects": int(vecs.shape[0]),
-                "dipole": dipole.tolist(),
-                "dipole_magnitude": float(mag),
-                "dipole_refs_equatorial_note": (
-                    "dipole reported in Galactic; skip equatorial ref table"
-                ),
-                "residual_nematic_axis": resid.tolist(),
-                "residual_sep_from_cmb_deg": float(
-                    angular_separation_deg(resid, cons_axis)
-                ),
-                "cmb_axis_score": scored,
-                "ring_at_cmb": ring_sigma_at_axis(
-                    vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
-                ),
-                "ring_fraction_at_cmb": ring,
-                "n_rv": int(rv_idx.sum()),
-            }
-        )
-
-    sdss_path = cache.resolved_path("sdss_bao_ladder")
-    if sdss_path is None:
-        cand = cache.root / "sdss_bao_ladder" / "sdss_bao_ladder.json"
-        sdss_path = cand if cand.exists() else None
-    if sdss_path is not None and sdss_path.exists():
-        vecs_eq = load_galaxy_vectors(sdss_path)
-        vecs = equatorial_to_galactic(vecs_eq)
-        density = density_map_from_vectors(vecs, nside)
-        dipole, mag = world_dipole(vecs)
-        null_maps = [
-            footprint_permute_vectors(vecs, nside, rng) for _ in range(n_null)
-        ]
-        scored = score_axis_vs_footprint_null(density, cons_axis, null_maps=null_maps)
-        resid = residual_nematic_axis(vecs, dipole)
-        if float(np.dot(resid, cons_axis)) < 0:
-            resid = -resid
-        catalog_vecs["sdss_galaxies"] = vecs
-        catalogs.append(
-            {
-                "sky": "sdss_galaxies",
-                "frame": "galactic",
-                "n_objects": int(vecs.shape[0]),
+                "n_objects_full": int(vecs_gal.shape[0]),
+                "high_b_cut": used_hb,
+                "b_cut_deg": b_cut_deg if used_hb else None,
                 "dipole": dipole.tolist(),
                 "dipole_magnitude": float(mag),
                 "residual_nematic_axis": resid.tolist(),
@@ -632,54 +628,74 @@ def multi_survey_scar_report(
             }
         )
 
-    # Optional SDSS QSO tracer (independent class; same SkyServer).
+    # --- Catalog skies in *Galactic* frame (CMB-native), |b|-cut ---
+    catalogs: list[dict[str, Any]] = []
+    catalog_vecs: dict[str, np.ndarray] = {}
+    cons_eq = galactic_to_equatorial(cons_axis)
+    cons_gal_lon, cons_gal_lat, _ = axis_lonlat_in_frame(cons_axis, frame="galactic")
+    cons_eq_lon, cons_eq_lat, _ = axis_lonlat_in_frame(cons_eq, frame="equatorial")
+
+    # IRAS PSCz first — footprint-light all-sky tracer
+    try:
+        pscz_eq = load_pscz_vectors()
+        _append_catalog(
+            "iras_pscz",
+            equatorial_to_galactic(pscz_eq),
+            note="IRAS PSCz all-sky 60µm galaxies (Saunders+2000)",
+        )
+    except Exception as exc:
+        pscz_fetch_error = pscz_fetch_error or str(exc)
+
+    exo_path = cache.resolved_path("nasa_exoplanet_ps")
+    if exo_path is not None and exo_path.exists():
+        cat = load_exoplanet_catalog(exo_path)
+        vecs_eq, _ = world_vectors(cat)
+        _append_catalog("exoplanets", equatorial_to_galactic(vecs_eq))
+        all_good = ~(np.isnan(cat.ra) | np.isnan(cat.dec))
+        rv_idx = all_good & np.array(
+            [str(m).lower().find("radial") >= 0 for m in cat.method]
+        )
+        if int(rv_idx.sum()) >= 50:
+            x, y, z = radec_to_sky_coords(cat.ra[rv_idx], cat.dec[rv_idx])
+            catalog_vecs["exoplanets_rv"] = equatorial_to_galactic(
+                np.column_stack([x, y, z])
+            )
+            # Also score RV as its own catalog row for residual gate
+            _append_catalog(
+                "exoplanets_rv",
+                catalog_vecs["exoplanets_rv"],
+                note="Radial-velocity worlds (sky-complete vs Kepler transit)",
+            )
+
+    sdss_path = cache.resolved_path("sdss_bao_ladder")
+    if sdss_path is None:
+        cand = cache.root / "sdss_bao_ladder" / "sdss_bao_ladder.json"
+        sdss_path = cand if sdss_path is None and cand.exists() else sdss_path
+    if sdss_path is not None and Path(sdss_path).exists():
+        _append_catalog(
+            "sdss_galaxies",
+            equatorial_to_galactic(load_galaxy_vectors(sdss_path)),
+            note="SDSS SpecObj RA-strip sample",
+        )
+
     qso_path = cache.resolved_path("sdss_qso_ladder")
     if qso_path is None:
         cand = cache.root / "sdss_qso_ladder" / "sdss_qso_ladder.json"
         qso_path = cand if cand.exists() else None
-    if qso_path is not None and qso_path.exists():
+    if qso_path is not None and Path(qso_path).exists():
         vecs = equatorial_to_galactic(load_galaxy_vectors(qso_path))
         if vecs.shape[0] >= 50:
-            density = density_map_from_vectors(vecs, nside)
-            dipole, mag = world_dipole(vecs)
-            null_maps = [
-                footprint_permute_vectors(vecs, nside, rng) for _ in range(n_null)
-            ]
-            scored = score_axis_vs_footprint_null(density, cons_axis, null_maps=null_maps)
-            resid = residual_nematic_axis(vecs, dipole)
-            if float(np.dot(resid, cons_axis)) < 0:
-                resid = -resid
-            catalog_vecs["sdss_qso"] = vecs
-            catalogs.append(
-                {
-                    "sky": "sdss_qso",
-                    "frame": "galactic",
-                    "n_objects": int(vecs.shape[0]),
-                    "dipole": dipole.tolist(),
-                    "dipole_magnitude": float(mag),
-                    "residual_nematic_axis": resid.tolist(),
-                    "residual_sep_from_cmb_deg": float(
-                        angular_separation_deg(resid, cons_axis)
-                    ),
-                    "cmb_axis_score": scored,
-                    "ring_at_cmb": ring_sigma_at_axis(
-                        vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
-                    ),
-                    "ring_fraction_at_cmb": ring_occupancy_fraction(vecs, cons_axis),
-                }
-            )
+            _append_catalog("sdss_qso", vecs, note="SDSS SpecObj QSO RA-strip sample")
 
-    # Prefer independent tracers for joint ring (RV worlds + galaxies + QSOs).
+    # Prefer footprint-light all-sky tracers for joint ring.
     joint_inputs = {
         k: v
         for k, v in catalog_vecs.items()
-        if k in ("exoplanets_rv", "sdss_galaxies", "sdss_qso") and v.shape[0] >= 50
+        if k in ("iras_pscz", "exoplanets_rv", "sdss_galaxies") and v.shape[0] >= 50
     }
     if len(joint_inputs) < 2:
         joint_inputs = {
-            k: v
-            for k, v in catalog_vecs.items()
-            if k in ("exoplanets", "sdss_galaxies", "sdss_qso") and v.shape[0] >= 20
+            k: v for k, v in catalog_vecs.items() if v.shape[0] >= 20
         }
     joint = joint_ring_axis_search(
         joint_inputs,
@@ -726,19 +742,33 @@ def multi_survey_scar_report(
 
     gate_joint = bool(joint.get("scar_joint"))
 
+    # Cross-mission CMB: masked Planck must agree with WMAP consensus.
+    PLANCK_HOLDOUT_MAX_SEP_DEG = 20.0
+    planck_sep = (
+        float(holdout["sep_from_consensus_deg"]) if holdout is not None else None
+    )
+    gate_planck = bool(
+        planck_sep is not None and planck_sep <= PLANCK_HOLDOUT_MAX_SEP_DEG
+    )
+
     # Detection paths:
     #   classic: intra + RBLE cross + residual
     #   ring:    intra + ring-at-CMB cross + residual
     #   joint:   intra + joint ring near CMB
+    #   cmb_missions: masked WMAP bands + Planck holdout (multi-mission CMB)
+    #   cmb_residual: cmb_missions + residual nematic (≥2 catalogs)
     scar_classic = bool(gate_intra and gate_cross and gate_resid)
     scar_ring = bool(gate_intra and gate_cross_ring and gate_resid)
     scar_joint = bool(gate_intra and gate_joint)
-    scar = scar_classic or scar_ring or scar_joint
+    scar_cmb_missions = bool(gate_intra and gate_planck)
+    scar_cmb_residual = bool(scar_cmb_missions and gate_resid)
+    scar = scar_classic or scar_ring or scar_joint or scar_cmb_residual
 
     failing = [
         name
         for name, ok in (
             ("intra_cmb", gate_intra),
+            ("planck_holdout", gate_planck),
             ("cross_rble", gate_cross),
             ("cross_ring", gate_cross_ring),
             ("residual_nematic", gate_resid),
@@ -771,6 +801,15 @@ def multi_survey_scar_report(
             f"within {JOINT_MAX_SEP_FROM_CMB_DEG}° of the CMB consensus "
             f"(sep={joint.get('sep_from_cmb_consensus_deg'):.1f}°, "
             f"min_z={joint.get('min_null_sigma'):.2f})."
+        )
+    elif scar_cmb_residual:
+        scar_path = "cmb_missions_residual"
+        claim = (
+            f"CLEAN-SKY multi-mission + residual CONSENSUS: masked WMAP K/Q/V agree "
+            f"(≤{INTRA_CMB_MAX_SEP_DEG}°), Planck holdout within "
+            f"{PLANCK_HOLDOUT_MAX_SEP_DEG}° (sep={planck_sep:.1f}°), and ≥2 catalog "
+            f"residual nematic axes lie within {CROSS_SURVEY_MAX_SEP_DEG}° of that "
+            f"axis. Ring/RBLE catalog excess still not claimed — not a full scar proof."
         )
     else:
         scar_path = None
@@ -807,6 +846,7 @@ def multi_survey_scar_report(
         "joint_ring_search": joint,
         "gates": {
             "intra_cmb": gate_intra,
+            "planck_holdout": gate_planck,
             "cross_rble": gate_cross,
             "cross_ring": gate_cross_ring,
             "residual_nematic": gate_resid,
@@ -816,11 +856,14 @@ def multi_survey_scar_report(
         "scar_path": scar_path,
         "claim": claim,
         "sdss_fetch_error": sdss_fetch_error,
+        "pscz_fetch_error": pscz_fetch_error,
         "caveats": [
             "P1 CMB Radon scar was falsified on Planck holdout — this does not reopen it.",
-            "Catalogs are rotated equatorial→Galactic before comparison (CMB-native frame).",
-            "Dipole agreement is NOT used as a detection gate (footprints dominate).",
-            "Computational consensus ≠ peer-reviewed multiverse proof.",
+            "CMB axes default to clean-sky mask (Planck intensity + |b| cut) — unmasked WMAP hugged the plane.",
+            "Catalog gates use |b|≥b_cut subsample (footprint-light) in Galactic frame.",
+            "IRAS PSCz is the preferred all-sky tracer vs SDSS northern-cap / Kepler exoplanets.",
+            "cmb_missions_residual is multi-mission CMB + residual alignment — not ring/RBLE excess proof.",
+            "Dipole agreement is NOT a detection gate. Computational consensus ≠ peer-reviewed proof.",
         ],
     }
 
