@@ -137,6 +137,31 @@ def get_cross_sky(
     return cross_sky_report(min_objects=min_objects)
 
 
+@router.get("/scar-consensus")
+def get_scar_consensus(
+    nside: int = Query(default=32, ge=8, le=64),
+    n_null: int = Query(default=16, ge=4, le=64),
+    seed: int = Query(default=0, ge=0),
+    refresh_sdss: bool = Query(default=False),
+) -> dict:
+    """Three-gate multi-survey scar consensus (CMB-anchored, footprint-null).
+
+    Dipole agreement is intentionally *not* a detection gate. Requires
+    intra-WMAP axis agreement, catalog S_RBLE at the CMB consensus axis above
+    footprint nulls, and residual nematic axes near that consensus.
+    """
+    from polomni.observatory.pipeline.sources.multi_survey_scar import (
+        multi_survey_scar_report,
+    )
+
+    return multi_survey_scar_report(
+        nside=nside,
+        n_null=n_null,
+        seed=seed,
+        refresh_sdss=refresh_sdss,
+    )
+
+
 @router.get("/bubble-search")
 def get_bubble_search(
     nside: int = Query(default=128, ge=32, le=256),

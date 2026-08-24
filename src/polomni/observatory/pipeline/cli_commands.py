@@ -405,6 +405,97 @@ def cross_sky(
     )
 
 
+@app.command("scar-consensus")
+def scar_consensus(
+    nside: Annotated[int, typer.Option("--nside")] = 32,
+    n_null: Annotated[int, typer.Option("--n-null", help="Footprint nulls per catalog.")] = 24,
+    seed: Annotated[int, typer.Option("--seed")] = 0,
+    no_refresh_sdss: Annotated[
+        bool, typer.Option("--no-refresh-sdss", help="Skip RA-strip SDSS re-fetch.")
+    ] = False,
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="JSON report path."),
+    ] = Path("data/reports/multi_survey_scar_consensus.json"),
+) -> None:
+    """Three-gate multi-survey scar: CMB band agreement + catalog RBLE at CMB axis."""
+    from polomni.observatory.pipeline.sources.multi_survey_scar import (
+        multi_survey_scar_report,
+        write_scar_report,
+    )
+
+    console.print("[dim]Running multi-survey scar consensus (CMB-anchored)…[/dim]")
+    report = multi_survey_scar_report(
+        nside=nside,
+        n_null=n_null,
+        seed=seed,
+        refresh_sdss=not no_refresh_sdss,
+    )
+    path = write_scar_report(report, out)
+
+    cmb = report.get("cmb") or {}
+    table = Table(title="Gate 1 — Intra-CMB (WMAP K/Q/V)")
+    table.add_column("Map")
+    table.add_column("lon°")
+    table.add_column("lat°")
+    table.add_column("S_RBLE")
+    for p in cmb.get("products") or []:
+        if "error" in p:
+            table.add_row(p["map_product_id"], "—", "—", p["error"][:40])
+        else:
+            table.add_row(
+                p["map_product_id"],
+                f"{p['lon_deg']:.2f}",
+                f"{p['lat_deg']:.2f}",
+                f"{p['rble_score']:.4g}",
+            )
+    console.print(table)
+    console.print(
+        f"  max pairwise sep = {cmb.get('max_pairwise_sep_deg')}°  "
+        f"agree={cmb.get('intra_cmb_agree')} (≤{cmb.get('threshold_deg')}°)"
+    )
+
+    c_table = Table(title="Gates 2–3 — Catalogs vs CMB consensus axis")
+    c_table.add_column("Sky")
+    c_table.add_column("N")
+    c_table.add_column("σ vs footprint null")
+    c_table.add_column("residual↔CMB °")
+    for c in report.get("catalogs") or []:
+        sc = c["cmb_axis_score"]
+        c_table.add_row(
+            c["sky"],
+            str(c["n_objects"]),
+            f"{sc['null_sigma']:.2f}σ (S={sc['s_rble']:.3g})",
+            f"{c['residual_sep_from_cmb_deg']:.1f}",
+        )
+    console.print(c_table)
+
+    hold = report.get("planck_holdout")
+    if hold:
+        console.print(
+            f"[dim]Planck holdout sep from WMAP consensus: "
+            f"{hold['sep_from_consensus_deg']:.1f}°[/dim]"
+        )
+
+    gates = report.get("gates") or {}
+    style = "green" if report.get("scar_detected") else "yellow"
+    console.print(f"[{style}]{report.get('claim')}[/{style}]")
+    joint = report.get("joint_ring_search") or {}
+    if joint.get("found"):
+        console.print(
+            f"[dim]joint ring: min_z={joint.get('min_null_sigma'):.2f} "
+            f"sep_cmb={joint.get('sep_from_cmb_consensus_deg'):.1f}° "
+            f"scar_joint={joint.get('scar_joint')}[/dim]"
+        )
+    console.print(
+        f"[dim]gates: intra_cmb={gates.get('intra_cmb')} "
+        f"cross_rble={gates.get('cross_rble')} "
+        f"residual_nematic={gates.get('residual_nematic')} "
+        f"joint_ring={gates.get('joint_ring')}[/dim]"
+    )
+    console.print(f"[dim]Wrote {path}[/dim]")
+
+
 @app.command("bubble")
 def bubble(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 128,
