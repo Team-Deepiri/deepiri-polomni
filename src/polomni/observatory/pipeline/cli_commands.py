@@ -634,19 +634,17 @@ def rdf_tomography(
     header.add_column("Field")
     header.add_column("Value")
     pa = rep.get("phase_a") or {}
-    pb = rep.get("phase_b") or {}
-    pd = rep.get("phase_d") or {}
-    obs = pa.get("observed") or {}
     null_a = pa.get("null") or {}
     rble = rep.get("rble_scar_axis_test") or {}
-    qf = pd.get("quadratic_fields") or {}
+    pe = rep.get("phase_e") or {}
+    obs_e = pe.get("observed") or {}
     for key, val in [
         ("Map", rep["map_product_id"]),
         ("Phase", rep.get("phase", "?")),
-        ("Quadratic RDF/RQF sep", f"{qf.get('axis_separation_deg')}°"),
-        ("Cai template corr", (pd.get("cai_best_axis") or {}).get("combined_correlation")),
-        ("Quadratic null p", (pd.get("null_shuffle") or {}).get("p_value")),
-        ("ΛCDM sim p (quad)", (pd.get("null_lcdm_sim") or {}).get("p_value")),
+        ("Fisher SNR", obs_e.get("fisher_snr")),
+        ("Fisher null p", (pe.get("null") or {}).get("p_value")),
+        ("m=0 sign coherent", (obs_e.get("m0_amplitudes") or {}).get("sign_coherent")),
+        ("ΛCDM mitigated", pe.get("lcdm_mitigation")),
         ("RBLE scar axis p", (rble.get("null") or {}).get("p_value", "?")),
         ("Physics gate", str((rep.get("multiverse_physics_gate") or {}).get("pass"))),
         ("Verdict", rep["verdict"]),

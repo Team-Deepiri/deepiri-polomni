@@ -75,7 +75,7 @@ def _alm_extract_multipole(alm: np.ndarray, lmax: int, ell: int) -> np.ndarray:
     import healpy as hp
 
     out = np.zeros_like(alm)
-    for m in range(-ell, ell + 1):
+    for m in range(0, ell + 1):
         idx = hp.Alm.getidx(lmax, ell, m)
         out[idx] = alm[idx]
     return out
@@ -159,7 +159,8 @@ def quadratic_remote_fields(
     for ell, target in ((1, rdf_alm), (2, rqf_alm)):
         n_l = mv_noise_at_l(t_cl, g_cl, ell, f_sky)
         w_l = 1.0 / n_l
-        for m in range(-ell, ell + 1):
+        # healpy alm arrays store m≥0 only
+        for m in range(0, ell + 1):
             idx = hp.Alm.getidx(lmax, ell, m)
             target[idx] = chi_alm[idx] * w_l
 
@@ -199,19 +200,23 @@ def inject_quadratic_signal(
     *,
     rdf_amp: float = 8.0,
     rqf_amp: float = 5.0,
+    delta_couple: float = 0.4,
     mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Plant MV-detectable RDF+RQF signal for validation."""
+    """Plant MV-detectable RDF+RQF signal for validation.
+
+    Couples a fraction of the bubble pattern into the tracer so χ=T×δ carries
+    a clear ℓ=1/ℓ=2 mode (Deutsch/Cai-style injection).
+    """
     import healpy as hp
 
     nside = hp.get_nside(cmb_hp)
     dirs = _pixel_directions(nside)
     axis_u = _unit(axis)
     mu = dirs @ axis_u
-    t_inj = rdf_amp * mu + rqf_amp * 0.5 * (3.0 * mu * mu - 1.0)
-    d_inj = 0.4 * rdf_amp * mu + 0.4 * rqf_amp * 0.5 * (3.0 * mu * mu - 1.0)
-    t_out = np.asarray(cmb_hp, dtype=float) + t_inj
-    d_out = np.asarray(delta_g, dtype=float) + d_inj
+    pattern = rdf_amp * mu + rqf_amp * 0.5 * (3.0 * mu * mu - 1.0)
+    t_out = np.asarray(cmb_hp, dtype=float) + pattern
+    d_out = np.asarray(delta_g, dtype=float) + float(delta_couple) * pattern
     if mask is not None:
         t_out = t_out.copy()
         d_out = d_out.copy()

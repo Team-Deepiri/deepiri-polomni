@@ -606,10 +606,17 @@ def rdf_tomography_report(
         phase_d_gate and q_scar_sep is not None and q_scar_sep < 25.0 and rble_gate
     )
 
+    # Phase E: Fisher SO(2,1) bubble invariant with ΛCDM mitigation
+    from polomni.observatory.pipeline.sources.multiverse_fisher_scan import fisher_scan_report
+
+    fisher = fisher_scan_report(
+        cmb_hp, delta_g, mask, nside_dir=nside_dir, n_null=n_null, seed=seed + 4, scar_axis=scar_axis
+    )
+
     return {
-        "instrument": "P5-RDF tomography (Phase A–D: MV quadratic + Cai template)",
+        "instrument": "P5-RDF tomography (Phase A–E: Fisher bubble invariant)",
         "study_id": "P5-RDF",
-        "phase": "D_quadratic",
+        "phase": "E_fisher_bubble",
         "map_product_id": pid,
         "galaxy_tracer": "iras_pscz",
         "nside": nside,
@@ -662,9 +669,9 @@ def rdf_tomography_report(
             "gate_pass": rble_gate,
         },
         "multiverse_physics_gate": {
-            "requires": "Phase D quadratic Cai p<0.01 + RDF/RQF aligned + RBLE scar",
-            "pass": physics_gate_v2,
-            "legacy_phase_b": combined_gate,
+            "requires": "Phase E Fisher SNR p<0.01, SNR>2, coherent m=0, RBLE scar aligned",
+            "pass": bool(fisher.get("gate_pass")),
+            "legacy_phase_d": physics_gate_v2,
         },
         "phase_d": {
             "quadratic_fields": q_fields.to_dict(),
@@ -683,6 +690,7 @@ def rdf_tomography_report(
             "scar_sep_from_cai_axis_deg": round(q_scar_sep, 2) if q_scar_sep else None,
             "gate_pass": phase_d_gate,
         },
+        "phase_e": fisher,
         "verdict": _build_verdict(
             p_coherence=p_coherence,
             p_template_shuffle=p_template_shuffle,
@@ -690,14 +698,16 @@ def rdf_tomography_report(
             p_cai=p_cai,
             p_cai_sim=p_cai_sim,
             rble_gate=rble_gate,
-            combined_gate=physics_gate_v2,
+            combined_gate=bool(fisher.get("gate_pass")),
             phase_d=phase_d_gate,
+            fisher_snr=float((fisher.get("observed") or {}).get("fisher_snr", 0.0)),
         ),
         "honesty": (
-            "Phase D implements Deutsch et al. MV quadratic RDF/RQF (single-z bin) "
-            "with Cai et al. bubble template matching. RemoteField/SZ_cosmo multi-z "
-            "tomography is not yet integrated. No claim that multiverse is detected until "
-            "Phase D gate passes on blind holdout — current Planck×PSCz sensitivity is forecast-limited."
+            "Phase E: Fisher-optimal SO(2,1) bubble invariant — dimensionless "
+            "corr(RDF,P1)×corr(RQF,P2) after high-pass ΛCDM mitigation. Deepest "
+            "in-repo multiverse scan; not a detection until blind holdout + multi-z "
+            "tomography. We do NOT rule out superhorizon bubble signatures at higher "
+            "sensitivity."
         ),
         "references": [
             "Deutsch et al. PRD 98, 063502 (2018) — RDF reconstruction",
@@ -718,12 +728,12 @@ def _build_verdict(
     rble_gate: bool,
     combined_gate: bool,
     phase_d: bool = False,
+    fisher_snr: float = 0.0,
 ) -> str:
-    if combined_gate and phase_d:
+    if combined_gate and fisher_snr > 2.0:
         return (
-            "Quadratic RDF/RQF + Cai bubble template + RBLE scar axis show coordinated signal — "
-            "requires independent Planck holdout and multi-z RemoteField validation before "
-            "physics_established / multiverse visibility claim."
+            "Fisher SO(2,1) bubble invariant above ΛCDM-mitigated null — "
+            "requires blind Planck holdout before multiverse visibility claim."
         )
     if phase_d and not combined_gate:
         return (
