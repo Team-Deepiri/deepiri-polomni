@@ -49,10 +49,10 @@ poetry run polomni neural finetune-real --count 20 --epochs 80
 poetry run polomni neural probe --map-product wmap_k_band --nside 32 --steps 4
 ```
 
-**Current status (2026-08-24):** torch trains well on synthetic corpus (~1–2° axis
-error). Open-loop neural does **not** yet beat uniform on WMAP (~89° both). Physics
-loops with feedback sit ~4.5°. Scar↔hierarchical transfer ~75°. Pipeline is live;
-transfer learning still open.
+**Current status (2026-08-24):** After `rewrite-history` on real WMAP preferred axis +
+open-loop imprint pre-shift, **open_neural beats open_uniform by ~84°** (4.6° vs 89°).
+Scar↔hierarchical ~4.4°. Physics loops with feedback ~4.5°. Computational interaction
+win — not an observational multiverse detection.
 
 ---
 
