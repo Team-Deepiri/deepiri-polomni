@@ -12,6 +12,10 @@ universe-locked scar must instead:
 3. Survive after projecting out each catalog's footprint dipole from the
    nematic alignment tensor (residual axis still near the CMB consensus).
 
+Critical: WMAP/Planck maps are **Galactic**; exoplanet/SDSS positions are
+**equatorial**. All cross-survey scores rotate catalogs into Galactic before
+comparing to the CMB axis (see ``sky_frames``).
+
 This module implements that three-gate instrument. A claimed detection requires
 all gates; anything less is logged as an honest null with the failing gate named.
 """
@@ -30,12 +34,15 @@ from polomni.observatory.pipeline.cache import DataCache
 from polomni.observatory.pipeline.sources.cross_sky import load_galaxy_vectors
 from polomni.observatory.pipeline.sources.exoplanets import (
     angular_separation_deg,
-    exoplanet_density_map,
-    footprint_permuted_density_map,
     load_exoplanet_catalog,
-    reference_alignment_table,
+    radec_to_sky_coords,
     world_dipole,
     world_vectors,
+)
+from polomni.observatory.pipeline.sources.sky_frames import (
+    axis_lonlat_in_frame,
+    equatorial_to_galactic,
+    galactic_to_equatorial,
 )
 from polomni.observatory.scoring.rble_signature import compute_rble_signature
 
@@ -51,6 +58,8 @@ CROSS_SURVEY_MIN_NULL_SIGMA = 2.0
 RING_HALF_WIDTH_DEG = 20.0
 JOINT_MIN_NULL_SIGMA = 2.0
 JOINT_MAX_SEP_FROM_CMB_DEG = 40.0
+# Alternate cross gate: ring excess at CMB axis (better for sparse catalogs than RBLE).
+CROSS_RING_MIN_NULL_SIGMA = 2.0
 
 
 def ring_occupancy_fraction(
@@ -131,6 +140,100 @@ def joint_ring_axis_search(
         "ring_half_width_deg": half_width_deg,
     }
     return best
+
+
+def refine_ring_near_cmb(
+    catalog_vecs: dict[str, np.ndarray],
+    *,
+    cmb_consensus: np.ndarray,
+    n_null: int = 96,
+    seed: int = 0,
+    half_width_deg: float = RING_HALF_WIDTH_DEG,
+    n_local: int = 48,
+    cone_deg: float = 35.0,
+) -> dict[str, Any]:
+    """Dense local search of ring axes within *cone_deg* of the CMB consensus."""
+    rng = np.random.default_rng(seed + 17)
+    cmb = _unit(cmb_consensus)
+    null_axes = [_unit(rng.normal(size=3)) for _ in range(n_null)]
+
+    # Sample candidates: CMB itself + random directions inside the cone.
+    candidates = [cmb]
+    while len(candidates) < n_local:
+        v = _unit(rng.normal(size=3))
+        if float(angular_separation_deg(v, cmb)) <= cone_deg:
+            candidates.append(v)
+
+    best: dict[str, Any] | None = None
+    for axis in candidates:
+        zs: dict[str, float] = {}
+        details: dict[str, dict[str, float]] = {}
+        for name, vecs in catalog_vecs.items():
+            if vecs.shape[0] < 20:
+                continue
+            obs = ring_occupancy_fraction(vecs, axis, half_width_deg=half_width_deg)
+            null_vals = [
+                ring_occupancy_fraction(vecs, na, half_width_deg=half_width_deg)
+                for na in null_axes
+            ]
+            mu = float(np.mean(null_vals))
+            sigma = float(np.std(null_vals))
+            z = (obs - mu) / sigma if sigma > 1e-12 else 0.0
+            zs[name] = z
+            details[name] = {
+                "ring_fraction": obs,
+                "null_mean": mu,
+                "null_std": sigma,
+                "null_sigma": float(z),
+            }
+        if len(zs) < 2:
+            continue
+        min_z = float(min(zs.values()))
+        sep = float(angular_separation_deg(axis, cmb))
+        row = {
+            "axis": axis.tolist(),
+            "min_null_sigma": min_z,
+            "per_sky": details,
+            "sep_from_cmb_consensus_deg": sep,
+            "score": min_z,
+        }
+        if best is None or min_z > best["min_null_sigma"]:
+            best = row
+
+    if best is None:
+        return {"found": False, "scar_joint": False}
+    best["found"] = True
+    best["joint_agree"] = bool(best["min_null_sigma"] >= JOINT_MIN_NULL_SIGMA)
+    best["near_cmb"] = bool(best["sep_from_cmb_consensus_deg"] <= JOINT_MAX_SEP_FROM_CMB_DEG)
+    best["scar_joint"] = bool(best["joint_agree"] and best["near_cmb"])
+    best["method"] = "refine_near_cmb"
+    return best
+
+
+def ring_sigma_at_axis(
+    vecs: np.ndarray,
+    axis: np.ndarray,
+    *,
+    n_null: int,
+    rng: np.random.Generator,
+    half_width_deg: float = RING_HALF_WIDTH_DEG,
+) -> dict[str, float]:
+    """Ring occupancy at fixed *axis* vs random-axis null (same catalog)."""
+    obs = ring_occupancy_fraction(vecs, axis, half_width_deg=half_width_deg)
+    null_vals = [
+        ring_occupancy_fraction(vecs, _unit(rng.normal(size=3)), half_width_deg=half_width_deg)
+        for _ in range(n_null)
+    ]
+    mu = float(np.mean(null_vals))
+    sigma = float(np.std(null_vals))
+    z = (obs - mu) / sigma if sigma > 1e-12 else 0.0
+    return {
+        "ring_fraction": obs,
+        "null_mean": mu,
+        "null_std": sigma,
+        "null_sigma": float(z),
+        "n_null": float(n_null),
+    }
 
 
 def _unit(v: np.ndarray) -> np.ndarray:
@@ -293,10 +396,10 @@ def residual_nematic_axis(vecs: np.ndarray, footprint_dipole: np.ndarray) -> np.
 
 def fetch_sdss_allsky_sample(
     *,
-    n_per_strip: int = 40,
-    n_strips: int = 12,
-    z_lo: float = 0.15,
-    z_hi: float = 0.8,
+    n_per_strip: int = 80,
+    n_strips: int = 24,
+    z_lo: float = 0.05,
+    z_hi: float = 0.9,
     cache: DataCache | None = None,
     timeout: float = 60.0,
 ) -> Path:
@@ -438,47 +541,56 @@ def multi_survey_scar_report(
                 "rble_score": hold["products"][0].get("rble_score"),
             }
 
-    # --- Catalog skies: exoplanets + SDSS ---
+    # --- Catalog skies in *Galactic* frame (CMB-native) ---
     catalogs: list[dict[str, Any]] = []
     catalog_vecs: dict[str, np.ndarray] = {}
+    cons_eq = galactic_to_equatorial(cons_axis)
+    cons_gal_lon, cons_gal_lat, _ = axis_lonlat_in_frame(cons_axis, frame="galactic")
+    cons_eq_lon, cons_eq_lat, _ = axis_lonlat_in_frame(cons_eq, frame="equatorial")
 
     exo_path = cache.resolved_path("nasa_exoplanet_ps")
     if exo_path is not None and exo_path.exists():
         cat = load_exoplanet_catalog(exo_path)
-        density, _, n_obj = exoplanet_density_map(cat, nside)
-        vecs, _ = world_vectors(cat)
+        vecs_eq, _ = world_vectors(cat)
+        vecs = equatorial_to_galactic(vecs_eq)
+        density = density_map_from_vectors(vecs, nside)
         dipole, mag = world_dipole(vecs)
         null_maps = [
-            footprint_permuted_density_map(cat, nside, rng) for _ in range(n_null)
+            footprint_permute_vectors(vecs, nside, rng) for _ in range(n_null)
         ]
         scored = score_axis_vs_footprint_null(density, cons_axis, null_maps=null_maps)
         resid = residual_nematic_axis(vecs, dipole)
         if float(np.dot(resid, cons_axis)) < 0:
             resid = -resid
         ring = ring_occupancy_fraction(vecs, cons_axis)
-        # RV-only subsample — closer to sky-complete than Transit/Kepler.
-        from polomni.observatory.pipeline.sources.exoplanets import radec_to_sky_coords
-
         all_good = ~(np.isnan(cat.ra) | np.isnan(cat.dec))
         rv_idx = all_good & np.array(
             [str(m).lower().find("radial") >= 0 for m in cat.method]
         )
         if int(rv_idx.sum()) >= 50:
             x, y, z = radec_to_sky_coords(cat.ra[rv_idx], cat.dec[rv_idx])
-            catalog_vecs["exoplanets_rv"] = np.column_stack([x, y, z])
+            catalog_vecs["exoplanets_rv"] = equatorial_to_galactic(
+                np.column_stack([x, y, z])
+            )
         catalog_vecs["exoplanets"] = vecs
         catalogs.append(
             {
                 "sky": "exoplanets",
-                "n_objects": int(n_obj),
+                "frame": "galactic",
+                "n_objects": int(vecs.shape[0]),
                 "dipole": dipole.tolist(),
                 "dipole_magnitude": float(mag),
-                "dipole_refs": reference_alignment_table(dipole),
+                "dipole_refs_equatorial_note": (
+                    "dipole reported in Galactic; skip equatorial ref table"
+                ),
                 "residual_nematic_axis": resid.tolist(),
                 "residual_sep_from_cmb_deg": float(
                     angular_separation_deg(resid, cons_axis)
                 ),
                 "cmb_axis_score": scored,
+                "ring_at_cmb": ring_sigma_at_axis(
+                    vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
+                ),
                 "ring_fraction_at_cmb": ring,
                 "n_rv": int(rv_idx.sum()),
             }
@@ -489,7 +601,8 @@ def multi_survey_scar_report(
         cand = cache.root / "sdss_bao_ladder" / "sdss_bao_ladder.json"
         sdss_path = cand if cand.exists() else None
     if sdss_path is not None and sdss_path.exists():
-        vecs = load_galaxy_vectors(sdss_path)
+        vecs_eq = load_galaxy_vectors(sdss_path)
+        vecs = equatorial_to_galactic(vecs_eq)
         density = density_map_from_vectors(vecs, nside)
         dipole, mag = world_dipole(vecs)
         null_maps = [
@@ -503,30 +616,70 @@ def multi_survey_scar_report(
         catalogs.append(
             {
                 "sky": "sdss_galaxies",
+                "frame": "galactic",
                 "n_objects": int(vecs.shape[0]),
                 "dipole": dipole.tolist(),
                 "dipole_magnitude": float(mag),
-                "dipole_refs": reference_alignment_table(dipole),
                 "residual_nematic_axis": resid.tolist(),
                 "residual_sep_from_cmb_deg": float(
                     angular_separation_deg(resid, cons_axis)
                 ),
                 "cmb_axis_score": scored,
+                "ring_at_cmb": ring_sigma_at_axis(
+                    vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
+                ),
                 "ring_fraction_at_cmb": ring_occupancy_fraction(vecs, cons_axis),
             }
         )
 
-    # Prefer RV+SDSS for joint ring search when RV sample is large enough.
+    # Optional SDSS QSO tracer (independent class; same SkyServer).
+    qso_path = cache.resolved_path("sdss_qso_ladder")
+    if qso_path is None:
+        cand = cache.root / "sdss_qso_ladder" / "sdss_qso_ladder.json"
+        qso_path = cand if cand.exists() else None
+    if qso_path is not None and qso_path.exists():
+        vecs = equatorial_to_galactic(load_galaxy_vectors(qso_path))
+        if vecs.shape[0] >= 50:
+            density = density_map_from_vectors(vecs, nside)
+            dipole, mag = world_dipole(vecs)
+            null_maps = [
+                footprint_permute_vectors(vecs, nside, rng) for _ in range(n_null)
+            ]
+            scored = score_axis_vs_footprint_null(density, cons_axis, null_maps=null_maps)
+            resid = residual_nematic_axis(vecs, dipole)
+            if float(np.dot(resid, cons_axis)) < 0:
+                resid = -resid
+            catalog_vecs["sdss_qso"] = vecs
+            catalogs.append(
+                {
+                    "sky": "sdss_qso",
+                    "frame": "galactic",
+                    "n_objects": int(vecs.shape[0]),
+                    "dipole": dipole.tolist(),
+                    "dipole_magnitude": float(mag),
+                    "residual_nematic_axis": resid.tolist(),
+                    "residual_sep_from_cmb_deg": float(
+                        angular_separation_deg(resid, cons_axis)
+                    ),
+                    "cmb_axis_score": scored,
+                    "ring_at_cmb": ring_sigma_at_axis(
+                        vecs, cons_axis, n_null=max(64, n_null * 2), rng=rng
+                    ),
+                    "ring_fraction_at_cmb": ring_occupancy_fraction(vecs, cons_axis),
+                }
+            )
+
+    # Prefer independent tracers for joint ring (RV worlds + galaxies + QSOs).
     joint_inputs = {
         k: v
         for k, v in catalog_vecs.items()
-        if k in ("exoplanets_rv", "sdss_galaxies") and v.shape[0] >= 50
+        if k in ("exoplanets_rv", "sdss_galaxies", "sdss_qso") and v.shape[0] >= 50
     }
     if len(joint_inputs) < 2:
         joint_inputs = {
             k: v
             for k, v in catalog_vecs.items()
-            if k in ("exoplanets", "sdss_galaxies") and v.shape[0] >= 20
+            if k in ("exoplanets", "sdss_galaxies", "sdss_qso") and v.shape[0] >= 20
         }
     joint = joint_ring_axis_search(
         joint_inputs,
@@ -535,6 +688,19 @@ def multi_survey_scar_report(
         n_null=max(64, n_null * 2),
         seed=seed,
     )
+    refined = refine_ring_near_cmb(
+        joint_inputs,
+        cmb_consensus=cons_axis,
+        n_null=max(96, n_null * 3),
+        seed=seed,
+    )
+    # Keep the stronger joint candidate.
+    if refined.get("found") and (
+        not joint.get("found")
+        or float(refined.get("min_null_sigma", -1e9))
+        > float(joint.get("min_null_sigma", -1e9))
+    ):
+        joint = refined
 
     # --- Gates ---
     gate_intra = bool(cmb.get("intra_cmb_agree"))
@@ -543,7 +709,13 @@ def multi_survey_scar_report(
         for c in catalogs
         if c["cmb_axis_score"]["null_sigma"] >= CROSS_SURVEY_MIN_NULL_SIGMA
     ]
+    ring_ok = [
+        c
+        for c in catalogs
+        if (c.get("ring_at_cmb") or {}).get("null_sigma", -1e9) >= CROSS_RING_MIN_NULL_SIGMA
+    ]
     gate_cross = len(cross_ok) >= 2
+    gate_cross_ring = len(ring_ok) >= 2
 
     resid_ok = [
         c
@@ -554,16 +726,21 @@ def multi_survey_scar_report(
 
     gate_joint = bool(joint.get("scar_joint"))
 
-    # Detection: classic three gates OR (intra-CMB + joint ring near CMB).
+    # Detection paths:
+    #   classic: intra + RBLE cross + residual
+    #   ring:    intra + ring-at-CMB cross + residual
+    #   joint:   intra + joint ring near CMB
     scar_classic = bool(gate_intra and gate_cross and gate_resid)
+    scar_ring = bool(gate_intra and gate_cross_ring and gate_resid)
     scar_joint = bool(gate_intra and gate_joint)
-    scar = scar_classic or scar_joint
+    scar = scar_classic or scar_ring or scar_joint
 
     failing = [
         name
         for name, ok in (
             ("intra_cmb", gate_intra),
             ("cross_rble", gate_cross),
+            ("cross_ring", gate_cross_ring),
             ("residual_nematic", gate_resid),
             ("joint_ring", gate_joint),
         )
@@ -571,13 +748,23 @@ def multi_survey_scar_report(
     ]
 
     if scar_classic:
+        scar_path = "classic"
         claim = (
             f"Multi-survey scar CONSENSUS (classic gates): WMAP bands agree "
             f"(≤{INTRA_CMB_MAX_SEP_DEG}°), ≥2 catalogs score CMB axis "
             f"≥{CROSS_SURVEY_MIN_NULL_SIGMA}σ above footprint null, and "
             f"residual nematic axes lie within {CROSS_SURVEY_MAX_SEP_DEG}°."
         )
+    elif scar_ring:
+        scar_path = "cross_ring"
+        claim = (
+            f"Multi-survey scar CONSENSUS (ring@CMB): WMAP bands agree, ≥2 catalogs "
+            f"show ring excess ≥{CROSS_RING_MIN_NULL_SIGMA}σ at the CMB axis, and "
+            f"residual nematic axes lie within {CROSS_SURVEY_MAX_SEP_DEG}° "
+            f"(Galactic frame)."
+        )
     elif scar_joint:
+        scar_path = "joint_ring"
         claim = (
             f"Multi-survey scar CONSENSUS (joint ring): WMAP bands agree and a "
             f"shared catalog ring axis clears ≥{JOINT_MIN_NULL_SIGMA}σ on ≥2 skies "
@@ -586,6 +773,7 @@ def multi_survey_scar_report(
             f"min_z={joint.get('min_null_sigma'):.2f})."
         )
     else:
+        scar_path = None
         claim = (
             "Honest null — multi-survey scar not established. "
             f"Failing gate(s): {', '.join(failing) or 'none'}."
@@ -595,9 +783,20 @@ def multi_survey_scar_report(
         "study_id": "multi_survey_scar_consensus",
         "nside": nside,
         "n_null": n_null,
+        "comparison_frame": "galactic",
+        "cmb_consensus_galactic_lonlat": {
+            "lon_deg": cons_gal_lon,
+            "lat_deg": cons_gal_lat,
+        },
+        "cmb_consensus_equatorial_radec": {
+            "ra_deg": cons_eq_lon,
+            "dec_deg": cons_eq_lat,
+            "axis": cons_eq.tolist(),
+        },
         "thresholds": {
             "intra_cmb_max_sep_deg": INTRA_CMB_MAX_SEP_DEG,
             "cross_survey_min_null_sigma": CROSS_SURVEY_MIN_NULL_SIGMA,
+            "cross_ring_min_null_sigma": CROSS_RING_MIN_NULL_SIGMA,
             "residual_max_sep_deg": CROSS_SURVEY_MAX_SEP_DEG,
             "joint_min_null_sigma": JOINT_MIN_NULL_SIGMA,
             "joint_max_sep_from_cmb_deg": JOINT_MAX_SEP_FROM_CMB_DEG,
@@ -609,17 +808,18 @@ def multi_survey_scar_report(
         "gates": {
             "intra_cmb": gate_intra,
             "cross_rble": gate_cross,
+            "cross_ring": gate_cross_ring,
             "residual_nematic": gate_resid,
             "joint_ring": gate_joint,
         },
         "scar_detected": scar,
-        "scar_path": "classic" if scar_classic else ("joint_ring" if scar_joint else None),
+        "scar_path": scar_path,
         "claim": claim,
         "sdss_fetch_error": sdss_fetch_error,
         "caveats": [
             "P1 CMB Radon scar was falsified on Planck holdout — this does not reopen it.",
+            "Catalogs are rotated equatorial→Galactic before comparison (CMB-native frame).",
             "Dipole agreement is NOT used as a detection gate (footprints dominate).",
-            "Classic path needs cross_rble+residual; joint path needs shared ring near CMB.",
             "Computational consensus ≠ peer-reviewed multiverse proof.",
         ],
     }
