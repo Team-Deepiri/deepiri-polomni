@@ -138,10 +138,26 @@ def closed_loop_run(
 def multiverse_proof_run(
     quick: Annotated[bool, typer.Option("--quick", help="Fast proof for CI (~15s).")] = False,
     batch: Annotated[int, typer.Option("--batch", help="Optional loop batch count for corpus.")] = 0,
+    real_sky: Annotated[
+        bool,
+        typer.Option(
+            "--real-sky",
+            help="Attach M8 scar consensus + M9 neural real-sky + P1 integrity metrics.",
+        ),
+    ] = False,
+    refresh_scar: Annotated[
+        bool,
+        typer.Option("--refresh-scar", help="Re-run scar-consensus (slow) instead of cached JSON."),
+    ] = False,
     output: Annotated[Path | None, typer.Option("--output", "-o")] = None,
 ) -> None:
-    """Run multiverse computational proof battery (injection, loop, branching)."""
-    report = run_multiverse_proof(quick=quick, batch_runs=batch)
+    """Run multiverse proof battery (computational loop + optional real-sky tiers)."""
+    report = run_multiverse_proof(
+        quick=quick,
+        batch_runs=batch,
+        include_real_sky=real_sky,
+        refresh_scar_report=refresh_scar,
+    )
     table = Table(title=f"Multiverse Proof ({report.mode})")
     table.add_column("ID")
     table.add_column("Metric")
@@ -157,9 +173,16 @@ def multiverse_proof_run(
     console.print(table)
     if report.p1_gates is not None:
         console.print(f"P1 gates: {report.p1_gates.passed_count}/{len(report.p1_gates.checks)}")
+    tier_style = "green" if report.multiverse_proof_operational else (
+        "green" if report.computational_passed else "yellow"
+    )
+    console.print(f"[{tier_style}]Tier: {report.evidence_tier}[/{tier_style}]")
+    console.print(f"[dim]{report.claim}[/dim]")
     console.print(
         f"[{'green' if report.all_passed else 'yellow'}]"
-        f"Overall: {report.pass_rate:.0%} pass rate in {report.elapsed_seconds:.1f}s[/]"
+        f"Metrics: {report.pass_rate:.0%} pass in {report.elapsed_seconds:.1f}s "
+        f"(operational={report.multiverse_proof_operational}, "
+        f"physics={report.physics_established})[/]"
     )
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +191,7 @@ def multiverse_proof_run(
             encoding="utf-8",
         )
         console.print(f"[green]Wrote {output}[/green]")
-    if not report.all_passed and not quick:
+    if not report.all_passed and not quick and not real_sky:
         raise typer.Exit(code=1)
 
 

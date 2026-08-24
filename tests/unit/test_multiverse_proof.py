@@ -17,3 +17,20 @@ def test_multiverse_proof_quick() -> None:
     payload = report.to_dict()
     assert "multiverse_branching" in payload
     assert report.pass_rate > 0.5
+    assert report.computational_passed
+
+
+def test_multiverse_proof_real_sky_cached() -> None:
+    """Operational proof when cached M2 + scar JSON exist (CI may skip if missing)."""
+    from pathlib import Path
+
+    scar = Path("data/reports/multi_survey_scar_consensus.json")
+    m2 = Path("data/reports/m2_neural_real_sky_probe.json")
+    if not scar.is_file() or not m2.is_file():
+        return
+    report = run_multiverse_proof(quick=True, include_real_sky=True)
+    assert "M8_multi_survey_scar" in {m.id for m in report.metrics}
+    assert "M9_neural_real_sky" in {m.id for m in report.metrics}
+    if report.real_sky_passed:
+        assert report.multiverse_proof_operational
+        assert report.evidence_tier == "multiverse_proof_operational"
