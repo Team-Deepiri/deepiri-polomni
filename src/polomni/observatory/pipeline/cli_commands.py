@@ -614,6 +614,50 @@ def bubble(
         )
 
 
+@app.command("rdf-tomography")
+def rdf_tomography(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis search grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Galaxy-shuffle null realizations.")] = 32,
+    lmin: Annotated[int, typer.Option("--lmin", help="High-pass ℓ minimum.")] = 30,
+) -> None:
+    """P5-RDF: Planck × PSCz remote dipole/quadrupole proxy (Phase A)."""
+    from polomni.observatory.pipeline.sources.rdf_tomography import (
+        rdf_tomography_report,
+        write_rdf_report,
+    )
+
+    rep = rdf_tomography_report(nside=nside, nside_dir=nside_dir, n_null=n_null, lmin=lmin)
+    path = write_rdf_report(rep)
+
+    header = Table(title="P5-RDF — multiverse physics (Phase A+B+C + RBLE scar)")
+    header.add_column("Field")
+    header.add_column("Value")
+    pa = rep.get("phase_a") or {}
+    pb = rep.get("phase_b") or {}
+    obs = pa.get("observed") or {}
+    null_a = pa.get("null") or {}
+    rble = rep.get("rble_scar_axis_test") or {}
+    for key, val in [
+        ("Map", rep["map_product_id"]),
+        ("Phase", rep.get("phase", "?")),
+        ("RDF axis (gal)", f"({obs.get('rdf_gal_lon')}°, {obs.get('rdf_gal_lat')}°)"),
+        ("Template axis (gal)", f"({pb.get('template_gal_lon')}°, {pb.get('template_gal_lat')}°)"),
+        ("Phase B template p", f"{(pb.get('null_shuffle') or {}).get('p_value', '?')}"),
+        ("ΛCDM sim null p", f"{(pb.get('null_lcdm_sim') or {}).get('p_value', '?')}"),
+        ("RBLE scar axis p", f"{(rble.get('null') or {}).get('p_value', '?')}"),
+        ("Scar↔template sep", f"{rble.get('template_axis_sep_from_scar_deg')}°"),
+        ("Physics gate", str((rep.get("multiverse_physics_gate") or {}).get("pass"))),
+        ("Verdict", rep["verdict"]),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    if null_a:
+        console.print(f"[dim]Phase A coherence p={(null_a.get('template_coherence') or {}).get('p_value')}[/dim]")
+    console.print(f"[dim]{rep['honesty']}[/dim]")
+    console.print(f"[dim]Wrote {path}[/dim]")
+
+
 @app.command("correlate")
 def correlate(
     report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,

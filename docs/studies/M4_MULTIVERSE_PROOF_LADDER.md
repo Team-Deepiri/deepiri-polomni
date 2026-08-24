@@ -39,8 +39,20 @@ Tier 4 requires a **new** pre-registered CMB observable — not the falsified Ra
 | **M9** | **Neural real-sky (M2)** | open_neural beats open_uniform ≥5° |
 | M10 | P1 blind integrity | blind holdout executed + recorded |
 | M11 | P1 Radon physics | p1_supported on Planck (**currently false**) |
+| **M12** | **P5-RDF bubble template** | RDF/RQF aligned (<20°) + p_coherence ≤0.01 (**currently false**) |
 
 ---
+
+## P5 visibility frontier (separate from tier 3)
+
+**M12** tracks the SOTA bubble-collision path (Planck × PSCz RDF/RQF proxy). It is **expected to fail** until Phase B (Cai et al. template) + simulation nulls are implemented. Operational multiverse proof (tier 3) does **not** require M12.
+
+```bash
+poetry run polomni data rdf-tomography --nside 64 --n-null 16
+# Report: data/reports/p5_rdf_tomography.json
+```
+
+**First real-sky run (Aug 2026):** RDF axis (135°, 60°), RQF axis (84°, −10°), separation **81°**, p_coherence=**1.0** → bubble gate **FAIL** (honest null).
 
 ## Run it
 

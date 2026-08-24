@@ -148,8 +148,8 @@ To claim **observational visibility** of another bubble universe (publishable, n
 | Primary CMB circle edges | `bubble_collisions.py`, `polomni data bubble` | **Null** (p≈0.35) | Aligned with field — not wrong |
 | Radon/RBLE scar on CMB | P1 study | **Falsified** on Planck holdout | Do not reopen |
 | Rank-1 harmonic axis | bubble `harmonic_axis_search` | **Null** | AoE absorbed in null |
-| kSZ / RDF tomography | **Not implemented** | — | **This is the gap** |
-| RQF bubble template (Cai 2025) | **Not implemented** | — | **Highest-leverage new instrument** |
+| kSZ / RDF tomography | **`rdf_tomography.py`**, `polomni data rdf-tomography` | **Null** (p_coherence=1.0, RDF/RQF sep=81°) | Phase B: Cai template match |
+| RQF bubble template (Cai 2025) | **Not implemented** | — | RemoteField integration |
 | Galaxy × CMB cross-corr | PSCz, SDSS, residual consensus | Computational alignment only | Wrong statistic for bubbles |
 | Neural real-sky interaction | M2 neural probe | **84° win** | Interaction, not visibility |
 
@@ -179,6 +179,34 @@ That is exactly Cai–Zhang–Guan (2025). It is the **only active SOTA line** t
 - Deprecate primary-CMB “multiverse proof” narrative in external comms  
 - Tie `multiverse_proof_operational` (Tier 3) to **computational loop + real-sky interaction**, not bubble visibility  
 - Add Tier 5 **`bubble_visible`** only when P5-RDF passes blind holdout  
+
+---
+
+## 8b. Phase A implementation (Polomni, Aug 2026)
+
+**Module:** `src/polomni/observatory/pipeline/sources/rdf_tomography.py`  
+**CLI:** `poetry run polomni data rdf-tomography`
+
+| Step | Implementation |
+|------|----------------|
+| High-pass CMB | ℓ ≥ 30 band-pass on Planck SMICA |
+| Galaxy tracer | IRAS PSCz → HEALPix overdensity δ_g |
+| RDF proxy | ℓ=1 weighted cross-statistic vs axis grid |
+| RQF proxy | ℓ=2 weighted cross-statistic vs axis grid |
+| Bubble template gate | RDF and RQF peak axes within 20° + shuffle-null p < 0.01 |
+| Null | Galaxy pixel shuffle (footprint preserved) |
+
+**First real-sky result:**
+
+| Quantity | Value |
+|----------|-------|
+| RDF axis (gal) | 135.0°, 60.4° |
+| RQF axis (gal) | 84.4°, −9.6° |
+| Axis separation | **80.6°** (template expects <20°) |
+| Template coherence p | **1.0** |
+| Bubble gate | **FAIL** |
+
+**Interpretation:** Consistent with ΛCDM + simplified proxy — **not** evidence of visible bubble collisions. Next: Phase B Cai et al. multipole template projection.
 
 ---
 

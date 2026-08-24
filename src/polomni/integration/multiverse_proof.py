@@ -403,6 +403,154 @@ def _metric_p1_blind_integrity(*, p1_result_path: Path) -> ProofMetric:
     )
 
 
+def _metric_p5_rdf_tomography(
+    *,
+    rdf_report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M12: P5-RDF bubble template on Planck×PSCz proxy (visibility bar — expected fail)."""
+    data: dict[str, Any] | None = None
+    if refresh or not rdf_report_path.is_file():
+        from polomni.observatory.pipeline.sources.rdf_tomography import (
+            rdf_tomography_report,
+            write_rdf_report,
+        )
+
+        data = rdf_tomography_report(
+            nside=64 if quick else 64,
+            n_null=16 if quick else 32,
+            seed=0,
+        )
+        write_rdf_report(data, rdf_report_path)
+    else:
+        data = _load_json_report(rdf_report_path)
+
+    if data is None:
+        return ProofMetric(
+            id="M12_p5_rdf_tomography",
+            name="P5-RDF bubble template (Planck×PSCz)",
+            passed=False,
+            value=0.0,
+            threshold=0.01,
+            unit="p_coherence",
+            message="P5-RDF report unavailable — run polomni data rdf-tomography",
+        )
+
+    null = data.get("null") or {}
+    phase_a = data.get("phase_a") or {}
+    phase_b = data.get("phase_b") or {}
+    rble = data.get("rble_scar_axis_test") or {}
+    # Back-compat: old flat report shape
+    if not phase_a and data.get("observed"):
+        phase_a = {"observed": data["observed"], "null": null, "bubble_template_gate": data.get("bubble_template_gate")}
+    p_coh = float(
+        (phase_a.get("null") or {}).get("template_coherence", {}).get("p_value")
+        or (null.get("template_coherence") or {}).get("p_value", 1.0)
+    )
+    p_template = float((phase_b.get("null_shuffle") or {}).get("p_value", 1.0))
+    gate_a = bool((phase_a.get("bubble_template_gate") or {}).get("pass"))
+    gate_b = bool(phase_b.get("gate_pass"))
+    rble_gate = bool(rble.get("gate_pass"))
+    obs = phase_a.get("observed") or data.get("observed") or {}
+    sep = float(obs.get("axis_separation_deg", 180.0))
+    passed = gate_b and rble_gate  # visibility bar: template + RBLE channel
+    return ProofMetric(
+        id="M12_p5_rdf_tomography",
+        name="P5-RDF bubble template (Planck×PSCz)",
+        passed=passed,
+        value=min(p_coh, p_template),
+        threshold=0.01,
+        unit="p_min",
+        message=(
+            f"phase_a_sep={sep:.1f}° p_coh={p_coh:.4f} p_template={p_template:.4f} "
+            f"rble_gate={rble_gate} (Phase B+C visibility bar)"
+        ),
+        details={
+            "phase": data.get("phase"),
+            "phase_a": phase_a,
+            "phase_b": phase_b,
+            "rble_scar_axis_test": rble,
+            "multiverse_physics_gate": data.get("multiverse_physics_gate"),
+            "verdict": data.get("verdict"),
+        },
+    )
+
+
+def _metric_rble_scar_rdf(
+    *,
+    rdf_report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M13: RBLE frozen scar axis shows bubble template vs isotropic null."""
+    data: dict[str, Any] | None = None
+    if refresh or not rdf_report_path.is_file():
+        from polomni.observatory.pipeline.sources.rdf_tomography import (
+            rdf_tomography_report,
+            write_rdf_report,
+        )
+
+        data = rdf_tomography_report(
+            nside=64,
+            n_null=16 if quick else 32,
+            n_sim_null=8 if quick else 16,
+            seed=0,
+        )
+        write_rdf_report(data, rdf_report_path)
+    else:
+        data = _load_json_report(rdf_report_path)
+
+    if data is None:
+        return ProofMetric(
+            id="M13_rble_scar_rdf",
+            name="RBLE scar axis RDF template (model prediction)",
+            passed=False,
+            value=0.0,
+            threshold=0.05,
+            unit="p_value",
+            message="P5-RDF report unavailable",
+        )
+
+    rble = data.get("rble_scar_axis_test") or {}
+    p_val = float((rble.get("null") or {}).get("p_value", 1.0))
+    sep = rble.get("template_axis_sep_from_scar_deg")
+    gate = bool(rble.get("gate_pass"))
+    physics = data.get("multiverse_physics_gate") or {}
+    return ProofMetric(
+        id="M13_rble_scar_rdf",
+        name="RBLE scar axis RDF template (model prediction)",
+        passed=gate,
+        value=p_val,
+        threshold=0.05,
+        unit="p_value",
+        message=(
+            f"scar-axis template p={p_val:.4f} sep_from_search={sep}° "
+            f"physics_gate={physics.get('pass')}"
+        ),
+        details={"rble_scar_axis_test": rble, "multiverse_physics_gate": physics},
+    )
+
+
+def _metric_rble_physics_chain(*, nside: int = 32) -> ProofMetric:
+    """M14: RBLE district imprint → RDF bubble template recovery (simulation)."""
+    from polomni.observatory.pipeline.sources.rdf_tomography import rble_model_physics_validation
+
+    result = rble_model_physics_validation(nside=nside, seed=42)
+    gate = bool(result.get("gate_pass"))
+    err = float(result.get("axis_error_deg", 180.0))
+    return ProofMetric(
+        id="M14_rble_physics_chain",
+        name="RBLE imprint → RDF template chain (sim)",
+        passed=gate,
+        value=err,
+        threshold=20.0,
+        unit="deg",
+        message=result.get("interpretation", ""),
+        details=result,
+    )
+
+
 def _metric_p1_radon_holdout(*, p1_result_path: Path) -> ProofMetric:
     """M11: P1 Radon scar survived blind Planck holdout (physics bar — currently false)."""
     golden = _load_json_report(p1_result_path.parent / "golden_holdout_v1.json")
@@ -584,6 +732,9 @@ def run_multiverse_proof(
             ]
         )
 
+    # M14: RBLE physics chain (simulation — always run)
+    metrics.append(_metric_rble_physics_chain(nside=nside))
+
     scar_path = scar_report_path or Path("data/reports/multi_survey_scar_consensus.json")
     m2_path = m2_report_path or Path("data/reports/m2_neural_real_sky_probe.json")
     p1_path = p1_result_path or Path("data/studies/p1_holdout/RESULT.json")
@@ -597,6 +748,17 @@ def run_multiverse_proof(
         metrics.append(_metric_neural_real_sky(m2_path=m2_path))
         metrics.append(_metric_p1_blind_integrity(p1_result_path=p1_path))
         metrics.append(_metric_p1_radon_holdout(p1_result_path=p1_path))
+        rdf_path = Path("data/reports/p5_rdf_tomography.json")
+        metrics.append(_metric_p5_rdf_tomography(
+            rdf_report_path=rdf_path,
+            refresh=refresh_scar_report,
+            quick=quick,
+        ))
+        metrics.append(_metric_rble_scar_rdf(
+            rdf_report_path=rdf_path,
+            refresh=False,
+            quick=quick,
+        ))
 
     elapsed = time.perf_counter() - t0
     return MultiverseProofReport(
