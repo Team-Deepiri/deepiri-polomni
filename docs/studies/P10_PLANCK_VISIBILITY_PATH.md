@@ -29,7 +29,7 @@ Until that fires: **multiverse_works** (instrument+ops) is proven; **visibility*
 
 | Resource | Why | Status | Owner action |
 |----------|-----|--------|--------------|
-| **DESI LRG catalog** (public DR1/DR2 subset, ≥ few×10⁵ rows with RA/Dec/z) | √N: SNR scales ~√N under shot noise; PSCz~18k is the floor | **Not ingested** — Phase H uses SDSS SpecObj strips (~10³–10⁴) as proxy | Drop a parquet/CSV/FITS URL or local path under `data/cache/desi_lrg/` |
+| **DESI LRG catalog** (public DR1/DR2 subset, ≥ few×10⁵ rows with RA/Dec/z) | √N: SNR scales ~√N under shot noise; PSCz~18k is the floor | **Phase K ingested** Guadalupe VAC LRG N+S (~2.6e5) via `polomni data desi-lrg-fisher` | Optional: full iron DR1 LSS for ~10⁶ |
 | **ACT DR6 × DESI** cross (optional) | Real kSZ velocity field — ΛCDM structure *and* bubble template channel | Not wired | Same: public catalog path |
 | Planck SMICA + WMAP K | Already cached | **Have** | — |
 | IRAS PSCz | Already cached | **Have** | — |

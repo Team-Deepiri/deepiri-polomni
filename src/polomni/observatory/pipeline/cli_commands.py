@@ -747,6 +747,51 @@ def amplitude_locksmith_cmd(
     console.print(f"[dim]Wrote {out}[/dim]")
 
 
+@app.command("desi-lrg-fisher")
+def desi_lrg_fisher_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-download DESI Guadalupe LRG FITS.")
+    ] = False,
+) -> None:
+    """Phase K: Planck × DESI LRG (Guadalupe) Fisher + Cai multi-z tomography."""
+    from polomni.observatory.pipeline.sources.desi_lrg_fisher import desi_lrg_fisher_report
+
+    rep = desi_lrg_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh=refresh
+    )
+    out = Path("data/reports/p5_desi_lrg_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase K — DESI LRG Fisher (SOTA lever)")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_desi") or {}
+    sc = rep.get("scaling") or {}
+    mz = rep.get("multi_z") or {}
+    fc = rep.get("forecast_full_dr1_lrg") or {}
+    for key, val in [
+        ("N DESI LRG", tr.get("n_galaxies")),
+        ("z range", tr.get("z_range")),
+        ("SNR DESI", sc.get("snr_desi")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("SNR multi-z stack", sc.get("snr_multi_z_stack")),
+        ("cross-z sep deg", mz.get("cross_z_mean_sep_deg")),
+        ("√N expected", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Obs SNR ratio", sc.get("observed_snr_ratio")),
+        ("Beats PSCz", sc.get("beats_pscz")),
+        ("Full-DR1 forecast", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
 @app.command("dense-lrg-fisher")
 def dense_lrg_fisher(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
