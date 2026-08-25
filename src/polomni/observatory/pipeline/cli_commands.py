@@ -661,6 +661,47 @@ def rdf_tomography(
     console.print(f"[dim]Wrote {path}[/dim]")
 
 
+@app.command("dense-lrg-fisher")
+def dense_lrg_fisher(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis search grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 12,
+    refresh_lrg: Annotated[
+        bool, typer.Option("--refresh-lrg", help="Re-fetch SDSS LRG RA-strip sample.")
+    ] = False,
+) -> None:
+    """Phase H: Planck × denser PSCz∪SDSS-LRG Fisher + √N scaling + DESI forecast."""
+    from polomni.observatory.pipeline.sources.dense_lrg_fisher import dense_fisher_report
+
+    rep = dense_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh_lrg=refresh_lrg
+    )
+    out = Path("data/reports/p5_dense_lrg_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase H — dense LRG Fisher (visibility ladder)")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_dense") or {}
+    sc = rep.get("scaling") or {}
+    fc = rep.get("forecast_desi_lrg_class") or {}
+    for key, val in [
+        ("N galaxies (dense)", tr.get("n_galaxies")),
+        ("N LRG", tr.get("n_lrg")),
+        ("SNR dense", sc.get("snr_dense")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("√N expected ratio", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Observed SNR ratio", sc.get("observed_snr_ratio")),
+        ("DESI forecast SNR", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
 @app.command("correlate")
 def correlate(
     report: Annotated[Path | None, typer.Option("--report", "-r", help="Report JSON.")] = None,

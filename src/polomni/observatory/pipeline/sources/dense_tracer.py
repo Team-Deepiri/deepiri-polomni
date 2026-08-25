@@ -49,7 +49,7 @@ def load_dense_tracer_galactic(
     if include_sdss:
         from polomni.observatory.pipeline.sources.cross_sky import load_galaxy_vectors
 
-        for pid in ("sdss_bao_ladder", "sdss_galaxies"):
+        for pid in ("sdss_lrg_dense", "sdss_bao_ladder", "sdss_galaxies"):
             path = cache.resolved_path(pid)
             if path is None:
                 cand = cache.root / pid

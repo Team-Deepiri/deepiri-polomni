@@ -36,7 +36,8 @@ Tier 5 is *visibility of other universes in Planck* — still null, **not ruled 
 | M11 | P1 Radon physics | falsified — optional |
 | M12–M13 | P5 visibility | expected fail until denser tracers |
 | **M14** | RBLE → RDF chain (sim) | axis err <20° |
-| **M15** | Blind Fisher holdout (sim) | frozen-axis SNR beats null |
+| **M15** | Blind Fisher holdout (sim) | frozen-axis SNR beats orthogonal |
+| **M16** | Dense LRG Fisher (real) | visibility ladder — expected null until DESI depth |
 
 ---
 

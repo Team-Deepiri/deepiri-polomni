@@ -40,5 +40,5 @@
 
 ## Next
 
-1. Ingest public DESI LRG / ACT DR6 cross-match
-2. Tier **`bubble_visible`** when Phase G gate passes + denser-tracer confirm
+1. ~~Ingest public DESI LRG / ACT DR6 cross-match~~ → **P9** SDSS LRG-dense (DESI file pending)
+2. Tier **`bubble_visible`** when Phase G/H gate passes on holdout

@@ -74,6 +74,7 @@ class MultiverseProofReport:
             "M11_p1_radon_holdout",
             "M12_p5_rdf_tomography",
             "M13_rble_scar_rdf",
+            "M16_dense_lrg_fisher",
         }
     )
 
@@ -648,6 +649,69 @@ def _metric_instrument_holdout(*, nside: int = 32, quick: bool = False) -> Proof
     )
 
 
+def _metric_dense_lrg_fisher(
+    *,
+    report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M16: denser LRG-class tracer Fisher on Planck (visibility ladder — expected null)."""
+    data: dict[str, Any] | None = None
+    if refresh or not report_path.is_file():
+        from polomni.observatory.pipeline.sources.dense_lrg_fisher import dense_fisher_report
+
+        data = dense_fisher_report(
+            nside=32 if quick else 64,
+            nside_dir=4 if quick else 8,
+            n_null=4 if quick else 12,
+            seed=0,
+            refresh_lrg=refresh,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            __import__("json").dumps(data, indent=2), encoding="utf-8"
+        )
+    else:
+        data = _load_json_report(report_path)
+
+    if data is None:
+        return ProofMetric(
+            id="M16_dense_lrg_fisher",
+            name="Dense LRG Fisher (Planck×PSCz∪SDSS)",
+            passed=False,
+            value=0.0,
+            threshold=0.01,
+            unit="p_value",
+            message="dense LRG report unavailable — run polomni data dense-lrg-fisher",
+        )
+
+    gate = bool(data.get("gate_pass"))
+    p_val = float(
+        ((data.get("fisher_dense") or {}).get("null") or {}).get("p_value", 1.0)
+    )
+    snr = float((data.get("scaling") or {}).get("snr_dense", 0.0))
+    forecast = float((data.get("forecast_desi_lrg_class") or {}).get("snr_forecast", 0.0))
+    n_gal = int((data.get("tracer_dense") or {}).get("n_galaxies", 0))
+    return ProofMetric(
+        id="M16_dense_lrg_fisher",
+        name="Dense LRG Fisher (Planck×PSCz∪SDSS)",
+        passed=gate,
+        value=p_val,
+        threshold=0.01,
+        unit="p_value",
+        message=(
+            f"n={n_gal} snr={snr:.2f} p={p_val:.3f} desi_forecast={forecast:.1f} gate={gate}"
+        ),
+        details={
+            "scaling": data.get("scaling"),
+            "forecast_desi_lrg_class": data.get("forecast_desi_lrg_class"),
+            "tracer_dense": data.get("tracer_dense"),
+            "gate_pass": gate,
+            "interpretation": data.get("interpretation"),
+        },
+    )
+
+
 def _metric_p1_radon_holdout(*, p1_result_path: Path) -> ProofMetric:
     """M11: P1 Radon scar survived blind Planck holdout (physics bar — currently false)."""
     golden = _load_json_report(p1_result_path.parent / "golden_holdout_v1.json")
@@ -855,6 +919,11 @@ def run_multiverse_proof(
         metrics.append(_metric_rble_scar_rdf(
             rdf_report_path=rdf_path,
             refresh=False,
+            quick=quick,
+        ))
+        metrics.append(_metric_dense_lrg_fisher(
+            report_path=Path("data/reports/p5_dense_lrg_fisher.json"),
+            refresh=refresh_scar_report,
             quick=quick,
         ))
 
