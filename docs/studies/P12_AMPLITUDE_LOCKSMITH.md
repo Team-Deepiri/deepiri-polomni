@@ -26,5 +26,13 @@ MF. Inject ladder records `min_amp` that clears the gate on the same estimator.
 
 ## Real-sky (honest)
 
-Sky-max MF SNR ~230 is **not** a detection — proper PSCz nulls sit at ~223
-(null_ratio≈1.04). Fixed-axis + inject ladder are the locksmith path.
+| Statistic | Value |
+|-----------|-------|
+| Pearson Fisher SNR | 1.28 |
+| Sky-max MF SNR | ~231 (LEE — null_ratio≈1.04, not a detection) |
+| Fixed-axis excess_z (coadd) | 0.61 |
+| Inject Amin for gate | **2.0** — `amplitude_path_proven=True` |
+| Real-sky gate | **Fail** — imprint below threshold; not ruled out |
+
+Estimator unblocked. Visibility still needs stronger real imprint or DESI-class N.
+
