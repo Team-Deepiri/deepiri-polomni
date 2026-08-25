@@ -42,7 +42,8 @@ A true bubble collision axis is fixed on the sky through z. ΛCDM kSZ / shot noi
 
 ## Next ladder rungs
 
-1. ACT×DESI-class tracer ingest (denser z-bins)
-2. Blind holdout: WMAP train → Planck test
+1. ~~ACT×DESI-class tracer ingest~~ → forecast + PSCz+SDSS stack (**P8**)
+2. ~~Blind holdout: WMAP train → Planck test~~ → **P8 / Phase G**
 3. Optional vendor RemoteField / SZ_cosmo kernels
-4. Tier **`bubble_visible`** when Phase F (or E) gate passes on holdout
+4. Tier **`bubble_visible`** when Phase G gate passes on denser tracers
+5. Public DESI LRG ingest (real N, not forecast)

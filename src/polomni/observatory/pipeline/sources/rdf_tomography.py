@@ -633,12 +633,37 @@ def rdf_tomography_report(
         scar_axis=scar_axis,
     )
 
-    physics_gate = bool(fisher.get("gate_pass") or phase_f.get("gate_pass"))
+    # Phase G: blind WMAP→Planck Fisher holdout + denser-tracer forecast
+    from polomni.observatory.pipeline.sources.blind_fisher_holdout import (
+        blind_fisher_holdout_report,
+    )
+    from polomni.observatory.pipeline.sources.dense_tracer import dense_tracer_report
+
+    phase_g = blind_fisher_holdout_report(
+        vecs_gal,
+        nside=nside,
+        lmin=lmin,
+        b_cut=b_cut,
+        nside_dir_train=max(4, nside_dir // 2),
+        n_null=max(8, n_null // 2),
+        seed=seed + 6,
+        cache=cache,
+    )
+    snr_ref = float(
+        (phase_f.get("stacked") or {}).get("fisher_snr")
+        or (fisher.get("observed") or {}).get("fisher_snr")
+        or 0.0
+    )
+    dense = dense_tracer_report(snr_now=snr_ref, f_sky_now=f_sky, cache=cache)
+
+    physics_gate = bool(
+        fisher.get("gate_pass") or phase_f.get("gate_pass") or phase_g.get("gate_pass")
+    )
 
     return {
-        "instrument": "P5-RDF tomography (Phase A–F: multi-z Fisher stack)",
+        "instrument": "P5-RDF tomography (Phase A–G: blind Fisher holdout)",
         "study_id": "P5-RDF",
-        "phase": "F_multi_z_tomography",
+        "phase": "G_blind_fisher_holdout",
         "map_product_id": pid,
         "galaxy_tracer": "iras_pscz",
         "nside": nside,
@@ -691,11 +716,12 @@ def rdf_tomography_report(
             "gate_pass": rble_gate,
         },
         "multiverse_physics_gate": {
-            "requires": "Phase E or F Fisher gate (SNR + null + coherence + RBLE align)",
+            "requires": "Phase E, F, or G Fisher gate",
             "pass": physics_gate,
             "legacy_phase_d": physics_gate_v2,
             "phase_e": bool(fisher.get("gate_pass")),
             "phase_f": bool(phase_f.get("gate_pass")),
+            "phase_g": bool(phase_g.get("gate_pass")),
         },
         "phase_d": {
             "quadratic_fields": q_fields.to_dict(),
@@ -716,6 +742,8 @@ def rdf_tomography_report(
         },
         "phase_e": fisher,
         "phase_f": phase_f,
+        "phase_g": phase_g,
+        "dense_tracer_forecast": dense,
         "verdict": _build_verdict(
             p_coherence=p_coherence,
             p_template_shuffle=p_template_shuffle,
@@ -728,11 +756,18 @@ def rdf_tomography_report(
             fisher_snr=float((fisher.get("observed") or {}).get("fisher_snr", 0.0)),
             multi_z_snr=float((phase_f.get("stacked") or {}).get("fisher_snr", 0.0)),
             multi_z_p=float((phase_f.get("null") or {}).get("p_value_snr", 1.0)),
+            holdout_p=float((phase_g.get("holdout") or {}).get("null", {}).get("p_value", 1.0)),
+            holdout_snr=float(
+                (phase_g.get("holdout") or {}).get("fisher_snr_at_frozen_axis", 0.0)
+            ),
+            forecast_snr=float(
+                (dense.get("forecast_desi_lrg_class") or {}).get("snr_forecast", 0.0)
+            ),
         ),
         "honesty": (
-            "Phase F: multi-z PSCz shells with kernel-weighted Fisher stack + cross-z "
-            "axis coherence. Deepest in-repo tomography without RemoteField vendor; "
-            "not a detection until blind holdout. Multiverse NOT ruled out."
+            "Phase G: blind WMAP→Planck Fisher holdout (axis frozen on train) + "
+            "DESI-class sensitivity forecast. Not a detection until holdout gate passes; "
+            "multiverse NOT ruled out."
         ),
         "references": [
             "Deutsch et al. PRD 98, 063502 (2018) — RDF reconstruction",
@@ -756,11 +791,23 @@ def _build_verdict(
     fisher_snr: float = 0.0,
     multi_z_snr: float = 0.0,
     multi_z_p: float = 1.0,
+    holdout_p: float = 1.0,
+    holdout_snr: float = 0.0,
+    forecast_snr: float = 0.0,
 ) -> str:
-    if combined_gate and (fisher_snr > 2.0 or multi_z_snr > 1.5):
+    if combined_gate and (holdout_snr > 1.0 or fisher_snr > 2.0 or multi_z_snr > 1.5):
         return (
-            "Fisher / multi-z bubble invariant above null — "
-            "requires blind Planck holdout before multiverse visibility claim."
+            "Blind holdout / Fisher bubble invariant above null — "
+            "requires denser-tracer confirmation before bubble_visible tier."
+        )
+    if holdout_p < 0.05 and holdout_snr > 0.5:
+        return (
+            "Marginal WMAP→Planck Fisher holdout excess — not sufficient for detection."
+        )
+    if forecast_snr > 2.0 and not combined_gate:
+        return (
+            "Current Planck×PSCz null, but DESI-class forecast SNR>2 — "
+            "ingest public LRG catalogs next; multiverse not ruled out."
         )
     if multi_z_p < 0.05 and multi_z_snr > 0.8:
         return (

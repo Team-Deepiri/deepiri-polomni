@@ -457,30 +457,39 @@ def _metric_p5_rdf_tomography(
     phase_d = data.get("phase_d") or {}
     phase_e = data.get("phase_e") or {}
     phase_f = data.get("phase_f") or {}
+    phase_g = data.get("phase_g") or {}
+    dense = data.get("dense_tracer_forecast") or {}
     p_cai = float((phase_d.get("null_shuffle") or {}).get("p_value", 1.0))
     p_fisher = float((phase_e.get("null") or {}).get("p_value", 1.0))
     p_mz = float((phase_f.get("null") or {}).get("p_value_snr", 1.0))
+    p_hold = float((phase_g.get("holdout") or {}).get("null", {}).get("p_value", 1.0))
     gate_e = bool(phase_e.get("gate_pass"))
     gate_f = bool(phase_f.get("gate_pass"))
+    gate_g = bool(phase_g.get("gate_pass"))
     physics = data.get("multiverse_physics_gate") or {}
-    passed = bool(physics.get("pass")) or gate_e or gate_f
+    passed = bool(physics.get("pass")) or gate_e or gate_f or gate_g
     fisher_snr = float((phase_e.get("observed") or {}).get("fisher_snr", 0.0))
     mz_snr = float((phase_f.get("stacked") or {}).get("fisher_snr", 0.0))
+    hold_snr = float((phase_g.get("holdout") or {}).get("fisher_snr_at_frozen_axis", 0.0))
+    forecast = float((dense.get("forecast_desi_lrg_class") or {}).get("snr_forecast", 0.0))
     return ProofMetric(
         id="M12_p5_rdf_tomography",
-        name="P5-RDF Fisher / multi-z bubble (Planck×PSCz)",
+        name="P5-RDF Fisher / multi-z / blind holdout (Planck×PSCz)",
         passed=passed,
-        value=min(p_coh, p_template, p_cai, p_fisher, p_mz),
+        value=min(p_coh, p_template, p_cai, p_fisher, p_mz, p_hold),
         threshold=0.01,
         unit="p_min",
         message=(
-            f"fisher_snr={fisher_snr:.2f} p_e={p_fisher:.4f} "
-            f"mz_snr={mz_snr:.2f} p_f={p_mz:.4f} gate_e={gate_e} gate_f={gate_f}"
+            f"E={fisher_snr:.2f}/{p_fisher:.3f} F={mz_snr:.2f}/{p_mz:.3f} "
+            f"G={hold_snr:.2f}/{p_hold:.3f} forecast={forecast:.1f} "
+            f"gates e/f/g={gate_e}/{gate_f}/{gate_g}"
         ),
         details={
             "phase": data.get("phase"),
             "phase_e": phase_e,
             "phase_f": phase_f,
+            "phase_g": phase_g,
+            "dense_tracer_forecast": dense,
             "phase_d": phase_d,
             "rble_scar_axis_test": rble,
             "multiverse_physics_gate": physics,
