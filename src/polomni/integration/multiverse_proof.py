@@ -76,6 +76,7 @@ class MultiverseProofReport:
             "M13_rble_scar_rdf",
             "M16_dense_lrg_fisher",
             "M17_hammer_fisher",
+            "M18_amplitude_locksmith",
         }
     )
 
@@ -774,6 +775,72 @@ def _metric_hammer_fisher(
     )
 
 
+def _metric_amplitude_locksmith(
+    *,
+    report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M18: matched-filter amplitude past Pearson wall (visibility ladder)."""
+    data: dict[str, Any] | None = _load_json_report(report_path)
+    if refresh or (data is None and not quick):
+        from polomni.observatory.pipeline.sources.amplitude_locksmith import (
+            amplitude_locksmith_report,
+        )
+
+        data = amplitude_locksmith_report(
+            nside=32 if quick else 64,
+            nside_dir=4 if quick else 8,
+            n_null=4 if quick else 16,
+            seed=0,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            __import__("json").dumps(data, indent=2), encoding="utf-8"
+        )
+
+    if data is None:
+        return ProofMetric(
+            id="M18_amplitude_locksmith",
+            name="Amplitude locksmith (matched-filter)",
+            passed=False,
+            value=0.0,
+            threshold=0.01,
+            unit="p_value",
+            message="locksmith report unavailable — run polomni data amplitude-locksmith",
+        )
+
+    gate = bool(data.get("gate_pass"))
+    fixed = data.get("matched_fixed_planck") or data.get("matched_wmap_planck_coadd") or {}
+    coadd = data.get("matched_fixed_coadd") or {}
+    best = coadd if float((coadd.get("observed") or {}).get("excess_z", 0)) >= float(
+        (fixed.get("observed") or {}).get("excess_z", 0)
+    ) else fixed
+    p_val = float((best.get("null") or {}).get("p_value", 1.0))
+    snr = float((data.get("scaling") or {}).get("excess_z_fixed_planck", 0.0))
+    lift = float((data.get("scaling") or {}).get("amplitude_lift_vs_pearson", 0.0))
+    path = bool((data.get("scaling") or {}).get("amplitude_path_proven"))
+    return ProofMetric(
+        id="M18_amplitude_locksmith",
+        name="Amplitude locksmith (matched-filter)",
+        passed=gate,
+        value=p_val,
+        threshold=0.01,
+        unit="p_value",
+        message=(
+            f"excess_z={snr:.2f} lift={lift:.0f}x path_proven={path} "
+            f"p={p_val:.3f} gate={gate}"
+        ),
+        details={
+            "scaling": data.get("scaling"),
+            "pearson_planck": data.get("pearson_planck"),
+            "inject_ladder": data.get("inject_ladder"),
+            "gate_pass": gate,
+            "interpretation": data.get("interpretation"),
+        },
+    )
+
+
 def _metric_p1_radon_holdout(*, p1_result_path: Path) -> ProofMetric:
     """M11: P1 Radon scar survived blind Planck holdout (physics bar — currently false)."""
     golden = _load_json_report(p1_result_path.parent / "golden_holdout_v1.json")
@@ -991,6 +1058,11 @@ def run_multiverse_proof(
         metrics.append(_metric_hammer_fisher(
             report_path=Path("data/reports/p5_hammer_fisher.json"),
             refresh=False,  # use cached hammer; run CLI to refresh
+            quick=quick,
+        ))
+        metrics.append(_metric_amplitude_locksmith(
+            report_path=Path("data/reports/p5_amplitude_locksmith.json"),
+            refresh=False,
             quick=quick,
         ))
 

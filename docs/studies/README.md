@@ -15,6 +15,7 @@ Pre-registered, blind-capable observatory analyses for establishing RBLE as phys
 | **P9** Dense LRG Fisher | [P9_DENSE_LRG_FISHER.md](./P9_DENSE_LRG_FISHER.md) | `polomni data dense-lrg-fisher` | Phase H |
 | **P10** Planck visibility path | [P10_PLANCK_VISIBILITY_PATH.md](./P10_PLANCK_VISIBILITY_PATH.md) | resources + goals | Active |
 | **P11** Hammer visibility | [P11_HAMMER_VISIBILITY.md](./P11_HAMMER_VISIBILITY.md) | `polomni data hammer-fisher` | **Hammering** |
+| **P12** Amplitude locksmith | [P12_AMPLITUDE_LOCKSMITH.md](./P12_AMPLITUDE_LOCKSMITH.md) | `polomni data amplitude-locksmith` | **Phase J — past Pearson wall** |
 
 **Run calibration:** `polomni study run p1 --calibration`  
 **Run blind holdout:** `polomni study run p1 --blind`  

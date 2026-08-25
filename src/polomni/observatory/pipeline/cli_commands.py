@@ -706,6 +706,47 @@ def hammer_fisher_cmd(
     console.print(f"[dim]Wrote {out}[/dim]")
 
 
+@app.command("amplitude-locksmith")
+def amplitude_locksmith_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+) -> None:
+    """Phase J: matched-filter amplitude past Pearson wall + WMAP×Planck coadd."""
+    from polomni.observatory.pipeline.sources.amplitude_locksmith import (
+        amplitude_locksmith_report,
+    )
+
+    rep = amplitude_locksmith_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null
+    )
+    out = Path("data/reports/p5_amplitude_locksmith.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase J — AMPLITUDE LOCKSMITH")
+    header.add_column("Field")
+    header.add_column("Value")
+    sc = rep.get("scaling") or {}
+    for key, val in [
+        ("CMB missions", rep.get("cmb_missions_coadded")),
+        ("N galaxies", rep.get("n_galaxies")),
+        ("SNR Pearson", sc.get("snr_pearson")),
+        ("SNR sky-max MF", sc.get("snr_matched_sky_max")),
+        ("excess_z fixed Planck", sc.get("excess_z_fixed_planck")),
+        ("excess_z fixed coadd", sc.get("excess_z_fixed_coadd")),
+        ("null_ratio fixed Planck", sc.get("null_ratio_fixed_planck")),
+        ("null_ratio fixed coadd", sc.get("null_ratio_fixed_coadd")),
+        ("min inject amp", sc.get("min_inject_amp_gate")),
+        ("amplitude path proven", sc.get("amplitude_path_proven")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
 @app.command("dense-lrg-fisher")
 def dense_lrg_fisher(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
