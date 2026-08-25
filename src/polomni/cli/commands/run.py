@@ -173,15 +173,19 @@ def multiverse_proof_run(
     console.print(table)
     if report.p1_gates is not None:
         console.print(f"P1 gates: {report.p1_gates.passed_count}/{len(report.p1_gates.checks)}")
-    tier_style = "green" if report.multiverse_proof_operational else (
-        "green" if report.computational_passed else "yellow"
+    tier_style = "green" if getattr(report, "multiverse_works", False) else (
+        "green" if report.multiverse_proof_operational else (
+            "green" if report.computational_passed else "yellow"
+        )
     )
     console.print(f"[{tier_style}]Tier: {report.evidence_tier}[/{tier_style}]")
     console.print(f"[dim]{report.claim}[/dim]")
     console.print(
         f"[{'green' if report.all_passed else 'yellow'}]"
         f"Metrics: {report.pass_rate:.0%} pass in {report.elapsed_seconds:.1f}s "
-        f"(operational={report.multiverse_proof_operational}, "
+        f"(works={getattr(report, 'multiverse_works', False)}, "
+        f"instrument={getattr(report, 'instrument_proven', False)}, "
+        f"operational={report.multiverse_proof_operational}, "
         f"physics={report.physics_established})[/]"
     )
     if output is not None:

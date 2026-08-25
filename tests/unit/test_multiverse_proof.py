@@ -33,4 +33,8 @@ def test_multiverse_proof_real_sky_cached() -> None:
     assert "M9_neural_real_sky" in {m.id for m in report.metrics}
     if report.real_sky_passed:
         assert report.multiverse_proof_operational
-        assert report.evidence_tier == "multiverse_proof_operational"
+        if report.instrument_proven:
+            assert report.multiverse_works
+            assert report.evidence_tier == "multiverse_works"
+        else:
+            assert report.evidence_tier == "multiverse_proof_operational"
