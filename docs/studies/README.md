@@ -8,8 +8,9 @@ Pre-registered, blind-capable observatory analyses for establishing RBLE as phys
 | **M2** Neural real-sky probe | [M2_NEURAL_REAL_SKY_PROBE_PREREG.md](./M2_NEURAL_REAL_SKY_PROBE_PREREG.md) | CLI / `data/reports/m2_*` | Active — open-loop neural win |
 | **M3** Multi-survey scar | [M3_MULTI_SURVEY_SCAR_RESEARCH.md](./M3_MULTI_SURVEY_SCAR_RESEARCH.md) | `polomni data scar-consensus` | Active — `residual_consensus` pass |
 | **M4** Multiverse proof ladder | [M4_MULTIVERSE_PROOF_LADDER.md](./M4_MULTIVERSE_PROOF_LADDER.md) | `polomni run proof --real-sky` | **Operational proof achieved** |
-| **P5** Other universes visible (SOTA) | [P5_OTHER_UNIVERSES_VISIBLE_SOTA.md](./P5_OTHER_UNIVERSES_VISIBLE_SOTA.md) | `polomni data rdf-tomography` | **Phase E Fisher scan — not ruled out** |
-| **P6** Fisher bubble invariant | [P6_FISHER_BUBBLE_INVARIANT.md](./P6_FISHER_BUBBLE_INVARIANT.md) | `multiverse_fisher_scan.py` | **Deep math scan active** |
+| **P5** Other universes visible (SOTA) | [P5_OTHER_UNIVERSES_VISIBLE_SOTA.md](./P5_OTHER_UNIVERSES_VISIBLE_SOTA.md) | `polomni data rdf-tomography` | **Phase F multi-z — not ruled out** |
+| **P6** Fisher bubble invariant | [P6_FISHER_BUBBLE_INVARIANT.md](./P6_FISHER_BUBBLE_INVARIANT.md) | `multiverse_fisher_scan.py` | Phase E complete |
+| **P7** Multi-z tomography | [P7_MULTI_Z_TOMOGRAPHY.md](./P7_MULTI_Z_TOMOGRAPHY.md) | `multi_z_tomography.py` | **Active — sensitivity ladder** |
 
 **Run calibration:** `polomni study run p1 --calibration`  
 **Run blind holdout:** `polomni study run p1 --blind`  

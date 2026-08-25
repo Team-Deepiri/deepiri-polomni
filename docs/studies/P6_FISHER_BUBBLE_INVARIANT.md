@@ -47,7 +47,7 @@ We can prove the *thought* (instrument + invariant + null protocol). We can also
 
 ## Next: sensitivity ladder
 
-1. Multi-z tomography (RemoteField + SZ_cosmo kernels)
+1. ~~Multi-z tomography (RemoteField + SZ_cosmo kernels)~~ → **P7 / Phase F** (in-repo PSCz z-shells)
 2. ACT×DESI-class galaxy tracer ingest
 3. Blind holdout: WMAP train → Planck test
-4. Tier **`bubble_visible`** when Phase E gate passes on holdout
+4. Tier **`bubble_visible`** when Phase E/F gate passes on holdout

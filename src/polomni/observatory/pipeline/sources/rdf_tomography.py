@@ -613,10 +613,32 @@ def rdf_tomography_report(
         cmb_hp, delta_g, mask, nside_dir=nside_dir, n_null=n_null, seed=seed + 4, scar_axis=scar_axis
     )
 
+    # Phase F: multi-z PSCz shells + kernel-weighted Fisher stack
+    from polomni.observatory.pipeline.sources.iras_pscz import load_pscz_catalog
+    from polomni.observatory.pipeline.sources.multi_z_tomography import multi_z_fisher_report
+
+    cat = load_pscz_catalog()
+    vecs_eq_z = cat["vecs_eq"]
+    z_gal = cat["z"]
+    vecs_gal_z = equatorial_to_galactic(vecs_eq_z)
+    # Align catalog length with any filtered load (same cache)
+    phase_f = multi_z_fisher_report(
+        cmb_hp,
+        vecs_gal_z,
+        z_gal,
+        mask,
+        nside_dir=max(4, nside_dir // 2),
+        n_null=max(8, n_null // 2),
+        seed=seed + 5,
+        scar_axis=scar_axis,
+    )
+
+    physics_gate = bool(fisher.get("gate_pass") or phase_f.get("gate_pass"))
+
     return {
-        "instrument": "P5-RDF tomography (Phase A–E: Fisher bubble invariant)",
+        "instrument": "P5-RDF tomography (Phase A–F: multi-z Fisher stack)",
         "study_id": "P5-RDF",
-        "phase": "E_fisher_bubble",
+        "phase": "F_multi_z_tomography",
         "map_product_id": pid,
         "galaxy_tracer": "iras_pscz",
         "nside": nside,
@@ -669,9 +691,11 @@ def rdf_tomography_report(
             "gate_pass": rble_gate,
         },
         "multiverse_physics_gate": {
-            "requires": "Phase E Fisher SNR p<0.01, SNR>2, coherent m=0, RBLE scar aligned",
-            "pass": bool(fisher.get("gate_pass")),
+            "requires": "Phase E or F Fisher gate (SNR + null + coherence + RBLE align)",
+            "pass": physics_gate,
             "legacy_phase_d": physics_gate_v2,
+            "phase_e": bool(fisher.get("gate_pass")),
+            "phase_f": bool(phase_f.get("gate_pass")),
         },
         "phase_d": {
             "quadratic_fields": q_fields.to_dict(),
@@ -691,6 +715,7 @@ def rdf_tomography_report(
             "gate_pass": phase_d_gate,
         },
         "phase_e": fisher,
+        "phase_f": phase_f,
         "verdict": _build_verdict(
             p_coherence=p_coherence,
             p_template_shuffle=p_template_shuffle,
@@ -698,16 +723,16 @@ def rdf_tomography_report(
             p_cai=p_cai,
             p_cai_sim=p_cai_sim,
             rble_gate=rble_gate,
-            combined_gate=bool(fisher.get("gate_pass")),
+            combined_gate=physics_gate,
             phase_d=phase_d_gate,
             fisher_snr=float((fisher.get("observed") or {}).get("fisher_snr", 0.0)),
+            multi_z_snr=float((phase_f.get("stacked") or {}).get("fisher_snr", 0.0)),
+            multi_z_p=float((phase_f.get("null") or {}).get("p_value_snr", 1.0)),
         ),
         "honesty": (
-            "Phase E: Fisher-optimal SO(2,1) bubble invariant — dimensionless "
-            "corr(RDF,P1)×corr(RQF,P2) after high-pass ΛCDM mitigation. Deepest "
-            "in-repo multiverse scan; not a detection until blind holdout + multi-z "
-            "tomography. We do NOT rule out superhorizon bubble signatures at higher "
-            "sensitivity."
+            "Phase F: multi-z PSCz shells with kernel-weighted Fisher stack + cross-z "
+            "axis coherence. Deepest in-repo tomography without RemoteField vendor; "
+            "not a detection until blind holdout. Multiverse NOT ruled out."
         ),
         "references": [
             "Deutsch et al. PRD 98, 063502 (2018) — RDF reconstruction",
@@ -729,11 +754,18 @@ def _build_verdict(
     combined_gate: bool,
     phase_d: bool = False,
     fisher_snr: float = 0.0,
+    multi_z_snr: float = 0.0,
+    multi_z_p: float = 1.0,
 ) -> str:
-    if combined_gate and fisher_snr > 2.0:
+    if combined_gate and (fisher_snr > 2.0 or multi_z_snr > 1.5):
         return (
-            "Fisher SO(2,1) bubble invariant above ΛCDM-mitigated null — "
+            "Fisher / multi-z bubble invariant above null — "
             "requires blind Planck holdout before multiverse visibility claim."
+        )
+    if multi_z_p < 0.05 and multi_z_snr > 0.8:
+        return (
+            "Marginal multi-z Fisher excess — not sufficient for multiverse detection; "
+            "sensitivity ladder continues (ACT×DESI-class tracers)."
         )
     if phase_d and not combined_gate:
         return (

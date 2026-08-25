@@ -456,26 +456,31 @@ def _metric_p5_rdf_tomography(
     sep = float(obs.get("axis_separation_deg", 180.0))
     phase_d = data.get("phase_d") or {}
     phase_e = data.get("phase_e") or {}
+    phase_f = data.get("phase_f") or {}
     p_cai = float((phase_d.get("null_shuffle") or {}).get("p_value", 1.0))
     p_fisher = float((phase_e.get("null") or {}).get("p_value", 1.0))
+    p_mz = float((phase_f.get("null") or {}).get("p_value_snr", 1.0))
     gate_e = bool(phase_e.get("gate_pass"))
+    gate_f = bool(phase_f.get("gate_pass"))
     physics = data.get("multiverse_physics_gate") or {}
-    passed = bool(physics.get("pass")) or gate_e
+    passed = bool(physics.get("pass")) or gate_e or gate_f
     fisher_snr = float((phase_e.get("observed") or {}).get("fisher_snr", 0.0))
+    mz_snr = float((phase_f.get("stacked") or {}).get("fisher_snr", 0.0))
     return ProofMetric(
         id="M12_p5_rdf_tomography",
-        name="P5-RDF Fisher bubble invariant (Planck×PSCz)",
+        name="P5-RDF Fisher / multi-z bubble (Planck×PSCz)",
         passed=passed,
-        value=min(p_coh, p_template, p_cai, p_fisher),
+        value=min(p_coh, p_template, p_cai, p_fisher, p_mz),
         threshold=0.01,
         unit="p_min",
         message=(
-            f"fisher_snr={fisher_snr:.2f} p_fisher={p_fisher:.4f} "
-            f"gate_e={gate_e} rble_gate={rble_gate}"
+            f"fisher_snr={fisher_snr:.2f} p_e={p_fisher:.4f} "
+            f"mz_snr={mz_snr:.2f} p_f={p_mz:.4f} gate_e={gate_e} gate_f={gate_f}"
         ),
         details={
             "phase": data.get("phase"),
             "phase_e": phase_e,
+            "phase_f": phase_f,
             "phase_d": phase_d,
             "rble_scar_axis_test": rble,
             "multiverse_physics_gate": physics,

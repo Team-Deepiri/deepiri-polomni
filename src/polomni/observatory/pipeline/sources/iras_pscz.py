@@ -82,28 +82,55 @@ def fetch_iras_pscz(
     return dest
 
 
-def load_pscz_vectors(path: Path | str | None = None) -> np.ndarray:
-    """Unit equatorial vectors from a cached PSCz JSON."""
+_C_KM_S = 299792.458  # speed of light (km/s) for cz → z
+
+
+def _resolve_pscz_path(path: Path | str | None = None) -> Path:
+    if path is not None:
+        return Path(path)
+    cache = DataCache()
+    resolved = cache.resolved_path(PRODUCT_ID)
+    if resolved is not None:
+        return Path(resolved)
+    cand = cache.root / PRODUCT_ID / "iras_pscz.json"
+    if cand.exists():
+        return cand
+    raise FileNotFoundError("iras_pscz not cached — run fetch_iras_pscz()")
+
+
+def load_pscz_catalog(path: Path | str | None = None) -> dict[str, np.ndarray]:
+    """Equatorial unit vectors + heliocentric velocity / redshift from cached PSCz."""
     from polomni.observatory.pipeline.sources.exoplanets import radec_to_sky_coords
 
-    if path is None:
-        cache = DataCache()
-        resolved = cache.resolved_path(PRODUCT_ID)
-        if resolved is None:
-            cand = cache.root / PRODUCT_ID / "iras_pscz.json"
-            path = cand if cand.exists() else None
-        else:
-            path = resolved
-    if path is None:
-        raise FileNotFoundError("iras_pscz not cached — run fetch_iras_pscz()")
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    payload = json.loads(_resolve_pscz_path(path).read_text(encoding="utf-8"))
     objs = payload.get("objects") or payload
     ra = np.asarray([float(o["ra"]) for o in objs], dtype=float)
     dec = np.asarray([float(o["dec"]) for o in objs], dtype=float)
+    hvel = np.asarray(
+        [float(o["hvel"]) if o.get("hvel") is not None else float("nan") for o in objs],
+        dtype=float,
+    )
     x, y, z = radec_to_sky_coords(ra, dec)
-    return np.column_stack([x, y, z])
+    vecs = np.column_stack([x, y, z])
+    # cz ≈ Hvel for nearby PSCz; clip negative peculiar velocities to z≈0
+    z_est = np.clip(hvel / _C_KM_S, 0.0, None)
+    z_est[~np.isfinite(hvel)] = np.nan
+    return {"vecs_eq": vecs, "hvel": hvel, "z": z_est, "ra": ra, "dec": dec}
+
+
+def load_pscz_vectors(path: Path | str | None = None) -> np.ndarray:
+    """Unit equatorial vectors from a cached PSCz JSON."""
+    return load_pscz_catalog(path)["vecs_eq"]
 
 
 def pscz_report(path: Path | str | None = None) -> dict[str, Any]:
-    vecs = load_pscz_vectors(path)
-    return {"n_objects": int(vecs.shape[0]), "product_id": PRODUCT_ID}
+    cat = load_pscz_catalog(path)
+    z = cat["z"]
+    finite = np.isfinite(z)
+    return {
+        "n_objects": int(cat["vecs_eq"].shape[0]),
+        "product_id": PRODUCT_ID,
+        "z_median": float(np.nanmedian(z)) if np.any(finite) else None,
+        "z_p16": float(np.nanpercentile(z[finite], 16)) if np.any(finite) else None,
+        "z_p84": float(np.nanpercentile(z[finite], 84)) if np.any(finite) else None,
+    }
