@@ -33,3 +33,15 @@ Total **N ≈ 2.6×10⁵**, z ∈ [0.4, 1.1]. Full iron DR1 LSS is the next scal
 
 Same visibility bar as P10 (SNR>2, p<0.01, coherent, optional cross-z <35°).
 Metric **M19**.
+
+## Real-sky (2026-08-25)
+
+| Stack | N | SNR |
+|-------|---|-----|
+| PSCz | 18 351 | **1.28** |
+| DESI Guadalupe LRG | **261 291** | 1.25 |
+| Multi-z stack (0.4/0.6/0.8/1.1) | — | 1.25 |
+| √N expected ratio | 3.77× | observed **0.97×** — scaling fails |
+| Full-DR1 forecast | — | ~2.6 (if amplitude real) |
+
+**Verdict:** Gate fail. Public DESI LRG densification does **not** raise Pearson Fisher above PSCz — consistent with Phase H/I dilution / noise-dominated imprint. Visibility still **not ruled out**; next SOTA levers are (1) fixed-axis matched-filter on DESI shells (Phase J×K), (2) full iron DR1 LSS, (3) ACT kSZ×DESI quadratic estimator closer to Cai RemoteField.
