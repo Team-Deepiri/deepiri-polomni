@@ -1,11 +1,14 @@
 name: Windows Cache Portability
 
 on:
-  push:
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
-
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE*'
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,6 +18,7 @@ permissions:
 
 jobs:
   windows-cache:
+    timeout-minutes: 20
     name: Native Windows Cache Safety
     runs-on: windows-latest
 
