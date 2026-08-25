@@ -75,6 +75,7 @@ class MultiverseProofReport:
             "M12_p5_rdf_tomography",
             "M13_rble_scar_rdf",
             "M16_dense_lrg_fisher",
+            "M17_hammer_fisher",
         }
     )
 
@@ -712,6 +713,67 @@ def _metric_dense_lrg_fisher(
     )
 
 
+def _metric_hammer_fisher(
+    *,
+    report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M17: PSCz∪NVSS∪mega-SDSS hammer Fisher (max public-data visibility push)."""
+    data: dict[str, Any] | None = _load_json_report(report_path)
+    if refresh or (data is None and not quick):
+        from polomni.observatory.pipeline.sources.hammer_fisher import hammer_fisher_report
+
+        data = hammer_fisher_report(
+            nside=32 if quick else 64,
+            nside_dir=4 if quick else 8,
+            n_null=4 if quick else 16,
+            seed=0,
+            refresh=refresh,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            __import__("json").dumps(data, indent=2), encoding="utf-8"
+        )
+
+    if data is None:
+        return ProofMetric(
+            id="M17_hammer_fisher",
+            name="Hammer Fisher (PSCz∪NVSS∪SDSS)",
+            passed=False,
+            value=0.0,
+            threshold=0.01,
+            unit="p_value",
+            message="hammer report unavailable — run polomni data hammer-fisher",
+        )
+
+    gate = bool(data.get("gate_pass"))
+    p_val = float(
+        ((data.get("fisher_hammer") or {}).get("null") or {}).get("p_value", 1.0)
+    )
+    snr = float((data.get("scaling") or {}).get("snr_hammer", 0.0))
+    beats = bool((data.get("scaling") or {}).get("beats_pscz"))
+    n_gal = int((data.get("tracer_hammer") or {}).get("n_galaxies", 0))
+    return ProofMetric(
+        id="M17_hammer_fisher",
+        name="Hammer Fisher (PSCz∪NVSS∪SDSS)",
+        passed=gate,
+        value=p_val,
+        threshold=0.01,
+        unit="p_value",
+        message=(
+            f"n={n_gal} snr={snr:.2f} p={p_val:.3f} beats_pscz={beats} gate={gate}"
+        ),
+        details={
+            "scaling": data.get("scaling"),
+            "tracer_hammer": data.get("tracer_hammer"),
+            "forecast_desi_lrg_class": data.get("forecast_desi_lrg_class"),
+            "gate_pass": gate,
+            "interpretation": data.get("interpretation"),
+        },
+    )
+
+
 def _metric_p1_radon_holdout(*, p1_result_path: Path) -> ProofMetric:
     """M11: P1 Radon scar survived blind Planck holdout (physics bar — currently false)."""
     golden = _load_json_report(p1_result_path.parent / "golden_holdout_v1.json")
@@ -924,6 +986,11 @@ def run_multiverse_proof(
         metrics.append(_metric_dense_lrg_fisher(
             report_path=Path("data/reports/p5_dense_lrg_fisher.json"),
             refresh=refresh_scar_report,
+            quick=quick,
+        ))
+        metrics.append(_metric_hammer_fisher(
+            report_path=Path("data/reports/p5_hammer_fisher.json"),
+            refresh=False,  # use cached hammer; run CLI to refresh
             quick=quick,
         ))
 

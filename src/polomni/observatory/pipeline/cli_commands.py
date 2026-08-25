@@ -661,6 +661,51 @@ def rdf_tomography(
     console.print(f"[dim]Wrote {path}[/dim]")
 
 
+@app.command("hammer-fisher")
+def hammer_fisher_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-fetch NVSS + mega SDSS samples.")
+    ] = False,
+) -> None:
+    """Phase I: Planck × PSCz∪NVSS∪mega-SDSS Fisher — max public-data visibility push."""
+    from polomni.observatory.pipeline.sources.hammer_fisher import hammer_fisher_report
+
+    rep = hammer_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh=refresh
+    )
+    out = Path("data/reports/p5_hammer_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase I — HAMMER visibility Fisher")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_hammer") or {}
+    sc = rep.get("scaling") or {}
+    fc = rep.get("forecast_desi_lrg_class") or {}
+    for key, val in [
+        ("N galaxies", tr.get("n_galaxies")),
+        ("Sources", tr.get("sources")),
+        ("Counts", tr.get("counts")),
+        ("SNR hammer", sc.get("snr_hammer")),
+        ("SNR PSCz∪NVSS", sc.get("snr_pscz_nvss")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("Best stack", sc.get("best_public_stack")),
+        ("Beats PSCz", sc.get("beats_pscz")),
+        ("√N expected", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Obs SNR ratio", sc.get("observed_snr_ratio")),
+        ("DESI forecast", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
 @app.command("dense-lrg-fisher")
 def dense_lrg_fisher(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,

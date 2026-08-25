@@ -12,7 +12,9 @@ Pre-registered, blind-capable observatory analyses for establishing RBLE as phys
 | **P6** Fisher bubble invariant | [P6_FISHER_BUBBLE_INVARIANT.md](./P6_FISHER_BUBBLE_INVARIANT.md) | `multiverse_fisher_scan.py` | Phase E complete |
 | **P7** Multi-z tomography | [P7_MULTI_Z_TOMOGRAPHY.md](./P7_MULTI_Z_TOMOGRAPHY.md) | `multi_z_tomography.py` | Phase F complete |
 | **P8** Blind Fisher holdout | [P8_BLIND_FISHER_HOLDOUT.md](./P8_BLIND_FISHER_HOLDOUT.md) | `blind_fisher_holdout.py` | Phase G complete |
-| **P9** Dense LRG Fisher | [P9_DENSE_LRG_FISHER.md](./P9_DENSE_LRG_FISHER.md) | `polomni data dense-lrg-fisher` | **Active — visibility ladder** |
+| **P9** Dense LRG Fisher | [P9_DENSE_LRG_FISHER.md](./P9_DENSE_LRG_FISHER.md) | `polomni data dense-lrg-fisher` | Phase H |
+| **P10** Planck visibility path | [P10_PLANCK_VISIBILITY_PATH.md](./P10_PLANCK_VISIBILITY_PATH.md) | resources + goals | Active |
+| **P11** Hammer visibility | [P11_HAMMER_VISIBILITY.md](./P11_HAMMER_VISIBILITY.md) | `polomni data hammer-fisher` | **Hammering** |
 
 **Run calibration:** `polomni study run p1 --calibration`  
 **Run blind holdout:** `polomni study run p1 --blind`  
