@@ -14,10 +14,7 @@ from polomni.observatory.filters.string_filter import string_landscape_filter
 from polomni.observatory.ingest.healpix_loader import downsample_map, load_healpix_map
 from polomni.observatory.pipeline.cache import DataCache
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
-from polomni.observatory.scoring.multiple_testing import (
-    count_sky_search_tests,
-    passes_bonferroni,
-)
+from polomni.observatory.scoring.multiple_testing import count_sky_search_tests
 from polomni.observatory.scoring.null_models import NullTier, run_null_tier_comparison, te_correlation_along_axis
 from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
 from polomni.observatory.studies.config import P1StudyConfig, load_p1_config
@@ -86,6 +83,10 @@ def run_p1_study(
     filtered = _apply_filters(cmb, config)
 
     search = config.search
+    null_ensemble_size = int(config.null_ensemble_size)
+    null_seed = int(search.get("null_seed", 7))
+    family_alpha = float(config.significance.get("alpha", 0.01))
+
     detection = hierarchical_sky_search(
         filtered,
         coarse_nside=int(search.get("coarse_nside", 16)),
@@ -93,6 +94,9 @@ def run_p1_study(
         refine_samples=int(search.get("refine_samples", 24)),
         coarse_scan_angles=int(search.get("coarse_scan_angles", 12)),
         seed=int(search.get("seed", 0)),
+        n_null=null_ensemble_size,
+        null_seed=null_seed,
+        family_alpha=family_alpha,
     )
 
     tier_names = [NullTier(t) for t in config.null_tiers]
@@ -104,20 +108,24 @@ def run_p1_study(
         n_hat=detection.preferred_axis,
     )
 
-    n_tests = count_sky_search_tests(
-        scan_angles=int(search.get("coarse_scan_angles", 12)),
-        hierarchical_refine_samples=int(search.get("refine_samples", 24)),
+    meta = detection.metadata
+    n_tests = int(
+        meta.get(
+            "bonferroni_n_tests",
+            count_sky_search_tests(
+                scan_angles=int(search.get("coarse_scan_angles", 12)),
+                hierarchical_refine_samples=int(search.get("refine_samples", 24)),
+            ),
+        )
     )
-    null_maps = generate_null_ensemble(config.null_ensemble_size, nside, seed=7)
-    null_scores = [
-        hierarchical_sky_search(m, coarse_nside=min(16, nside // 4 or 16)).rble_score
-        for m in null_maps
-    ]
-    mu = float(np.mean(null_scores))
-    sigma = float(np.std(null_scores))
-    raw_sigma = (detection.rble_score - mu) / (sigma + 1e-12)
-    bonf_pass, bonf_sigma, bonf_alpha = passes_bonferroni(raw_sigma, n_tests)
+    bonf_pass = bool(meta.get("bonferroni_pass", False))
+    bonf_sigma = float(meta.get("bonferroni_corrected_sigma", 0.0))
+    bonf_alpha = float(meta.get("bonferroni_alpha", family_alpha / max(n_tests, 1)))
+    raw_sigma = float(meta.get("snr", detection.null_sigma))
+    mu = float(meta.get("mu_null", 0.0))
+    sigma = float(meta.get("sigma_null_std", 0.0))
 
+    null_maps = generate_null_ensemble(null_ensemble_size, nside, seed=null_seed)
     te_rho = te_correlation_along_axis(filtered, detection.preferred_axis)
     te_null = [
         te_correlation_along_axis(m, detection.preferred_axis) for m in null_maps[: min(10, len(null_maps))]
@@ -152,6 +160,7 @@ def run_p1_study(
             "corrected_sigma": bonf_sigma,
             "alpha": bonf_alpha,
             "pass": bonf_pass,
+            "status": meta.get("bonferroni_status", "inconclusive_no_nulls"),
         },
         "te_correlation": {
             "rho": te_rho,
