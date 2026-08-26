@@ -12,9 +12,9 @@ from polomni.integration.multiverse_proof import run_multiverse_proof
 from polomni.viz.multiverse.serializers import _graph_to_viz_payload
 
 
-def multiverse_proof_panel(*, quick: bool = True) -> dict[str, Any]:
+def multiverse_proof_panel(*, quick: bool = True, real_sky: bool = True) -> dict[str, Any]:
     """API payload: proof metrics + live multiverse graph + convergence series."""
-    report = run_multiverse_proof(quick=quick)
+    report = run_multiverse_proof(quick=quick, include_real_sky=real_sky)
 
     graph, results = run_closed_loop(
         steps=3 if not quick else 2,
@@ -63,7 +63,10 @@ def multiverse_proof_panel(*, quick: bool = True) -> dict[str, Any]:
         "multiverse_graph": _graph_to_viz_payload(big_graph),
         "branch_depth": branch_depth,
         "conductance_matrix": conductance_matrix,
-        "evidence_tier": _evidence_tier(report.pass_rate, report.all_passed),
+        "evidence_tier": report.evidence_tier,
+        "multiverse_proof_operational": report.multiverse_proof_operational,
+        "physics_established": report.physics_established,
+        "claim": report.claim,
     }
 
 

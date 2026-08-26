@@ -38,16 +38,25 @@ def hierarchical_sky_search(
     n_null: int = 0,
     null_seed: int | None = None,
     family_alpha: float = 0.05,
+    neural_prescreen: bool = False,
 ) -> DetectionReport:
     """Search for preferred RBLE axis — one filter pass, pixel Radon throughout.
 
-    Bonferroni uses formula SNR = (S − μ_null) / σ_null when ``n_null > 0``.
-    Passing the raw S_RBLE score as Gaussian σ is incorrect and is no longer done.
-    Without nulls, Bonferroni is reported as inconclusive (not a free pass).
+    When ``neural_prescreen`` is True and a scar-classifier checkpoint exists,
+    the neural axis seeds the refine cone (does not replace the search).
     """
     full_map = np.asarray(healpix_map, dtype=float).ravel()
     current_nside = map_nside(full_map)
     prepared = PreparedCmbMap.from_map(full_map)
+
+    neural_seed_axis = None
+    if neural_prescreen:
+        try:
+            from polomni.neural.scar_classifier.rble_scanner import predict_preferred_axis
+
+            neural_seed_axis = predict_preferred_axis(full_map)
+        except Exception:
+            neural_seed_axis = None
 
     dir_nside = min(8, max(4, current_nside // 4))
     refine_axis, refine_score, search_meta = search_best_axis(
@@ -57,6 +66,7 @@ def hierarchical_sky_search(
         refine_samples=max(refine_samples, coarse_scan_angles),
         search_n_eta=search_n_eta,
         seed=seed,
+        seed_axis=neural_seed_axis,
     )
 
     if full_tomogram:

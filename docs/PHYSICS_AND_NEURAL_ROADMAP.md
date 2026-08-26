@@ -25,6 +25,9 @@ This document is the execution path from **computational lab** → **data-driven
 | Loop telemetry + `polomni run loop-batch` corpus generator | ✅ |
 | Neural corpus loader + `polomni neural train` | ✅ |
 | Real-sky physics bridge (`polomni run physics-loop`) | ✅ |
+| Graph-NODE guidance in closed loop (`policy=neural`) | ✅ |
+| Scar classifier train + hierarchical neural prescreen | ✅ |
+| `polomni neural evaluate` (neural vs uniform/axis_biased) | ✅ |
 
 ---
 
@@ -189,11 +192,11 @@ flowchart LR
 
 ## Immediate next actions (this week)
 
-1. Merge frontend + axis-search optimization PR
-2. Add `polomni run closed-loop --batch N` for corpus generation
-3. Implement `loop_logger.py` and document schema in `docs/architecture/LOOP_TELEMETRY.md`
-4. Start notebook `20_synthetic_vs_real_axis.ipynb`
-5. Schedule P1 Gate 2 injection recovery CI on every PR
+1. Grow corpus: `bash scripts/build-corpus.sh 200` (then `bash scripts/train-neural.sh`)
+2. Install torch extras for real Graph-NODE training: `poetry install --with torch`
+3. Re-run `polomni neural evaluate --trials 10` after torch training
+4. Wire real-sky axis into `ChoicePolicy.NEURAL` feedback (`physics-loop` + neural)
+5. Draft Methods outline: honest P1/bubble/cross-sky nulls + neural appendix
 
 ---
 
@@ -201,12 +204,15 @@ flowchart LR
 
 - Claiming σ without Bonferroni / holdout
 - Training neural nets without logged loop corpus
-- Leading papers with multiverse narrative before P1 passes Gate 4
+- Leading papers with multiverse narrative before a **new** observational claim passes Gate 4
+- Pretending P1 “almost passed” — it falsified; document and move
+- Bolting on new “agent lab” UIs instead of deepening Graph-NODE / scar / PINN
 
 ---
 
 ## Related docs
 
 - [PHYSICS_ESTABLISHMENT.md](./PHYSICS_ESTABLISHMENT.md) — observational gates
+- [M1_AI_GUIDED_BRANCHING_PREREG.md](./studies/M1_AI_GUIDED_BRANCHING_PREREG.md) — computational branching instrument
 - [FALSIFICATION_CRITERIA.md](./theory/FALSIFICATION_CRITERIA.md) — P1–P3 definitions
 - [ROADMAP.md](../ROADMAP.md) — v0.2.0 product engineering

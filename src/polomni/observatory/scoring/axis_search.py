@@ -146,14 +146,28 @@ def search_best_axis(
     refine_samples: int = 16,
     search_n_eta: int = 16,
     seed: int = 0,
+    seed_axis: np.ndarray | list[float] | None = None,
 ) -> tuple[np.ndarray, float, dict[str, Any]]:
-    """Coarse HEALPix grid + local cone refinement on pre-filtered map."""
+    """Coarse HEALPix grid + local cone refinement on pre-filtered map.
+
+    Optional ``seed_axis`` (e.g. neural scar classifier) is scored and can win
+    the coarse stage, biasing the refine cone without replacing the search.
+    """
     rng = np.random.default_rng(seed)
     directions = healpix_direction_grid(dir_nside)
     coarse_scores = anisotropy_scores_batch(prepared.raw, directions)
     coarse_idx = int(np.argmax(coarse_scores))
     coarse_axis = directions[coarse_idx]
     coarse_score = float(coarse_scores[coarse_idx])
+
+    if seed_axis is not None:
+        seeded = np.asarray(seed_axis, dtype=float).ravel()[:3]
+        seeded = seeded / (np.linalg.norm(seeded) + 1e-15)
+        seed_score = float(anisotropy_scores_batch(prepared.raw, seeded.reshape(1, 3))[0])
+        if seed_score >= coarse_score:
+            coarse_axis = seeded
+            coarse_score = seed_score
+            coarse_idx = -1
 
     candidates = sample_axes_in_cone(
         coarse_axis,
@@ -187,6 +201,7 @@ def search_best_axis(
         "refine_score": refine_score,
         "dir_nside": dir_nside,
         "search_n_eta": search_n_eta,
+        "neural_seed_used": seed_axis is not None and coarse_idx == -1,
     }
     if refine_score >= coarse_score:
         return refine_axis, refine_score, meta

@@ -1,0 +1,23 @@
+{
+  "study_id": "P5-RDF",
+  "title": "Remote dipole/quadrupole bubble template + RBLE scar axis",
+  "registered": "2026-08-24T21:40:58.613412+00:00",
+  "observables": [
+    "phase_a_rdf_rqf_coherence",
+    "phase_b_bubble_template_search",
+    "phase_c_lcdm_simulation_null",
+    "rble_frozen_scar_axis_template"
+  ],
+  "data": {
+    "cmb_map": "planck_smica_cmb",
+    "galaxy_tracer": "iras_pscz",
+    "scar_axis_source": "data/reports/multi_survey_scar_consensus.json",
+    "scar_axis_method": "wmap_k_only_freeze"
+  },
+  "gates": {
+    "M12_visibility": "phase_b p_shuffle<0.01 AND p_sim<0.01 AND rble_gate",
+    "M13_rble_model": "template at frozen scar axis p<0.05 vs isotropic",
+    "multiverse_physics": "M12 + template axis within 25\u00b0 of scar axis"
+  },
+  "honesty": "Does not claim other universes visible until blind Planck holdout. RBLE operational proof (M8/M9) is a separate tier."
+}

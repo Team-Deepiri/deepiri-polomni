@@ -33,9 +33,11 @@ def _branch_loss(pred: np.ndarray, target: np.ndarray) -> float:
     pred_pos = np.maximum(pred, 0.0)
     pred_sum = pred_pos.sum(axis=-1, keepdims=True)
     pred_norm = pred_pos / (pred_sum + 1e-15)
-    mask = target.sum(axis=-1, keepdims=True) > 0
+    row_mask = target.sum(axis=-1) > 0  # (n,)
     err = (pred_norm - target) ** 2
-    return float(np.mean(err[mask])) if mask.any() else float(np.mean(err))
+    if row_mask.any():
+        return float(np.mean(err[row_mask]))
+    return float(np.mean(err))
 
 
 def _parent_outputs(
