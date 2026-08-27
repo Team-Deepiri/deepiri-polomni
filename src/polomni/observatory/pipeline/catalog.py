@@ -77,6 +77,34 @@ CATALOG: dict[str, DataProduct] = {
         refresh_hours=24.0 * 365,
         filename="wmap_9yr_k_band.fits",
     ),
+    "wmap_q_band": DataProduct(
+        id="wmap_q_band",
+        name="WMAP 9yr Q-band smoothed IQU map",
+        url=(
+            "https://lambda.gsfc.nasa.gov/data/map/dr5/skymaps/9yr/smoothed/"
+            "wmap_band_smth_iqumap_r9_9yr_Q_v5.fits"
+        ),
+        kind="fits",
+        tier="standard",
+        description="~100 MB HEALPix — cross-frequency check vs Ka for preferred-axis stability.",
+        mission="WMAP",
+        refresh_hours=24.0 * 365,
+        filename="wmap_9yr_q_band.fits",
+    ),
+    "wmap_v_band": DataProduct(
+        id="wmap_v_band",
+        name="WMAP 9yr V-band smoothed IQU map",
+        url=(
+            "https://lambda.gsfc.nasa.gov/data/map/dr5/skymaps/9yr/smoothed/"
+            "wmap_band_smth_iqumap_r9_9yr_V_v5.fits"
+        ),
+        kind="fits",
+        tier="standard",
+        description="~100 MB HEALPix — mid-frequency WMAP band for multi-map universe scans.",
+        mission="WMAP",
+        refresh_hours=24.0 * 365,
+        filename="wmap_9yr_v_band.fits",
+    ),
     "planck_smica_cmb": DataProduct(
         id="planck_smica_cmb",
         name="Planck DR3 SMICA CMB IQU map (2048, no SZ)",
@@ -136,14 +164,15 @@ CATALOG: dict[str, DataProduct] = {
     "sdss_bao_ladder": DataProduct(
         id="sdss_bao_ladder",
         name="SDSS spectroscopic redshift ladder (SkyServer JSON)",
+        # Keep the SQL simple — SkyServer 500s on bestClass filters / ORDER BY.
         url=(
             "https://skyserver.sdss.org/dr18/SkyServerWS/SearchTools/SqlSearch"
-            "?format=json&cmd=SELECT+TOP+20+z,bestClass+FROM+SpecObj+WHERE+z+BETWEEN+0.15+AND+0.8"
-            "+AND+bestClass%3D%27GALAXY%27+ORDER+BY+z"
+            "?format=json&cmd=SELECT+TOP+200+ra%2Cdec%2Cz+FROM+SpecObj"
+            "+WHERE+z+BETWEEN+0.15+AND+0.8"
         ),
         kind="json",
         tier="lite",
-        description="SDSS public JSON API sample for BAO distance-ladder cross-checks.",
+        description="SDSS public JSON API sample (ra/dec/z) for BAO distance-ladder cross-checks.",
         mission="SDSS",
         refresh_hours=24.0 * 7,
         filename="sdss_bao_ladder.json",

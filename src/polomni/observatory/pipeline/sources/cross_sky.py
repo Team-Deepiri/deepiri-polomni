@@ -49,11 +49,36 @@ class SkySample:
 def load_galaxy_vectors(
     catalog: list[dict] | Path | str,
 ) -> np.ndarray:
-    """Unit vectors from an SDSS sky-object catalog (list of ra/dec dicts)."""
+    """Unit vectors from an SDSS sky-object catalog (list of ra/dec dicts).
+
+    Accepts either a flat list of ``{ra, dec, ...}`` objects or the SkyServer
+    SqlSearch JSON envelope ``[{TableName, Rows: [...]}, ...]``.
+    """
     if not isinstance(catalog, (list, tuple)):
         data = json.loads(Path(catalog).read_text())
     else:
         data = catalog
+    if isinstance(data, dict):
+        data = data.get("Rows") or data.get("rows") or data.get("objects") or []
+    # SkyServer: top-level array of tables; data rows live in Table1.Rows.
+    if (
+        isinstance(data, list)
+        and data
+        and isinstance(data[0], dict)
+        and "Rows" in data[0]
+        and "ra" not in data[0]
+    ):
+        rows: list[dict] = []
+        for table in data:
+            if not isinstance(table, dict):
+                continue
+            name = str(table.get("TableName", ""))
+            if name.lower() in {"sqlquery", "query"}:
+                continue
+            chunk = table.get("Rows") or table.get("rows") or []
+            if isinstance(chunk, list):
+                rows.extend(r for r in chunk if isinstance(r, dict) and "ra" in r)
+        data = rows
     ra = np.asarray([float(o["ra"]) for o in data])
     dec = np.asarray([float(o["dec"]) for o in data])
     x, y, z = radec_to_sky_coords(ra, dec)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 import numpy as np
@@ -16,6 +17,7 @@ from polomni.core.geometry import (
 from polomni.integration.cmb_imprint import imprint_cmb_from_packets
 from polomni.observatory.scoring.hierarchical_search import hierarchical_sky_search
 from polomni.observatory.scoring.rble_signature import DetectionReport
+from polomni.neural.guidance import NeuralGuidance
 
 FeedbackMode = Literal["coordinate_shift", "mutation_strength", "both"]
 
@@ -120,6 +122,7 @@ def run_closed_loop_step(
     seed: int | None = None,
     policy: ChoicePolicy = ChoicePolicy.UNIFORM,
     bias_axis: np.ndarray | list[float] | None = None,
+    branch_weights: np.ndarray | list[float] | None = None,
     apply_feedback: bool = True,
     scan_angles: int = 24,
     feedback_target_axis: np.ndarray | list[float] | None = None,
@@ -131,6 +134,7 @@ def run_closed_loop_step(
         num_choices=num_choices,
         policy=policy,
         bias_axis=bias_axis,
+        branch_weights=branch_weights,
     )
     imprint_seed = (seed if seed is not None else 0) + step
     cmb, true_axis = imprint_cmb_from_packets(
@@ -179,8 +183,17 @@ def run_closed_loop(
     seed: int = 0,
     policy: ChoicePolicy = ChoicePolicy.UNIFORM,
     chain_depth: int = 1,
+    checkpoint_dir: str | Path | None = None,
 ) -> tuple[DistrictGraph, list[LoopStepResult]]:
-    """Multi-step closed loop with chained choice events on leaf districts."""
+    """Multi-step closed loop with chained choice events on leaf districts.
+
+    When ``policy`` is ``NEURAL``, loads Graph-NODE checkpoints (if present)
+    and applies predicted bias axis / branch weights each step.
+    """
+    guidance = None
+    if policy == ChoicePolicy.NEURAL:
+        guidance = NeuralGuidance(checkpoint_dir=checkpoint_dir)
+
     graph = DistrictGraph(gravity_mutation_strength=0.06)
     root = graph.add_district(
         mass=10.0,
@@ -192,9 +205,20 @@ def run_closed_loop(
     results: list[LoopStepResult] = []
 
     for step in range(steps):
-        bias = None
-        if results:
-            bias = results[-1].recovered_axis
+        bias = results[-1].recovered_axis if results else None
+        branch_weights = None
+        step_policy = policy
+
+        if guidance is not None:
+            proposal = guidance.propose(
+                graph,
+                active_parent,
+                num_choices=num_choices,
+                last_recovered_axis=bias,
+            )
+            step_policy = proposal["policy"]
+            bias = proposal["bias_axis"]
+            branch_weights = proposal["branch_weights"]
 
         result = run_closed_loop_step(
             graph,
@@ -203,16 +227,14 @@ def run_closed_loop(
             num_choices=num_choices,
             nside=nside,
             seed=seed,
-            policy=policy,
+            policy=step_policy,
             bias_axis=bias,
+            branch_weights=branch_weights,
             apply_feedback=True,
         )
         results.append(result)
 
-        # Chain: next parent is the highest-conductance child from this event.
-        children = [
-            v for u, v in graph.graph.edges() if u == active_parent
-        ]
+        children = [v for u, v in graph.graph.edges() if u == active_parent]
         if children and chain_depth > 0:
             best = max(children, key=lambda c: graph.get_conductance(active_parent, c))
             active_parent = best

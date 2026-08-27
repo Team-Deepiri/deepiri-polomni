@@ -19,6 +19,7 @@ class ChoicePolicy(str, Enum):
     UNIFORM = "uniform"
     AXIS_BIASED = "axis_biased"
     ENTROPY_MAX = "entropy_max"
+    NEURAL = "neural"
 
 
 def _as_float_array(value: NDArray[np.floating] | list[float] | tuple[float, ...]) -> NDArray[np.floating]:
@@ -80,6 +81,7 @@ class DistrictGraph:
         *,
         policy: ChoicePolicy = ChoicePolicy.UNIFORM,
         bias_axis: NDArray[np.floating] | list[float] | None = None,
+        branch_weights: NDArray[np.floating] | list[float] | None = None,
     ) -> list[StreamPacket]:
         """Spawn ``num_choices`` child districts and emit vacuum stream packets.
 
@@ -89,6 +91,10 @@ class DistrictGraph:
 
         Each child receives a gravity-law mutation ``δg_k`` and a directed edge
         from the parent with ``black_hole_at = x_parent``.
+
+        When ``branch_weights`` is provided (e.g. neural advisor), it overrides
+        the policy simplex. ``ChoicePolicy.NEURAL`` without weights falls back
+        to ``AXIS_BIASED``.
 
         Returns
         -------
@@ -107,12 +113,27 @@ class DistrictGraph:
         parent_mass = float(parent["mass"])
         parent_lambda = float(parent["lambda_vacuum"])
 
-        branch_weights = _branch_weights_for_policy(
-            num_choices,
-            policy=policy,
-            parent_coord=parent_coord,
-            bias_axis=bias_axis,
-        )
+        if branch_weights is not None:
+            weights = np.asarray(branch_weights, dtype=float).ravel()
+            if weights.size != num_choices:
+                raise ValueError(
+                    f"branch_weights length {weights.size} != num_choices {num_choices}"
+                )
+            weights = np.maximum(weights, 0.0)
+            total = float(weights.sum())
+            branch_weights = weights / total if total > 1e-15 else np.ones(num_choices) / num_choices
+            if policy == ChoicePolicy.UNIFORM:
+                policy = ChoicePolicy.NEURAL
+        else:
+            effective = (
+                ChoicePolicy.AXIS_BIASED if policy == ChoicePolicy.NEURAL else policy
+            )
+            branch_weights = _branch_weights_for_policy(
+                num_choices,
+                policy=effective,
+                parent_coord=parent_coord,
+                bias_axis=bias_axis,
+            )
         phi_stream = _compute_phi_stream(
             mass=parent_mass,
             lambda_vacuum=parent_lambda,

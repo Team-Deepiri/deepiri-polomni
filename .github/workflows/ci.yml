@@ -1,11 +1,14 @@
 name: Deepiri CI - deepiri-polomni
 
 on:
-  push:
-    branches: [main, dev]
   pull_request:
     branches: [main, dev]
-
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
+      - 'LICENSE*'
+  workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,6 +18,7 @@ permissions:
 
 jobs:
   lint:
+    timeout-minutes: 20
     name: Lint (Ruff)
     runs-on: ubuntu-latest
 
@@ -32,6 +36,7 @@ jobs:
         run: ruff check src/polomni tests
 
   tests:
+    timeout-minutes: 20
     name: Unit Tests
     runs-on: ubuntu-latest
 
@@ -58,6 +63,7 @@ jobs:
         run: poetry run pytest tests/ -m "not integration" -n auto -q
 
   docker:
+    timeout-minutes: 20
     name: Docker Build Smoke
     runs-on: ubuntu-latest
 

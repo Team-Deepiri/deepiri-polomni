@@ -33,6 +33,9 @@ poetry run polomni run live                 # real data: fetch → gates → P1 
 poetry run polomni run live --blind         # + Planck holdout (one-shot)
 poetry run polomni study gates              # Gates 1–3 before holdout
 poetry run polomni study run p1 --blind     # one-shot Planck holdout
+poetry run polomni neural train             # Graph-NODE + scar classifier on loop corpus
+poetry run polomni neural evaluate          # neural vs uniform closed-loop recovery
+poetry run polomni neural probe             # M2: neural physics-loop vs real sky
 ```
 
 ---

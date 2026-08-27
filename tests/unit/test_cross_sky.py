@@ -40,6 +40,17 @@ def test_load_galaxy_vectors_units() -> None:
     assert np.allclose(np.linalg.norm(v, axis=1), 1.0)
 
 
+def test_load_galaxy_vectors_skyserver_envelope() -> None:
+    """NASA/SDSS SkyServer SqlSearch wraps rows in TableName/Rows tables."""
+    envelope = [
+        {"TableName": "Table1", "Rows": SDSS_FIXTURE},
+        {"TableName": "SqlQuery", "Rows": [{"query": "SELECT ..."}]},
+    ]
+    v = load_galaxy_vectors(envelope)
+    assert v.shape == (4, 3)
+    assert np.allclose(np.linalg.norm(v, axis=1), 1.0)
+
+
 def test_load_gw_vectors_accepts_varying_directions() -> None:
     v = load_gw_vectors(GW_SKY_FIXTURE)
     assert v.shape == (3, 3)

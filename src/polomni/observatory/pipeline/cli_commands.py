@@ -405,6 +405,137 @@ def cross_sky(
     )
 
 
+@app.command("scar-consensus")
+def scar_consensus(
+    nside: Annotated[int, typer.Option("--nside")] = 32,
+    n_null: Annotated[int, typer.Option("--n-null", help="Footprint nulls per catalog.")] = 24,
+    seed: Annotated[int, typer.Option("--seed")] = 0,
+    no_refresh_sdss: Annotated[
+        bool, typer.Option("--no-refresh-sdss", help="Skip RA-strip SDSS re-fetch.")
+    ] = False,
+    no_mask: Annotated[
+        bool, typer.Option("--no-mask", help="Skip clean-sky CMB mask (not recommended).")
+    ] = False,
+    wmap_k_only_freeze: Annotated[
+        bool,
+        typer.Option(
+            "--wmap-k-only-freeze",
+            help="Freeze catalog scoring axis from WMAP K only; Q/V + Planck are holdouts.",
+        ),
+    ] = False,
+    out: Annotated[
+        Path,
+        typer.Option("--out", help="JSON report path."),
+    ] = Path("data/reports/multi_survey_scar_consensus.json"),
+) -> None:
+    """Multi-survey scar: CMB band agreement + catalog gates at CMB axis."""
+    from polomni.observatory.pipeline.sources.multi_survey_scar import (
+        multi_survey_scar_report,
+        write_scar_report,
+    )
+
+    console.print("[dim]Running multi-survey scar consensus (CMB-anchored, clean-sky)…[/dim]")
+    report = multi_survey_scar_report(
+        nside=nside,
+        n_null=n_null,
+        seed=seed,
+        refresh_sdss=not no_refresh_sdss,
+        refresh_pscz=not no_refresh_sdss,
+        apply_mask=not no_mask,
+        wmap_k_only_freeze=wmap_k_only_freeze,
+    )
+    path = write_scar_report(report, out)
+
+    cmb = report.get("cmb") or {}
+    table = Table(title="Gate 1 — Intra-CMB (WMAP K/Q/V)")
+    table.add_column("Map")
+    table.add_column("lon°")
+    table.add_column("lat°")
+    table.add_column("S_RBLE")
+    for p in cmb.get("products") or []:
+        if "error" in p:
+            table.add_row(p["map_product_id"], "—", "—", p["error"][:40])
+        else:
+            table.add_row(
+                p["map_product_id"],
+                f"{p['lon_deg']:.2f}",
+                f"{p['lat_deg']:.2f}",
+                f"{p['rble_score']:.4g}",
+            )
+    console.print(table)
+    console.print(
+        f"  max pairwise sep = {cmb.get('max_pairwise_sep_deg')}°  "
+        f"agree={cmb.get('intra_cmb_agree')} (≤{cmb.get('threshold_deg')}°)"
+    )
+
+    c_table = Table(title="Gates 2–3 — Catalogs vs CMB consensus axis (Galactic)")
+    c_table.add_column("Sky")
+    c_table.add_column("N")
+    c_table.add_column("RBLE σ")
+    c_table.add_column("Ring σ")
+    c_table.add_column("Polar σ")
+    c_table.add_column("residual↔CMB °")
+    for c in report.get("catalogs") or []:
+        sc = c["cmb_axis_score"]
+        ring = c.get("ring_at_cmb") or {}
+        polar = c.get("polar_at_cmb") or {}
+        c_table.add_row(
+            c["sky"],
+            str(c["n_objects"]),
+            f"{sc['null_sigma']:.2f}σ",
+            f"{ring.get('null_sigma', float('nan')):.2f}σ",
+            f"{polar.get('null_sigma', float('nan')):.2f}σ",
+            f"{c['residual_sep_from_cmb_deg']:.1f}",
+        )
+    console.print(c_table)
+
+    hold = report.get("planck_holdout")
+    if hold:
+        console.print(
+            f"[dim]Planck holdout sep from WMAP consensus: "
+            f"{hold['sep_from_consensus_deg']:.1f}°[/dim]"
+        )
+    eq = report.get("cmb_consensus_equatorial_radec") or {}
+    if eq:
+        console.print(
+            f"[dim]CMB consensus equatorial RA/Dec ≈ "
+            f"{eq.get('ra_deg'):.2f}°, {eq.get('dec_deg'):.2f}°[/dim]"
+        )
+    rc = report.get("residual_consensus") or {}
+    if rc.get("n_catalogs"):
+        console.print(
+            f"[dim]residual consensus: cons_sep={rc.get('consensus_sep_from_cmb_deg'):.1f}° "
+            f"max_pair={rc.get('max_pairwise_sep_deg'):.1f}° "
+            f"p_joint={rc.get('p_joint_consensus_and_pairwise'):.4f} "
+            f"pass={rc.get('gate_pass')}[/dim]"
+        )
+
+    gates = report.get("gates") or {}
+    style = "green" if report.get("scar_detected") else "yellow"
+    console.print(f"[{style}]{report.get('claim')}[/{style}]")
+    if report.get("scar_path"):
+        console.print(f"[dim]scar_path={report.get('scar_path')}[/dim]")
+    joint = report.get("joint_ring_search") or {}
+    if joint.get("found"):
+        console.print(
+            f"[dim]joint ring: min_z={joint.get('min_null_sigma'):.2f} "
+            f"sep_cmb={joint.get('sep_from_cmb_consensus_deg'):.1f}° "
+            f"scar_joint={joint.get('scar_joint')} "
+            f"method={joint.get('method', 'grid')}[/dim]"
+        )
+    console.print(
+        f"[dim]gates: intra_cmb={gates.get('intra_cmb')} "
+        f"planck_holdout={gates.get('planck_holdout')} "
+        f"cross_rble={gates.get('cross_rble')} "
+        f"cross_ring={gates.get('cross_ring')} "
+        f"cross_polar={gates.get('cross_polar')} "
+        f"residual_nematic={gates.get('residual_nematic')} "
+        f"residual_consensus={gates.get('residual_consensus')} "
+        f"joint_ring={gates.get('joint_ring')}[/dim]"
+    )
+    console.print(f"[dim]Wrote {path}[/dim]")
+
+
 @app.command("bubble")
 def bubble(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 128,
@@ -481,6 +612,225 @@ def bubble(
             "(isotropic: 1/(2l+1)). The CMB's own 'axis of evil' is the null, "
             "not a detection.[/dim]"
         )
+
+
+@app.command("rdf-tomography")
+def rdf_tomography(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis search grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Galaxy-shuffle null realizations.")] = 32,
+    lmin: Annotated[int, typer.Option("--lmin", help="High-pass ℓ minimum.")] = 30,
+) -> None:
+    """P5-RDF: Planck × PSCz remote dipole/quadrupole proxy (Phase A)."""
+    from polomni.observatory.pipeline.sources.rdf_tomography import (
+        rdf_tomography_report,
+        write_rdf_report,
+    )
+
+    rep = rdf_tomography_report(nside=nside, nside_dir=nside_dir, n_null=n_null, lmin=lmin)
+    path = write_rdf_report(rep)
+
+    header = Table(title="P5-RDF — multiverse physics (Phase A–G blind holdout)")
+    header.add_column("Field")
+    header.add_column("Value")
+    pa = rep.get("phase_a") or {}
+    null_a = pa.get("null") or {}
+    pe = rep.get("phase_e") or {}
+    pf = rep.get("phase_f") or {}
+    pg = rep.get("phase_g") or {}
+    dense = rep.get("dense_tracer_forecast") or {}
+    obs_e = pe.get("observed") or {}
+    stacked_f = pf.get("stacked") or {}
+    hold = pg.get("holdout") or {}
+    for key, val in [
+        ("Map", rep["map_product_id"]),
+        ("Phase", rep.get("phase", "?")),
+        ("Fisher SNR (E)", obs_e.get("fisher_snr")),
+        ("Multi-z SNR (F)", stacked_f.get("fisher_snr")),
+        ("Holdout SNR (G)", hold.get("fisher_snr_at_frozen_axis")),
+        ("Holdout null p", (hold.get("null") or {}).get("p_value")),
+        ("DESI forecast SNR", (dense.get("forecast_desi_lrg_class") or {}).get("snr_forecast")),
+        ("Physics gate", str((rep.get("multiverse_physics_gate") or {}).get("pass"))),
+        ("Verdict", rep["verdict"]),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    if null_a:
+        console.print(f"[dim]Phase A coherence p={(null_a.get('template_coherence') or {}).get('p_value')}[/dim]")
+    console.print(f"[dim]{rep['honesty']}[/dim]")
+    console.print(f"[dim]Wrote {path}[/dim]")
+
+
+@app.command("hammer-fisher")
+def hammer_fisher_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-fetch NVSS + mega SDSS samples.")
+    ] = False,
+) -> None:
+    """Phase I: Planck × PSCz∪NVSS∪mega-SDSS Fisher — max public-data visibility push."""
+    from polomni.observatory.pipeline.sources.hammer_fisher import hammer_fisher_report
+
+    rep = hammer_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh=refresh
+    )
+    out = Path("data/reports/p5_hammer_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase I — HAMMER visibility Fisher")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_hammer") or {}
+    sc = rep.get("scaling") or {}
+    fc = rep.get("forecast_desi_lrg_class") or {}
+    for key, val in [
+        ("N galaxies", tr.get("n_galaxies")),
+        ("Sources", tr.get("sources")),
+        ("Counts", tr.get("counts")),
+        ("SNR hammer", sc.get("snr_hammer")),
+        ("SNR PSCz∪NVSS", sc.get("snr_pscz_nvss")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("Best stack", sc.get("best_public_stack")),
+        ("Beats PSCz", sc.get("beats_pscz")),
+        ("√N expected", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Obs SNR ratio", sc.get("observed_snr_ratio")),
+        ("DESI forecast", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
+@app.command("amplitude-locksmith")
+def amplitude_locksmith_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+) -> None:
+    """Phase J: matched-filter amplitude past Pearson wall + WMAP×Planck coadd."""
+    from polomni.observatory.pipeline.sources.amplitude_locksmith import (
+        amplitude_locksmith_report,
+    )
+
+    rep = amplitude_locksmith_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null
+    )
+    out = Path("data/reports/p5_amplitude_locksmith.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase J — AMPLITUDE LOCKSMITH")
+    header.add_column("Field")
+    header.add_column("Value")
+    sc = rep.get("scaling") or {}
+    for key, val in [
+        ("CMB missions", rep.get("cmb_missions_coadded")),
+        ("N galaxies", rep.get("n_galaxies")),
+        ("SNR Pearson", sc.get("snr_pearson")),
+        ("SNR sky-max MF", sc.get("snr_matched_sky_max")),
+        ("excess_z fixed Planck", sc.get("excess_z_fixed_planck")),
+        ("excess_z fixed coadd", sc.get("excess_z_fixed_coadd")),
+        ("null_ratio fixed Planck", sc.get("null_ratio_fixed_planck")),
+        ("null_ratio fixed coadd", sc.get("null_ratio_fixed_coadd")),
+        ("min inject amp", sc.get("min_inject_amp_gate")),
+        ("amplitude path proven", sc.get("amplitude_path_proven")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
+@app.command("desi-lrg-fisher")
+def desi_lrg_fisher_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-download DESI Guadalupe LRG FITS.")
+    ] = False,
+) -> None:
+    """Phase K: Planck × DESI LRG (Guadalupe) Fisher + Cai multi-z tomography."""
+    from polomni.observatory.pipeline.sources.desi_lrg_fisher import desi_lrg_fisher_report
+
+    rep = desi_lrg_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh=refresh
+    )
+    out = Path("data/reports/p5_desi_lrg_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase K — DESI LRG Fisher (SOTA lever)")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_desi") or {}
+    sc = rep.get("scaling") or {}
+    mz = rep.get("multi_z") or {}
+    fc = rep.get("forecast_full_dr1_lrg") or {}
+    for key, val in [
+        ("N DESI LRG", tr.get("n_galaxies")),
+        ("z range", tr.get("z_range")),
+        ("SNR DESI", sc.get("snr_desi")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("SNR multi-z stack", sc.get("snr_multi_z_stack")),
+        ("cross-z sep deg", mz.get("cross_z_mean_sep_deg")),
+        ("√N expected", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Obs SNR ratio", sc.get("observed_snr_ratio")),
+        ("Beats PSCz", sc.get("beats_pscz")),
+        ("Full-DR1 forecast", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
+@app.command("dense-lrg-fisher")
+def dense_lrg_fisher(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    nside_dir: Annotated[int, typer.Option("--nside-dir", help="Axis search grid nside.")] = 8,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 12,
+    refresh_lrg: Annotated[
+        bool, typer.Option("--refresh-lrg", help="Re-fetch SDSS LRG RA-strip sample.")
+    ] = False,
+) -> None:
+    """Phase H: Planck × denser PSCz∪SDSS-LRG Fisher + √N scaling + DESI forecast."""
+    from polomni.observatory.pipeline.sources.dense_lrg_fisher import dense_fisher_report
+
+    rep = dense_fisher_report(
+        nside=nside, nside_dir=nside_dir, n_null=n_null, refresh_lrg=refresh_lrg
+    )
+    out = Path("data/reports/p5_dense_lrg_fisher.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase H — dense LRG Fisher (visibility ladder)")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_dense") or {}
+    sc = rep.get("scaling") or {}
+    fc = rep.get("forecast_desi_lrg_class") or {}
+    for key, val in [
+        ("N galaxies (dense)", tr.get("n_galaxies")),
+        ("N LRG", tr.get("n_lrg")),
+        ("SNR dense", sc.get("snr_dense")),
+        ("SNR PSCz", sc.get("snr_pscz")),
+        ("√N expected ratio", sc.get("expected_snr_ratio_sqrt_n")),
+        ("Observed SNR ratio", sc.get("observed_snr_ratio")),
+        ("DESI forecast SNR", fc.get("snr_forecast")),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
 
 
 @app.command("correlate")
