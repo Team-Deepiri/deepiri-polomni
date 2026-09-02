@@ -57,4 +57,6 @@ def test_p1_runner_writes_result(study_cache, tmp_path) -> None:
     assert result["study_id"] == "p1_cmb_radon_scar"
     assert "detection" in result
     assert "null_tier_comparison" in result
+    assert result["bonferroni"]["status"] == "computed_known_axis_null"
+    assert "snr" in result["detection"]["metadata"]
     assert json.loads(out.read_text(encoding="utf-8")) == result

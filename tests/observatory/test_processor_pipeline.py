@@ -57,9 +57,6 @@ def _install_processor_mocks(
         f"{base}.inverse_radon_bifurcation_filter",
         lambda m, angles: m + 1000.0,
     )
-    monkeypatch.setattr(
-        f"{base}.generate_null_ensemble", lambda n, nside, seed: []
-    )
     monkeypatch.setattr(f"{base}.correlate_gw_rble", lambda *a, **k: [])
     monkeypatch.setattr(f"{base}.compute_rble_signature", signature)
 
@@ -91,7 +88,7 @@ def test_rble_pipeline_emits_single_score_start_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Only one ``score_start`` event should be logged per pipeline run."""
-    def signature(m: np.ndarray) -> DetectionReport:
+    def signature(m: np.ndarray, **_kwargs: Any) -> DetectionReport:
         return DetectionReport(
             rble_score=1.0,
             preferred_axis=[0.0, 0.0, 1.0],
@@ -113,7 +110,7 @@ def test_rble_pipeline_detection_scores_the_filtered_map(
     """Detection must be computed on the P1-filtered map, exactly once."""
     captured: list[np.ndarray] = []
 
-    def signature(m: np.ndarray) -> DetectionReport:
+    def signature(m: np.ndarray, **_kwargs: Any) -> DetectionReport:
         captured.append(np.asarray(m, dtype=float).copy())
         return DetectionReport(
             rble_score=1.0,
