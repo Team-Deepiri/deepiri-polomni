@@ -35,7 +35,6 @@ from polomni.observatory.pipeline.sources.gwosc import (
     new_events_since,
 )
 from polomni.observatory.reports.detection_report import save_json
-from polomni.observatory.scoring.null_ensemble import generate_null_ensemble
 from polomni.observatory.scoring.rble_signature import DetectionReport, compute_rble_signature
 
 
@@ -236,13 +235,12 @@ def run_rble_pipeline(
         )
     )
 
-    detection = compute_rble_signature(cmb_map)
-    null_maps = generate_null_ensemble(null_ensemble, target_nside, seed=7)
-    null_scores = [compute_rble_signature(m).rble_score for m in null_maps]
-    mu = float(np.mean(null_scores))
-    sigma = float(np.std(null_scores))
-    if sigma > 0:
-        detection.null_sigma = (detection.rble_score - mu) / sigma
+    detection = compute_rble_signature(
+        cmb_map,
+        n_null=null_ensemble,
+        null_seed=7,
+        family_alpha=0.05,
+    )
 
     log.append(
         pipeline_event(

@@ -29,21 +29,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install cache test dependencies
-        run: >-
-          python -m pip install
-          "filelock>=3.30.0,<4"
-          "numpy>=1.26,<3"
-          "pydantic>=2.6,<3"
-          "pytest>=8,<9"
-          "pytest-cov>=4.1,<8"
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Cache Poetry environment
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --with dev --no-interaction --no-ansi
 
       - name: Prove native Windows cache import
-        env:
-          PYTHONPATH: src
-        run: python -c "from polomni.observatory.pipeline.cache import DataCache; print(DataCache)"
+        run: poetry run python -c "from polomni.observatory.pipeline.cache import DataCache; print(DataCache)"
 
       - name: Run cache safety tests
-        env:
-          PYTHONPATH: src
-        run: python -m pytest tests/observatory/test_cache_safety.py -q
+        run: poetry run pytest tests/observatory/test_cache_safety.py -q -o addopts=
