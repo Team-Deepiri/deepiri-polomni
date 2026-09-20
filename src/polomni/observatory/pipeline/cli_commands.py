@@ -792,6 +792,50 @@ def desi_lrg_fisher_cmd(
     console.print(f"[dim]Wrote {out}[/dim]")
 
 
+@app.command("desi-amplitude-locksmith")
+def desi_amplitude_locksmith_cmd(
+    nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,
+    n_null: Annotated[int, typer.Option("--n-null", help="Null realizations.")] = 16,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Re-download DESI Guadalupe LRG FITS.")
+    ] = False,
+) -> None:
+    """Phase L: DESI LRG × fixed-axis matched-filter (J×K visibility lever)."""
+    from polomni.observatory.pipeline.sources.desi_amplitude_locksmith import (
+        desi_amplitude_locksmith_report,
+    )
+
+    rep = desi_amplitude_locksmith_report(
+        nside=nside, n_null=n_null, refresh=refresh
+    )
+    out = Path("data/reports/p5_desi_amplitude_locksmith.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(__import__("json").dumps(rep, indent=2), encoding="utf-8")
+
+    header = Table(title="Phase L — DESI × AMPLITUDE LOCKSMITH")
+    header.add_column("Field")
+    header.add_column("Value")
+    tr = rep.get("tracer_desi") or {}
+    sc = rep.get("scaling") or {}
+    mz = rep.get("multi_z_matched") or {}
+    for key, val in [
+        ("N DESI LRG", tr.get("n_galaxies")),
+        ("excess_z DESI", sc.get("excess_z_desi")),
+        ("excess_z PSCz", sc.get("excess_z_pscz")),
+        ("null_ratio DESI", sc.get("null_ratio_desi")),
+        ("stacked excess_z", sc.get("stacked_excess_z")),
+        ("beats PSCz", sc.get("beats_pscz_excess")),
+        ("min inject amp", sc.get("min_inject_amp_gate")),
+        ("path proven", sc.get("amplitude_path_proven")),
+        ("multi-z bins", len(mz.get("bins") or [])),
+        ("Gate", rep.get("gate_pass")),
+        ("Interpretation", rep.get("interpretation")),
+    ]:
+        header.add_row(key, str(val))
+    console.print(header)
+    console.print(f"[dim]Wrote {out}[/dim]")
+
+
 @app.command("dense-lrg-fisher")
 def dense_lrg_fisher(
     nside: Annotated[int, typer.Option("--nside", help="Map resolution.")] = 64,

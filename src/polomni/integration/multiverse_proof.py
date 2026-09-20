@@ -78,6 +78,7 @@ class MultiverseProofReport:
             "M17_hammer_fisher",
             "M18_amplitude_locksmith",
             "M19_desi_lrg_fisher",
+            "M20_desi_amplitude_locksmith",
         }
     )
 
@@ -903,6 +904,67 @@ def _metric_desi_lrg_fisher(
     )
 
 
+def _metric_desi_amplitude_locksmith(
+    *,
+    report_path: Path,
+    refresh: bool,
+    quick: bool,
+) -> ProofMetric:
+    """M20: DESI × fixed-axis matched-filter (Phase L visibility lever)."""
+    data: dict[str, Any] | None = _load_json_report(report_path)
+    if refresh or (data is None and not quick):
+        from polomni.observatory.pipeline.sources.desi_amplitude_locksmith import (
+            desi_amplitude_locksmith_report,
+        )
+
+        data = desi_amplitude_locksmith_report(
+            nside=32 if quick else 64,
+            n_null=4 if quick else 16,
+            seed=0,
+            refresh=refresh,
+        )
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(
+            __import__("json").dumps(data, indent=2), encoding="utf-8"
+        )
+
+    if data is None:
+        return ProofMetric(
+            id="M20_desi_amplitude_locksmith",
+            name="DESI × amplitude locksmith",
+            passed=False,
+            value=0.0,
+            threshold=0.01,
+            unit="p_value",
+            message="DESI MF report unavailable — run polomni data desi-amplitude-locksmith",
+        )
+
+    gate = bool(data.get("gate_pass"))
+    fixed = data.get("matched_fixed_desi") or {}
+    p_val = float((fixed.get("null") or {}).get("p_value", 1.0))
+    ez = float((data.get("scaling") or {}).get("excess_z_desi", 0.0))
+    path = bool((data.get("scaling") or {}).get("amplitude_path_proven"))
+    n_gal = int((data.get("tracer_desi") or {}).get("n_galaxies", 0))
+    return ProofMetric(
+        id="M20_desi_amplitude_locksmith",
+        name="DESI × amplitude locksmith",
+        passed=gate,
+        value=p_val,
+        threshold=0.01,
+        unit="p_value",
+        message=(
+            f"n={n_gal} excess_z={ez:.2f} path_proven={path} p={p_val:.3f} gate={gate}"
+        ),
+        details={
+            "scaling": data.get("scaling"),
+            "multi_z_matched": data.get("multi_z_matched"),
+            "inject_ladder_desi": data.get("inject_ladder_desi"),
+            "gate_pass": gate,
+            "interpretation": data.get("interpretation"),
+        },
+    )
+
+
 def _metric_p1_radon_holdout(*, p1_result_path: Path) -> ProofMetric:
     """M11: P1 Radon scar survived blind Planck holdout (physics bar — currently false)."""
     golden = _load_json_report(p1_result_path.parent / "golden_holdout_v1.json")
@@ -1129,6 +1191,11 @@ def run_multiverse_proof(
         ))
         metrics.append(_metric_desi_lrg_fisher(
             report_path=Path("data/reports/p5_desi_lrg_fisher.json"),
+            refresh=False,
+            quick=quick,
+        ))
+        metrics.append(_metric_desi_amplitude_locksmith(
+            report_path=Path("data/reports/p5_desi_amplitude_locksmith.json"),
             refresh=False,
             quick=quick,
         ))
